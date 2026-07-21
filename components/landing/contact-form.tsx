@@ -28,6 +28,17 @@ export function ContactForm() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    
+    if (!formData.name.trim()) {
+      setError("Please provide your name.");
+      return;
+    }
+
+    if (!formData.email.trim() || !formData.email.includes("@")) {
+      setError("Please provide a valid email address.");
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
 
