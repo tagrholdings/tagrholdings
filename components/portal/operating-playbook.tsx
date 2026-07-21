@@ -493,7 +493,7 @@ export function OperatingPlaybook() {
       <footer className="bg-[var(--ink)] border-t border-[rgba(245,242,236,0.16)] text-[rgba(245,242,236,0.55)] text-center px-6 py-10 font-mono text-[11px] uppercase tracking-[0.1em]">
         TAGR Holdings — <b className="text-[var(--cream)] font-medium">Confidential</b> — Operating Playbook — Portfolio Executive Framework 2026
       </footer>
-      <ScrollToTop />
+      {/* <ScrollToTop /> */}
     </div>
   );
 }
