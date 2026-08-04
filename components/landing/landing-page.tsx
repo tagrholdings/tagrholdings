@@ -1,42 +1,58 @@
 import Link from "next/link";
 import Image from "next/image";
 import { AnimatedSection } from "@/components/landing/animated-section";
+import { AnimatedQuote } from "@/components/landing/animated-quote";
 import { ContactForm } from "@/components/landing/contact-form";
 import { HeroHeader } from "@/components/shared/hero-header";
 import { NavBar } from "@/components/shared/nav-bar";
 import { ScrollToTop } from "@/components/shared/scroll-to-top";
 
+
 const portfolioItems = [
   {
     id: "01",
-    name: "Unified",
-    description: "Multi-trade home services group — placeholder description.",
-    sector: "Home Services",
-    est: "EST. ----",
+    name: "Menlo Group Commercial Real Estate",
+    description: "menlocre.com",
+    sector: "Commercial Real Estate",
+    est: "EST. 2008",
   },
   {
     id: "02",
-    name: "Grounded",
-    description: "Land, agriculture, or real asset operations — placeholder description.",
-    sector: "Land & Real Assets",
-    est: "EST. ----",
-  },
-  {
-    id: "03",
-    name: "[HVAC Company]",
-    description: "Residential and commercial HVAC — placeholder description.",
-    sector: "Mechanical / HVAC",
+    name: "Menlo Dental Transition and Business Brokerage",
+    description: "menlotransitions.com & menlobusinessbrokerage.com",
+    sector: "Dental & Brokerage",
     est: "EST. ----",
   },
   {
     id: "04",
-    name: "Menlo Group CRE",
-    description: "Commercial real estate brokerage & investment — placeholder description.",
-    sector: "Commercial Real Estate",
+    name: "Unified Commercial Property Management",
+    description: "",
+    sector: "Property Management",
     est: "EST. ----",
   },
   {
     id: "05",
+    name: "Dental Menu",
+    description: "",
+    sector: "Dental Services",
+    est: "EST. ----",
+  },
+  {
+    id: "06",
+    name: "Mountain Peak Air and Plumbing",
+    description: "",
+    sector: "Home Services",
+    est: "EST. ----",
+  },
+  {
+    id: "07",
+    name: "Grounded Pest Control",
+    description: "",
+    sector: "Pest Control",
+    est: "EST. ----",
+  },
+  {
+    id: "08",
     name: "Under Consideration",
     description: "We’re always evaluating well-run businesses looking for their next chapter.",
     sector: "Open",
@@ -46,20 +62,20 @@ const portfolioItems = [
 
 const values = [
   {
-    title: "Relationships first",
-    copy: "Deals are made between people, not spreadsheets. We stay in business with people we trust for decades, not quarters.",
+    title: "Better Every Day",
+    copy: "We relentlessly pursue improvement—in ourselves, our companies, and the people we lead. We are lifelong learners",
   },
   {
-    title: "Ownership mentality",
-    copy: "Every operator we back is treated — and treats their team — like an owner, not a manager passing through.",
+    title: "Build People",
+    copy: "We develop leaders, create opportunities, and help others become more capable than they believed possible.",
   },
   {
-    title: "Built to be true",
-    copy: "No business under this roof is asked to be something it’s not. Authentic brands compound; imitations don’t.",
+    title: "Own it",
+    copy: "We act with discipline, accountability, and long-term stewardship. Every dollar, every relationship, every decision we make.",
   },
   {
-    title: "Play the long game",
-    copy: "We underwrite for decades, not exits. Patience is the actual competitive advantage nobody wants to admit to.",
+    title: "Execute with Excellence",
+    copy: "We keep our commitments, solve problems, and finish what we start",
   },
 ];
 
@@ -147,18 +163,16 @@ export function LandingPage() {
         </AnimatedSection>
       </HeroHeader>
 
-      <section className="border-b border-[rgba(27,29,31,0.14)] px-6 py-20 lg:px-8">
+      <section className="border-b border-[rgba(27,29,31,0.14)] px-6 py-12 lg:px-8 bg-[var(--paper)]">
         <div className="mx-auto max-w-6xl">
-          <AnimatedSection>
-            <p className="max-w-3xl font-serif text-[clamp(1.35rem,2.4vw,2rem)] leading-[1.45] text-[var(--ink)]">
-              “I didn’t want to build one company. I wanted to build a place where good businesses — and the people who run them — could get stronger together.”
-            </p>
-            <div className="mt-6 font-mono text-[12px] uppercase tracking-[0.04em] text-[var(--slate)]">
-              — TANNER, FOUNDER
-            </div>
-          </AnimatedSection>
+          <AnimatedQuote 
+            text="“After my first 10 years in business almost burned me out, I looked for a system and structure where I could find a balance of success and still be the husband and father I wanted to be. So as I got involved in other businesses, I wanted to build a place where good businesses — and the people who run them — could find the same. It’s not all about money, as there is so much more to life.”"
+            author="TANNER, FOUNDER"
+          />
         </div>
       </section>
+
+
 
       <section id="portfolio" className="px-6 py-24 lg:px-8">
         <div className="mx-auto max-w-6xl">
@@ -262,6 +276,14 @@ export function LandingPage() {
               </AnimatedSection>
             ))}
           </div>
+
+          <AnimatedSection className="mt-16 flex flex-col md:flex-row justify-center items-center gap-6 md:gap-12 border-t border-[rgba(27,29,31,0.1)] pt-12">
+            <div className="font-sans text-[20px] font-bold tracking-tight text-[var(--ink)]">We Build People.</div>
+            <div className="hidden md:block h-1.5 w-1.5 rounded-full bg-[var(--brass)]" />
+            <div className="font-sans text-[20px] font-bold tracking-tight text-[var(--ink)]">We Get Better Every Day.</div>
+            <div className="hidden md:block h-1.5 w-1.5 rounded-full bg-[var(--brass)]" />
+            <div className="font-sans text-[20px] font-bold tracking-tight text-[var(--ink)]">We Think Like Owners.</div>
+          </AnimatedSection>
         </div>
       </section>
 
