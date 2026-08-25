@@ -61,7 +61,7 @@ export async function POST(request: Request) {
         to: [email],
         subject: "Your private access to TAGR Holdings",
         html: contactAccessEmail(name, accessToken),
-        text: `Hi ${name || "there"},\n\nThanks for reaching out. Open your private portal: ${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/portal?token=${accessToken}\n\nTAGR Holdings`,
+        text: `Hi ${name || "there"},\n\nThanks for reaching out. Open your private portal: ${process.env.SITE_URL || "http://localhost:3000"}/portal?token=${accessToken}\n\nTAGR Holdings`,
       }),
       resend.emails.send({
         from: "TAGR Holdings <contact@tagrholdings.com>",

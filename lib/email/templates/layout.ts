@@ -1,4 +1,4 @@
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+const SITE_URL = process.env.SITE_URL || "http://localhost:3000";
 const LOGO_URL = `${SITE_URL}/brand/LogoBrand-Monocolor.png`;
 
 export function emailLayout(bodyHtml: string) {

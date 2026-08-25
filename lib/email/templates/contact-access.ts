@@ -1,7 +1,7 @@
 import { emailLayout } from "./layout";
 
 export function contactAccessEmail(name: string | undefined, accessToken: string) {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const siteUrl = process.env.SITE_URL || "http://localhost:3000";
   const portalUrl = `${siteUrl}/portal?token=${accessToken}`;
 
   const body = `
