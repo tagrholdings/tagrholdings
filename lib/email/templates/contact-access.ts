@@ -6,7 +6,7 @@ export function contactAccessEmail(name: string | undefined, accessToken: string
 
   const body = `
     <h1 style="margin:0 0 20px; font-family: Georgia, 'Times New Roman', serif; font-size:22px; font-weight:600; color:#1b1d1f;">
-      Welcome to the private portal
+      Welcome to the private portal!
     </h1>
     <p style="margin:0 0 16px;">Hi ${name || "there"},</p>
     <p style="margin:0 0 16px;">
