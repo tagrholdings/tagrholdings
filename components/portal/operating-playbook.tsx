@@ -256,8 +256,8 @@ export function OperatingPlaybook() {
             {[
               ["Documentation", "Trainual serves as the central repository for every SOP and training resource across the company."],
               ["HR & Payroll", "Gusto handles HR administration, payroll, and benefits compliance."],
-              ["Bookkeeping", "Day-to-day bookkeeping managed by Chris."],
-              ["Strategic Finance", "Managed by Derek, our CFO, using a centralized CFO dashboard for visibility."],
+              ["Bookkeeping", "Day-to-day bookkeeping managed in-house."],
+              ["Strategic Finance", "Managed by our CFO, using a centralized CFO dashboard for visibility."],
               ["Marketing", "In-house marketing team or agency partner, depending on the company."],
               ["Communication & Storage", "Slack — including heavy use of Slack audio — and Google Drive for comms and file storage."],
               ["CRM", "An industry-specific CRM, selected to fit each company's needs."]
@@ -289,8 +289,8 @@ export function OperatingPlaybook() {
 
           <div className="border-t border-[rgba(27,29,31,0.14)]">
             {[
-              ["Bookkeeping", "Owned by Chris, keeping day-to-day records accurate and current."],
-              ["Strategic Finance", "Owned by Derek, our CFO, supported by a centralized CFO dashboard."],
+              ["Bookkeeping", "Owned in-house, keeping day-to-day records accurate and current."],
+              ["Strategic Finance", "Owned by our CFO, supported by a centralized CFO dashboard."],
               ["Review Routine", "A full monthly review of financial statements across the portfolio."]
             ].map(([title, desc]) => (
               <AnimatedSection key={title} className="group grid gap-4 border-b border-[rgba(27,29,31,0.14)] py-6 md:grid-cols-[200px_minmax(0,1fr)] cursor-default">

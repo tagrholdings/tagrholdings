@@ -1,6 +1,17 @@
 import { createAccessToken } from "@/lib/access";
+import { contactAccessEmail } from "@/lib/email/templates/contact-access";
+import { notifyTannerEmail } from "@/lib/email/templates/notify-tanner";
+import { getClientIp, isRateLimited } from "@/lib/rate-limit";
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
+
+const TANNER_NOTIFICATION_EMAIL =
+  process.env.TANNER_NOTIFICATION_EMAIL || "admin@tagrholdings.com";
+
+const IP_LIMIT = 5;
+const IP_WINDOW_MS = 10 * 60 * 1000;
+const EMAIL_LIMIT = 2;
+const EMAIL_WINDOW_MS = 60 * 60 * 1000;
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
@@ -8,12 +19,27 @@ const resend = process.env.RESEND_API_KEY
 
 export async function POST(request: Request) {
   try {
+    const ip = getClientIp(request);
+    if (isRateLimited(`ip:${ip}`, IP_LIMIT, IP_WINDOW_MS)) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429 }
+      );
+    }
+
     const { name, email, message } = await request.json();
 
     if (!email || !email.includes("@")) {
       return NextResponse.json(
         { error: "Please provide a valid email address." },
         { status: 400 }
+      );
+    }
+
+    if (isRateLimited(`email:${email}`, EMAIL_LIMIT, EMAIL_WINDOW_MS)) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429 }
       );
     }
 
@@ -29,21 +55,25 @@ export async function POST(request: Request) {
 
     const accessToken = createAccessToken(email);
 
-    await resend.emails.send({
-      from: "TAGR Holdings <onboarding@resend.dev>",
-      to: [email],
-      subject: "Your private access to TAGR Holdings",
-      html: `
-        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1b1d1f;">
-          <h2 style="color: #9c7a3c;">Welcome to the TAGR Holdings private portal</h2>
-          <p>Hi ${name || "there"},</p>
-          <p>Thanks for reaching out. You can now access the private operating playbook using the link below.</p>
-          <p><a href="${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/portal?token=${accessToken}" style="color: #9c7a3c;">Open your private portal</a></p>
-          <p>Your message was:</p>
-          <p style="padding: 12px; background: #f5f2ec; border-radius: 6px;">${message || "No message provided."}</p>
-        </div>
-      `,
-    });
+    await Promise.all([
+      resend.emails.send({
+        from: "TAGR Holdings <contact@tagrholdings.com>",
+        to: [email],
+        subject: "Your private access to TAGR Holdings",
+        html: contactAccessEmail(name, accessToken),
+        text: `Hi ${name || "there"},\n\nThanks for reaching out. Open your private portal: ${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/portal?token=${accessToken}\n\nTAGR Holdings`,
+      }),
+      resend.emails.send({
+        from: "TAGR Holdings <contact@tagrholdings.com>",
+        to: [TANNER_NOTIFICATION_EMAIL],
+        replyTo: email,
+        subject: `New contact form submission from ${name || email}`,
+        html: notifyTannerEmail(name, email, message, {
+          submittedAt: new Date(),
+          ip,
+        }),
+      }),
+    ]);
 
     return NextResponse.json({
       ok: true,
