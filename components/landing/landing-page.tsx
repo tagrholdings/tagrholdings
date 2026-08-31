@@ -333,7 +333,7 @@ export function LandingPage() {
                   Founder, TAGR Holdings · MBA, CCIM, SIOR
                 </div>
                 <blockquote className="mt-6 max-w-[560px] border-l-2 border-[var(--brass)] pl-6 font-serif text-[22px] italic leading-[1.5] text-[var(--ink)]">
-                  “I’d rather own four businesses I understand deeply than forty I only skim.”
+                  “I have a higher tolerance for risk than most, so I have found some of my greatest joy partnering with people that have always wanted to own their own business, but they either weren’t willing to take the leap alone or just felt more comfortable with a partner. I don’t just see myself as a capital partner, its much more than that.”
                 </blockquote>
                 <p className="mt-6 max-w-[560px] text-[15px] leading-[1.7] text-[rgba(27,29,31,0.68)]">
                   Background in commercial real estate and operating businesses, the thinking behind starting TAGR, and what he looks for in a company before acquiring it. Keep this in first person; it’s the most human part of the site.
