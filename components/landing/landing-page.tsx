@@ -135,7 +135,7 @@ export function LandingPage() {
           </div>
         }
       >
-        <AnimatedSection className="mt-16 grid grid-cols-2 gap-8 border-t border-[rgba(245,242,236,0.1)] pt-10 md:grid-cols-4">
+        <AnimatedSection className="mt-16 grid grid-cols-2 gap-8 md:grid-cols-4">
           <div>
             <div className="font-serif text-[32px] text-[var(--cream)]">4</div>
             <div className="mt-2 font-mono text-[11px] uppercase tracking-[0.08em] text-[rgba(245,242,236,0.55)]">
@@ -243,7 +243,7 @@ export function LandingPage() {
             <div className="mt-3 flex items-center justify-between font-mono text-[10.5px] uppercase tracking-[0.08em] text-[rgba(27,29,31,0.45)] px-1">
               <span className="flex items-center gap-1.5">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--brass)] animate-pulse" />
-                Deslize para ver a carteira
+                Scroll  
               </span>
               <span>1 / {portfolioItems.length}</span>
             </div>
@@ -277,7 +277,7 @@ export function LandingPage() {
             ))}
           </div>
 
-          <AnimatedSection className="mt-16 flex flex-col md:flex-row justify-center items-center gap-6 md:gap-12 border-t border-[rgba(27,29,31,0.1)] pt-12">
+          <AnimatedSection className="mt-16 flex flex-col md:flex-row justify-center items-center gap-6 md:gap-12 pt-6">
             <div className="font-sans text-[20px] font-bold tracking-tight text-[var(--ink)]">We Build People.</div>
             <div className="hidden md:block h-1.5 w-1.5 rounded-full bg-[var(--brass)]" />
             <div className="font-sans text-[20px] font-bold tracking-tight text-[var(--ink)]">We Get Better Every Day.</div>
@@ -320,10 +320,11 @@ export function LandingPage() {
             </p>
             <div className="mt-8 grid gap-10 md:grid-cols-[220px_minmax(0,1fr)] md:items-start">
               <div className="relative h-[270px] w-[220px] shrink-0 overflow-hidden bg-[var(--ink)] rounded-sm">
-                <Image 
-                  src="/brand/TannerMilne.png" 
+                <Image
+                  src="/brand/TannerMilne.png"
                   alt="Tanner Milne"
                   fill
+                  sizes="220px"
                   className="object-cover object-center object-top grayscale hover:grayscale-40 transition-all duration-400 contrast-105 rounded-sm"
                 />
               </div>

@@ -6,7 +6,6 @@ import Link from "next/link";
 import { AnimatedSection } from "@/components/landing/animated-section";
 import { HeroHeader } from "@/components/shared/hero-header";
 import { NavBar } from "@/components/shared/nav-bar";
-import { ScrollToTop } from "@/components/shared/scroll-to-top";
 
 const statements = [
   "We have a clear vision in writing that has been properly communicated and is shared by everyone.",
