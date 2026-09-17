@@ -19,9 +19,11 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { eq } from "drizzle-orm";
 import { tenantsTable, tenantMembersTable } from "../modules/tenancy/tenancy.schema";
 
-// Same precedence as drizzle.config.ts: .env.local (dev branch) wins.
+// Same precedence as drizzle.config.ts — see the comment there. Load
+// narrowest-first and never pass `override: true`, so a shell-set env var
+// always wins over both files instead of being silently clobbered.
+config({ path: ".env.local" });
 config({ path: ".env" });
-config({ path: ".env.local", override: true });
 
 const APP_URL = process.env.SEED_APP_URL ?? "http://localhost:3000";
 const TENANT_NAME = "Tagr Holdings";
