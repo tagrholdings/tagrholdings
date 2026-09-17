@@ -121,6 +121,17 @@ Every interaction that would normally use a modal/dialog (editing an item, confi
 - Always React Hook Form + Zod (never manual `useState` for a form with more than 1-2 fields).
 - Inputs use `--surface` background, `--divider` border, `--radius-md`, minimum 44px touch height on mobile.
 - Validation errors appear inline on the field; submission errors (Action failure) appear via toast (`notify.error()`), not generic red text at the top of the form.
+- A leading icon inside an input (e.g. the mail/lock icons on sign-in) is an absolutely-positioned icon (`absolute left-3 top-1/2 -translate-y-1/2`, `pointer-events-none`, `text-muted-foreground`) plus `pl-9` on the `Input` itself, wrapped in a `relative` container — not a built-in `Input` prop. A trailing action (the password show/hide toggle) is the same pattern mirrored to `right-3`, plus `pr-9`, as an actual `<button type="button">` so it doesn't submit the form.
+
+## Sign-in page (`app/auth/sign-in/`)
+
+The one page in the app that isn't part of the hub shell or the marketing site — a full-bleed hero, not `AppShell`. No public sign-up (see `AGENTS.md`'s tenancy note) — this is the only entry point, so it gets more visual weight than an ordinary form screen.
+
+- **Background**: `/background/login.png` (a photo with the brand mark already baked into it as a faded watermark on the left — don't recreate that watermark separately in CSS) via `next/image fill` + `object-cover`, absolutely behind everything else on the page.
+- **Lockup**: logo mark (`h-16`, bigger than the sidebar's `h-6` or the marketing nav's `h-7/h-8` — this page is the mark's largest appearance in the app) + "TAGR Holdings" at `text-3xl` serif, a short `bg-accent` divider (`h-0.5 w-10`), then the same kicker treatment as everywhere else (`.label-kicker`) showing the landing page's real tagline ("A Private Holding Company", from `landing-page.tsx`'s `kicker` prop) — don't invent new marketing copy for this page, reuse what's already established.
+- **Card**: `bg-surface`, `rounded-lg`, `border-divider` on three sides plus a `border-t-2 border-t-accent` brass accent on top, `shadow-lg` (this page's card is the shadow exception — it floats over a photo, unlike an ordinary content card that relies on the divider border per the Shadows section above).
+- **Footer signature**: bottom-left, `hidden sm:flex` (skip it on narrow phones where it'd crowd the card), a short `bg-accent/60` line + "Tagr Holdings" in the `.label-kicker` type spec but `text-accent/80` instead of that class's own muted-ink color (the class sets `color` directly, so a parent `text-*` utility can't override it for a child — hand-roll the font/tracking/case instead of fighting the class).
+- Entrance animation and form mechanics: see the Motion library note above and Forms above — nothing page-specific there.
 
 ## Loading states — always skeleton
 

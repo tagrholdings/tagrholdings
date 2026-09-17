@@ -53,7 +53,7 @@ export function SignInCard() {
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="flex w-full max-w-sm flex-col items-center"
+      className="relative z-10 flex w-full max-w-md flex-col items-center"
     >
       <motion.div variants={logoVariants}>
         <Image
@@ -62,20 +62,26 @@ export function SignInCard() {
           width={100}
           height={100}
           priority
-          className="h-10 w-auto object-contain"
+          className="h-16 w-auto object-contain"
         />
       </motion.div>
 
       <motion.div
         variants={itemVariants}
-        className="mt-3 font-serif text-lg font-semibold tracking-[0.02em] text-ink"
+        className="mt-4 text-center font-serif text-3xl font-semibold tracking-[0.01em] text-ink"
       >
         TAGR <span className="text-accent">Holdings</span>
       </motion.div>
 
+      <motion.div variants={itemVariants} className="mt-3 h-0.5 w-10 rounded-full bg-accent" />
+
+      <motion.p variants={itemVariants} className="label-kicker mt-3">
+        A Private Holding Company
+      </motion.p>
+
       <motion.div
         variants={cardVariants}
-        className="mt-6 w-full rounded-lg border border-divider bg-surface p-6"
+        className="mt-8 w-full rounded-lg border border-divider border-t-2 border-t-accent bg-surface p-8 shadow-lg"
       >
         <h1 className="font-serif text-xl font-semibold text-ink">Sign in</h1>
         <p className="mb-6 text-sm text-muted-foreground">Internal CRM access — Tagr Holdings.</p>
