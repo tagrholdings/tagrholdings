@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { motion, type Variants } from "framer-motion";
 import { authClient } from "@/lib/auth-client";
 import { notify } from "@/components/ui/toaster";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,12 @@ const signInSchema = z.object({
 
 type SignInValues = z.infer<typeof signInSchema>;
 
-export function SignInForm() {
+interface SignInFormProps {
+  /** Entrance variants for each field — driven by SignInCard's stagger. */
+  fieldVariants?: Variants;
+}
+
+export function SignInForm({ fieldVariants }: SignInFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const {
@@ -57,7 +63,7 @@ export function SignInForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-      <div className="signin-field space-y-1.5">
+      <motion.div variants={fieldVariants} className="space-y-1.5">
         <Label htmlFor="email">Email</Label>
         <Input
           id="email"
@@ -67,9 +73,9 @@ export function SignInForm() {
           {...register("email")}
         />
         {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
-      </div>
+      </motion.div>
 
-      <div className="signin-field space-y-1.5">
+      <motion.div variants={fieldVariants} className="space-y-1.5">
         <Label htmlFor="password">Password</Label>
         <Input
           id="password"
@@ -79,11 +85,13 @@ export function SignInForm() {
           {...register("password")}
         />
         {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
-      </div>
+      </motion.div>
 
-      <Button type="submit" loading={isSubmitting} className="signin-field w-full">
-        Sign in
-      </Button>
+      <motion.div variants={fieldVariants}>
+        <Button type="submit" loading={isSubmitting} className="w-full">
+          Sign in
+        </Button>
+      </motion.div>
     </form>
   );
 }

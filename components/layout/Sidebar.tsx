@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -38,7 +39,14 @@ export function Sidebar({ user, activeHref, badges, variant = "responsive", clas
         className
       )}
     >
-      <div className="px-5 py-6">
+      <div className="flex items-center gap-2 px-5 py-6">
+        <Image
+          src="/brand/LogoBrand-Monocolor.png"
+          alt=""
+          width={100}
+          height={100}
+          className="h-6 w-auto object-contain"
+        />
         <span className="font-serif text-lg font-semibold">TAGR</span>
       </div>
 

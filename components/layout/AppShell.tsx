@@ -41,7 +41,7 @@ export function AppShell({
     <div className="min-h-screen bg-background">
       <Sidebar user={user} activeHref={activeHref} badges={badges} />
 
-      <div className="flex min-h-screen flex-col md:pl-[248px]">
+      <div className="flex min-h-screen flex-col md:gap-4 md:pl-[248px] md:pr-4">
         <AppHeader
           kicker={kicker}
           title={title}
@@ -51,7 +51,7 @@ export function AppShell({
           user={user}
           onSignOut={onSignOut}
         />
-        <main className="flex-1 px-4 py-6 pb-24 md:px-8 md:py-8 md:pb-8">
+        <main className="flex-1 px-4 py-6 pb-24 md:px-8 md:pt-0 md:pb-8">
           {children}
         </main>
       </div>
