@@ -165,6 +165,7 @@ The full rules live in separate files. **Read them when implementing:**
 |---|---|---|
 | `.agents/docs/TENANCY.md` | Multi-tenant model via `tenantId` — isolation rules, Menlo Group expansion plan | When implementing any query or Service |
 | `.agents/docs/LEAD_INGESTION.md` | Contract between the Python job (scraper + AI extraction) and the `raw_leads` schema | When integrating data coming from the scraper |
+| `.agents/docs/DOMAINS.md` | Why `www.tagrholdings.com` (marketing) and `crm.tagrholdings.com` (hub) are one deployment split by `proxy.ts`, and the trade-offs that come with it | When adding a route, touching `proxy.ts`, or debugging cross-domain/auth-redirect behavior |
 
 ---
 
