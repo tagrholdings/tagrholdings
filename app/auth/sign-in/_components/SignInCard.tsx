@@ -84,7 +84,7 @@ export function SignInCard() {
         className="mt-8 w-full rounded-lg border border-divider border-t-2 border-t-accent bg-surface p-8 shadow-lg"
       >
         <h1 className="font-serif text-xl font-semibold text-ink">Sign in</h1>
-        <p className="mb-6 text-sm text-muted-foreground">Internal CRM access — Tagr Holdings.</p>
+        <p className="mb-6 text-sm text-muted-foreground">Internal CRM access</p>
         <motion.div variants={fieldContainerVariants} initial="hidden" animate="visible">
           <SignInForm fieldVariants={fieldVariants} />
         </motion.div>
