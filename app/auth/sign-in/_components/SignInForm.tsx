@@ -29,7 +29,18 @@ export function SignInForm() {
 
   const onSubmit = async (values: SignInValues) => {
     setIsSubmitting(true);
-    const { error } = await authClient.signIn.email(values);
+
+    // authClient.signIn.email() rejects with AuthApiError on bad
+    // credentials instead of resolving { error } — contrary to how
+    // AGENTS.md describes authClient generally. Catch it here so a failed
+    // login always surfaces as a toast instead of an unhandled rejection.
+    let error: { message?: string } | null = null;
+    try {
+      ({ error } = await authClient.signIn.email(values));
+    } catch (caught) {
+      error = { message: caught instanceof Error ? caught.message : undefined };
+    }
+
     setIsSubmitting(false);
 
     if (error) {

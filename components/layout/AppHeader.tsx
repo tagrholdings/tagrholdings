@@ -55,7 +55,15 @@ interface AppHeaderProps {
 function useDefaultSignOut() {
   const router = useRouter();
   return async () => {
-    const { error } = await authClient.signOut();
+    // See the matching comment in SignInForm.tsx — authClient methods can
+    // reject instead of resolving { error }.
+    let error: { message?: string } | null = null;
+    try {
+      ({ error } = await authClient.signOut());
+    } catch (caught) {
+      error = { message: caught instanceof Error ? caught.message : undefined };
+    }
+
     if (error) {
       notify.error(error.message ?? "Couldn't sign out. Please try again.");
       return;

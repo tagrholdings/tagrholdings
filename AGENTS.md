@@ -22,7 +22,7 @@ Project: internal CRM for Tagr Holdings (Phoenix, AZ), with a planned future mul
 6. **NEVER** use shadows on components.
 7. **NEVER** create global folders like `/services` or `/repositories`. Use Vertical Slicing in `/modules/`.
 8. **NEVER** fetch data directly in a Client Component (unless encapsulated in SWR).
-9. **NEVER** use `try/catch` in Components to catch `authClient` errors. `authClient` returns an `AuthResult` — it never throws. Show errors via `notify.error()` (Toast), never with inline state (`setLocalError`).
+9. **NEVER** show an `authClient` failure with inline state (`setLocalError`) — always `notify.error()` (Toast). ~~`authClient` returns an `AuthResult` and never throws~~ — corrected 2026-09-17: verified against a real failed sign-in on `@neondatabase/auth`, which **does** reject (`AuthApiError`) instead of resolving `{ error }`. Wrap the call in `try/catch` and route both the caught error and a resolved `{ error }` to `notify.error()` — see `app/auth/sign-in/_components/SignInForm.tsx` for the pattern. The "never inline error state" half of this rule still holds.
 10. **NEVER** `fetch("/api/auth/...")` directly from the frontend. Use Server Actions via `authClient`.
 11. **NEVER** manage complex form state manually with `useState`. Use **React Hook Form** + **Zod** for validation and consistency. (Tip: use `z.input<typeof schema>` to export form types and avoid errors with `.default()` fields.)
 12. **NEVER** run a Repository or Service query without filtering by `tenantId`. This is the multi-tenant isolation rule — a query missing this filter is a data-leak bug between companies (Tagr vs. future Menlo Group units).
