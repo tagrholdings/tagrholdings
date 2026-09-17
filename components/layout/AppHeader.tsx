@@ -142,7 +142,7 @@ function DesktopHeader({
   return (
     <header
       className={cn(
-        "sticky top-4 z-20 h-16 shrink-0 items-center gap-4 rounded-lg border border-divider bg-surface px-6 shadow-sm",
+        "sticky top-4 z-20 h-16 shrink-0 items-center gap-4 rounded-lg px-6",
         className
       )}
     >

@@ -1,9 +1,20 @@
 "use client";
 
 import * as React from "react";
-import { Sidebar, type SidebarUser } from "./Sidebar";
+import {
+  Sidebar,
+  type SidebarUser,
+  SIDEBAR_WIDTH_EXPANDED,
+  SIDEBAR_WIDTH_COLLAPSED,
+  SIDEBAR_INSET,
+  SIDEBAR_GAP,
+} from "./Sidebar";
 import { BottomNav } from "./BottomNav";
 import { AppHeader, type AppHeaderAction } from "./AppHeader";
+import { useSidebarCollapsed } from "@/hooks/ui/use-sidebar-collapsed";
+
+const CONTENT_OFFSET_EXPANDED = SIDEBAR_WIDTH_EXPANDED + SIDEBAR_INSET + SIDEBAR_GAP;
+const CONTENT_OFFSET_COLLAPSED = SIDEBAR_WIDTH_COLLAPSED + SIDEBAR_INSET + SIDEBAR_GAP;
 
 interface AppShellProps {
   user: SidebarUser;
@@ -37,11 +48,23 @@ export function AppShell({
   onSignOut,
   children,
 }: AppShellProps) {
+  const [collapsed, setCollapsed] = useSidebarCollapsed();
+  const contentOffset = collapsed ? CONTENT_OFFSET_COLLAPSED : CONTENT_OFFSET_EXPANDED;
+
   return (
     <div className="min-h-screen bg-background">
-      <Sidebar user={user} activeHref={activeHref} badges={badges} />
+      <Sidebar
+        user={user}
+        activeHref={activeHref}
+        badges={badges}
+        collapsed={collapsed}
+        onToggleCollapsed={() => setCollapsed(!collapsed)}
+      />
 
-      <div className="flex min-h-screen flex-col md:gap-4 md:pl-[248px] md:pr-4">
+      <div
+        className="flex min-h-screen flex-col transition-[padding-left] duration-300 ease-in-out md:gap-4 md:pr-4 md:pl-[var(--sidebar-content-offset)]"
+        style={{ "--sidebar-content-offset": `${contentOffset}px` } as React.CSSProperties}
+      >
         <AppHeader
           kicker={kicker}
           title={title}
@@ -51,7 +74,7 @@ export function AppShell({
           user={user}
           onSignOut={onSignOut}
         />
-        <main className="flex-1 px-4 py-6 pb-24 md:px-8 md:pt-0 md:pb-8">
+        <main className="flex-1 space-y-6 px-4 py-6 pb-24 md:px-6 md:pt-0 md:pb-8">
           {children}
         </main>
       </div>

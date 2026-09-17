@@ -81,7 +81,7 @@ export function BottomNav({ activeHref, badges, variant = "responsive", classNam
   return (
     <nav
       className={cn(
-        "left-1/2 z-30 flex w-[87%] max-w-xs -translate-x-1/2 items-center justify-between gap-1 rounded-pill border border-sidebar-border/60 bg-sidebar/75 px-2 py-1.5 shadow-lg backdrop-blur-md",
+        "left-1/2 z-30 flex w-[87%] max-w-xs -translate-x-1/2 items-center justify-between gap-1 rounded-pill border border-sidebar-border bg-sidebar px-2 py-1.5 shadow-lg",
         variant === "responsive" ? "fixed md:hidden" : "absolute bottom-4",
         className
       )}
