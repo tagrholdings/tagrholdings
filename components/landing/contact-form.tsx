@@ -113,7 +113,7 @@ export function ContactForm() {
       <button
         type="submit"
         disabled={isSubmitting}
-        className="self-start rounded-sm border border-transparent bg-[var(--brass)] px-6 py-3 font-mono text-[12px] uppercase tracking-[0.04em] text-[var(--ink)] transition hover:bg-[#C7A667] disabled:cursor-not-allowed disabled:opacity-70"
+        className="self-start rounded-sm border border-transparent bg-primary px-6 py-3 font-mono text-[12px] uppercase tracking-[0.04em] text-[var(--ink)] transition hover:bg-[#C7A667] disabled:cursor-not-allowed disabled:opacity-70"
       >
         {isSubmitting ? "Sending..." : "Request a Consultation"}
       </button>

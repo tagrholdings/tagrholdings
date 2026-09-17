@@ -167,7 +167,7 @@ export function OperatingPlaybook() {
           </div>
         }
       >
-        <div className="mt-16 grid grid-cols-2 gap-8 border-t border-[rgba(245,242,236,0.1)] pt-10 md:grid-cols-4">
+        <div className="mt-16 grid grid-cols-2 gap-8 pt-10 md:grid-cols-4">
           <div>
             <div className="mb-2 font-mono text-[10px] uppercase tracking-widest text-[#C7A667]">Audience</div>
             <div className="text-[14px] text-[rgba(245,242,236,0.8)]">Portfolio Executives</div>
