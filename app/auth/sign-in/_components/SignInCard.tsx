@@ -2,7 +2,7 @@
 
 import { motion, type Variants } from "framer-motion";
 import Image from "next/image";
-import { AnimatedWaves } from "./AnimatedWaves";
+import { AnimatedWaves } from "@/components/shared/animated-waves";
 import { SignInForm } from "./SignInForm";
 
 const containerVariants: Variants = {

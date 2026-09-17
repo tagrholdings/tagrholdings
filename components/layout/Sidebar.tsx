@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { ChevronLeft, ChevronRight, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS, isNavItemActive } from "@/lib/navigation";
+import { AnimatedWaves } from "@/components/shared/animated-waves";
 
 export interface SidebarUser {
   name: string;
@@ -57,40 +58,47 @@ export function Sidebar({
         className
       )}
     >
-      <div
-        className={cn(
-          "flex items-center py-6",
-          collapsed ? "flex-col-reverse justify-center gap-2 px-0" : "justify-between gap-2 px-4"
-        )}
-      >
-        <div className={cn("flex min-w-0 items-center gap-2", collapsed && "justify-center")}>
-          <Image
-            src="/brand/LogoBrand-Monocolor.png"
-            alt=""
-            width={100}
-            height={100}
-            className="h-6 w-auto shrink-0 object-contain"
-          />
-          {!collapsed && (
-            <span className="truncate font-serif text-base font-semibold">
-              TAGR <span className="text-accent">Holdings</span>
-            </span>
+      {/* Same brass wave motif as the sign-in page's dark panel — a design
+          touch, kept faint (see the opacity override below) so it doesn't
+          fight the nav content sitting above it in the `relative z-10`
+          wrapper that follows. */}
+      <AnimatedWaves className="opacity-60" />
+
+      <div className="relative z-10 flex flex-1 flex-col">
+        <div
+          className={cn(
+            "flex items-center py-6",
+            collapsed ? "flex-col-reverse justify-center gap-2 px-0" : "justify-between gap-2 px-4"
+          )}
+        >
+          <div className={cn("flex min-w-0 items-center gap-2", collapsed && "justify-center")}>
+            <Image
+              src="/brand/LogoBrand-Monocolor.png"
+              alt=""
+              width={100}
+              height={100}
+              className="h-6 w-auto shrink-0 object-contain"
+            />
+            {!collapsed && (
+              <span className="truncate font-serif text-base font-semibold">
+                TAGR <span className="text-accent">Holdings</span>
+              </span>
+            )}
+          </div>
+
+          {onToggleCollapsed && (
+            <button
+              type="button"
+              onClick={onToggleCollapsed}
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              className="flex size-6 shrink-0 items-center justify-center rounded-md text-sidebar-foreground-muted transition-colors hover:bg-sidebar-hover hover:text-sidebar-foreground"
+            >
+              {collapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
+            </button>
           )}
         </div>
 
-        {onToggleCollapsed && (
-          <button
-            type="button"
-            onClick={onToggleCollapsed}
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className="flex size-6 shrink-0 items-center justify-center rounded-md text-sidebar-foreground-muted transition-colors hover:bg-sidebar-hover hover:text-sidebar-foreground"
-          >
-            {collapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
-          </button>
-        )}
-      </div>
-
-      <nav className="flex-1 space-y-0.5 px-3">
+        <nav className="flex-1 space-y-0.5 px-3">
         {NAV_ITEMS.map((item) => {
           const isActive = isNavItemActive(currentHref, item.href);
           const badgeCount = item.badgeKey ? badges?.[item.badgeKey] : undefined;
@@ -125,32 +133,33 @@ export function Sidebar({
             </Link>
           );
         })}
-      </nav>
+        </nav>
 
-      <div className={cn("mt-auto border-t border-sidebar-border py-4", collapsed ? "px-2" : "px-3")}>
-        <div
-          className={cn(
-            "flex items-center rounded-md py-2",
-            collapsed ? "justify-center px-0" : "gap-3 px-2"
-          )}
-          title={collapsed ? user.name : undefined}
-        >
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-sidebar-hover text-xs font-semibold">
-            {user.initials}
+        <div className={cn("mt-auto border-t border-sidebar-border py-4", collapsed ? "px-2" : "px-3")}>
+          <div
+            className={cn(
+              "flex items-center rounded-md py-2",
+              collapsed ? "justify-center px-0" : "gap-3 px-2"
+            )}
+            title={collapsed ? user.name : undefined}
+          >
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-sidebar-hover text-xs font-semibold">
+              {user.initials}
+            </div>
+            {!collapsed && <span className="flex-1 truncate text-sm">{user.name}</span>}
           </div>
-          {!collapsed && <span className="flex-1 truncate text-sm">{user.name}</span>}
+          <Link
+            href="/settings"
+            title={collapsed ? "Settings" : undefined}
+            className={cn(
+              "mt-1 flex items-center rounded-md py-2 text-sm text-sidebar-foreground-muted transition-colors hover:bg-sidebar-hover hover:text-sidebar-foreground",
+              collapsed ? "justify-center px-0" : "gap-3 px-2"
+            )}
+          >
+            <Settings className="size-4 shrink-0" aria-hidden />
+            {!collapsed && "Settings"}
+          </Link>
         </div>
-        <Link
-          href="/settings"
-          title={collapsed ? "Settings" : undefined}
-          className={cn(
-            "mt-1 flex items-center rounded-md py-2 text-sm text-sidebar-foreground-muted transition-colors hover:bg-sidebar-hover hover:text-sidebar-foreground",
-            collapsed ? "justify-center px-0" : "gap-3 px-2"
-          )}
-        >
-          <Settings className="size-4 shrink-0" aria-hidden />
-          {!collapsed && "Settings"}
-        </Link>
       </div>
     </aside>
   );

@@ -2,16 +2,28 @@
 
 import { useRef } from "react";
 import { motion, useMotionValue, useSpring, useAnimationFrame, useTransform } from "framer-motion";
+import { cn } from "@/lib/utils";
+
+interface AnimatedWavesProps {
+  /** Tunes opacity/blend on top of the defaults below — the SVG itself
+   *  already carries low per-path opacities, this is an extra multiplier
+   *  for contexts (like the sidebar) that need it fainter still. */
+  className?: string;
+}
 
 /**
- * Same drifting-wave decoration as the marketing site's dark hero sections
- * (components/shared/hero-header.tsx) — copied rather than shared, since
- * that component is wired to its own section's mousemove/layout and this
- * page's dark panel is a different shape (full viewport, not a bounded
- * header). If a third dark surface needs this, extract a shared component
- * then.
+ * Three thin, slowly drifting brass lines with a subtle mouse-follow —
+ * originally the marketing site's dark hero decoration
+ * (components/shared/hero-header.tsx), now shared with any other dark
+ * (`bg-ink`/`bg-sidebar`) surface that wants the same signature (sign-in,
+ * `Sidebar`). Caller is responsible for `position: relative` + `overflow-
+ * hidden` on its container, and for giving its real content a higher
+ * stacking context (`relative z-10`) — this renders as a plain `z-0`
+ * absolutely-positioned layer, not `pointer-events-none`, since the mouse-
+ * follow needs to see pointer movement; the stacking order alone keeps
+ * clicks reaching real UI on top of it.
  */
-export function AnimatedWaves() {
+export function AnimatedWaves({ className }: AnimatedWavesProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const mouseX = useMotionValue(0);
@@ -38,10 +50,10 @@ export function AnimatedWaves() {
     <div
       ref={containerRef}
       onMouseMove={handleMouseMove}
-      className="absolute inset-0 overflow-hidden"
+      className={cn("absolute inset-0 z-0 overflow-hidden", className)}
     >
       <svg
-        className="pointer-events-none absolute inset-y-0 -left-[10%] h-full w-[120%] opacity-40"
+        className="absolute inset-y-0 -left-[10%] h-full w-[120%] opacity-40"
         viewBox="0 0 1200 500"
         preserveAspectRatio="none"
         xmlns="http://www.w3.org/2000/svg"
