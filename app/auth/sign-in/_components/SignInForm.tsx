@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { motion, type Variants } from "framer-motion";
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { authClient } from "@/lib/auth-client";
 import { notify } from "@/components/ui/toaster";
 import { Button } from "@/components/ui/button";
@@ -23,9 +24,12 @@ type SignInValues = z.infer<typeof signInSchema>;
 interface SignInFormProps {
   /** Entrance variants for each field — driven by SignInCard's stagger. */
   fieldVariants?: Variants;
+  /** The sign-in page sits on a dark `bg-ink` panel — inputs/icons need
+   *  cream-tinted variants instead of the default light-surface styling. */
+  dark?: boolean;
 }
 
-export function SignInForm({ fieldVariants }: SignInFormProps) {
+export function SignInForm({ fieldVariants, dark = false }: SignInFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -63,19 +67,24 @@ export function SignInForm({ fieldVariants }: SignInFormProps) {
     router.refresh();
   };
 
+  const inputClassName = dark
+    ? "border-cream/15 bg-cream/5 text-cream placeholder:text-cream/35 focus-visible:border-accent"
+    : undefined;
+  const iconClassName = dark ? "text-cream/40" : "text-muted-foreground";
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
       <motion.div variants={fieldVariants} className="space-y-1.5">
         <Label htmlFor="email">Email</Label>
         <div className="relative">
-          <Mail className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Mail className={cn("pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2", iconClassName)} />
           <Input
             id="email"
             type="email"
             autoComplete="email"
             placeholder="you@company.com"
             aria-invalid={!!errors.email}
-            className="pl-9"
+            className={cn("pl-9", inputClassName)}
             {...register("email")}
           />
         </div>
@@ -85,21 +94,25 @@ export function SignInForm({ fieldVariants }: SignInFormProps) {
       <motion.div variants={fieldVariants} className="space-y-1.5">
         <Label htmlFor="password">Password</Label>
         <div className="relative">
-          <Lock className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Lock className={cn("pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2", iconClassName)} />
           <Input
             id="password"
             type={showPassword ? "text" : "password"}
             autoComplete="current-password"
             placeholder="Enter your password"
             aria-invalid={!!errors.password}
-            className="pr-9 pl-9"
+            className={cn("pr-9 pl-9", inputClassName)}
             {...register("password")}
           />
           <button
             type="button"
             onClick={() => setShowPassword((v) => !v)}
             aria-label={showPassword ? "Hide password" : "Show password"}
-            className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition-colors hover:text-ink"
+            className={cn(
+              "absolute top-1/2 right-3 -translate-y-1/2 transition-colors",
+              iconClassName,
+              dark ? "hover:text-cream" : "hover:text-ink"
+            )}
           >
             {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
           </button>
