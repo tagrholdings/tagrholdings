@@ -59,32 +59,36 @@ export function Sidebar({
     >
       <div
         className={cn(
-          "flex items-center gap-2 py-6",
-          collapsed ? "flex-col justify-center px-0" : "px-5"
+          "flex items-center py-6",
+          collapsed ? "flex-col-reverse justify-center gap-2 px-0" : "justify-between gap-2 px-4"
         )}
       >
-        <Image
-          src="/brand/LogoBrand-Monocolor.png"
-          alt=""
-          width={100}
-          height={100}
-          className="h-6 w-auto shrink-0 object-contain"
-        />
-        {!collapsed && <span className="font-serif text-lg font-semibold">TAGR</span>}
-      </div>
+        <div className={cn("flex min-w-0 items-center gap-2", collapsed && "justify-center")}>
+          <Image
+            src="/brand/LogoBrand-Monocolor.png"
+            alt=""
+            width={100}
+            height={100}
+            className="h-6 w-auto shrink-0 object-contain"
+          />
+          {!collapsed && (
+            <span className="truncate font-serif text-base font-semibold">
+              TAGR <span className="text-accent">Holdings</span>
+            </span>
+          )}
+        </div>
 
-      {onToggleCollapsed && (
-        <div className={cn("px-3 pb-2", collapsed ? "flex justify-center" : "flex justify-end")}>
+        {onToggleCollapsed && (
           <button
             type="button"
             onClick={onToggleCollapsed}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className="flex size-7 items-center justify-center rounded-md text-sidebar-foreground-muted transition-colors hover:bg-sidebar-hover hover:text-sidebar-foreground"
+            className="flex size-6 shrink-0 items-center justify-center rounded-md text-sidebar-foreground-muted transition-colors hover:bg-sidebar-hover hover:text-sidebar-foreground"
           >
             {collapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       <nav className="flex-1 space-y-0.5 px-3">
         {NAV_ITEMS.map((item) => {
