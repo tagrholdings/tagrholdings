@@ -57,7 +57,7 @@ export function SignInForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-      <div className="space-y-1.5">
+      <div className="signin-field space-y-1.5">
         <Label htmlFor="email">Email</Label>
         <Input
           id="email"
@@ -69,7 +69,7 @@ export function SignInForm() {
         {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
       </div>
 
-      <div className="space-y-1.5">
+      <div className="signin-field space-y-1.5">
         <Label htmlFor="password">Password</Label>
         <Input
           id="password"
@@ -81,7 +81,7 @@ export function SignInForm() {
         {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
       </div>
 
-      <Button type="submit" loading={isSubmitting} className="w-full">
+      <Button type="submit" loading={isSubmitting} className="signin-field w-full">
         Sign in
       </Button>
     </form>

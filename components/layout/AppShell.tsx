@@ -41,7 +41,7 @@ export function AppShell({
     <div className="min-h-screen bg-background">
       <Sidebar user={user} activeHref={activeHref} badges={badges} />
 
-      <div className="flex min-h-screen flex-col md:pl-[216px]">
+      <div className="flex min-h-screen flex-col md:pl-[248px]">
         <AppHeader
           kicker={kicker}
           title={title}

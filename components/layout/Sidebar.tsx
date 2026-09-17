@@ -33,7 +33,7 @@ export function Sidebar({ user, activeHref, badges, variant = "responsive", clas
   return (
     <aside
       className={cn(
-        "inset-y-0 left-0 z-30 flex w-[216px] flex-col bg-sidebar text-sidebar-foreground",
+        "top-4 bottom-4 left-4 z-30 flex w-[216px] flex-col rounded-lg bg-sidebar text-sidebar-foreground shadow-md",
         variant === "responsive" ? "fixed hidden md:flex" : "absolute",
         className
       )}
