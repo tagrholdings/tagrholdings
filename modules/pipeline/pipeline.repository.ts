@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { withTenant } from "@/lib/db";
 import { and, eq, inArray } from "drizzle-orm";
 import { pipelineItemsTable, pipelineBoardsTable, type BoardColumn } from "./pipeline.schema";
 import { contactsTable } from "@/modules/contacts/contacts.schema";
@@ -21,22 +21,26 @@ const withRelationsSelection = {
 
 export const pipelineRepository = {
   async findAllForBoard(tenantId: string, boardId: string) {
-    return db
-      .select(withRelationsSelection)
-      .from(pipelineItemsTable)
-      .leftJoin(contactsTable, eq(pipelineItemsTable.contactId, contactsTable.id))
-      .leftJoin(organizationsTable, eq(pipelineItemsTable.organizationId, organizationsTable.id))
-      .where(and(eq(pipelineItemsTable.tenantId, tenantId), eq(pipelineItemsTable.boardId, boardId)))
-      .orderBy(pipelineItemsTable.createdAt);
+    return withTenant(tenantId, (tx) =>
+      tx
+        .select(withRelationsSelection)
+        .from(pipelineItemsTable)
+        .leftJoin(contactsTable, eq(pipelineItemsTable.contactId, contactsTable.id))
+        .leftJoin(organizationsTable, eq(pipelineItemsTable.organizationId, organizationsTable.id))
+        .where(and(eq(pipelineItemsTable.tenantId, tenantId), eq(pipelineItemsTable.boardId, boardId)))
+        .orderBy(pipelineItemsTable.createdAt)
+    );
   },
 
   async findByIdWithRelations(tenantId: string, id: string) {
-    const [row] = await db
-      .select(withRelationsSelection)
-      .from(pipelineItemsTable)
-      .leftJoin(contactsTable, eq(pipelineItemsTable.contactId, contactsTable.id))
-      .leftJoin(organizationsTable, eq(pipelineItemsTable.organizationId, organizationsTable.id))
-      .where(and(eq(pipelineItemsTable.tenantId, tenantId), eq(pipelineItemsTable.id, id)));
+    const [row] = await withTenant(tenantId, (tx) =>
+      tx
+        .select(withRelationsSelection)
+        .from(pipelineItemsTable)
+        .leftJoin(contactsTable, eq(pipelineItemsTable.contactId, contactsTable.id))
+        .leftJoin(organizationsTable, eq(pipelineItemsTable.organizationId, organizationsTable.id))
+        .where(and(eq(pipelineItemsTable.tenantId, tenantId), eq(pipelineItemsTable.id, id)))
+    );
     return row;
   },
 
@@ -49,99 +53,123 @@ export const pipelineRepository = {
    * its own board page.
    */
   async findAllForTenant(tenantId: string) {
-    return db
-      .select({ ...withRelationsSelection, boardName: pipelineBoardsTable.name, boardIsSystem: pipelineBoardsTable.isSystem })
-      .from(pipelineItemsTable)
-      .innerJoin(pipelineBoardsTable, eq(pipelineItemsTable.boardId, pipelineBoardsTable.id))
-      .leftJoin(contactsTable, eq(pipelineItemsTable.contactId, contactsTable.id))
-      .leftJoin(organizationsTable, eq(pipelineItemsTable.organizationId, organizationsTable.id))
-      .where(eq(pipelineItemsTable.tenantId, tenantId))
-      .orderBy(pipelineItemsTable.title);
+    return withTenant(tenantId, (tx) =>
+      tx
+        .select({ ...withRelationsSelection, boardName: pipelineBoardsTable.name, boardIsSystem: pipelineBoardsTable.isSystem })
+        .from(pipelineItemsTable)
+        .innerJoin(pipelineBoardsTable, eq(pipelineItemsTable.boardId, pipelineBoardsTable.id))
+        .leftJoin(contactsTable, eq(pipelineItemsTable.contactId, contactsTable.id))
+        .leftJoin(organizationsTable, eq(pipelineItemsTable.organizationId, organizationsTable.id))
+        .where(eq(pipelineItemsTable.tenantId, tenantId))
+        .orderBy(pipelineItemsTable.title)
+    );
   },
 
   async create(tenantId: string, data: NewPipelineItem) {
-    const [row] = await db
-      .insert(pipelineItemsTable)
-      .values({ ...data, tenantId })
-      .returning();
+    const [row] = await withTenant(tenantId, (tx) =>
+      tx
+        .insert(pipelineItemsTable)
+        .values({ ...data, tenantId })
+        .returning()
+    );
     return row;
   },
 
   async updateStage(tenantId: string, id: string, stage: string) {
-    const [row] = await db
-      .update(pipelineItemsTable)
-      .set({ stage, updatedAt: new Date() })
-      .where(and(eq(pipelineItemsTable.tenantId, tenantId), eq(pipelineItemsTable.id, id)))
-      .returning();
+    const [row] = await withTenant(tenantId, (tx) =>
+      tx
+        .update(pipelineItemsTable)
+        .set({ stage, updatedAt: new Date() })
+        .where(and(eq(pipelineItemsTable.tenantId, tenantId), eq(pipelineItemsTable.id, id)))
+        .returning()
+    );
     return row;
   },
 
   async findIdsForBoard(tenantId: string, boardId: string) {
-    const rows = await db
-      .select({ id: pipelineItemsTable.id })
-      .from(pipelineItemsTable)
-      .where(and(eq(pipelineItemsTable.tenantId, tenantId), eq(pipelineItemsTable.boardId, boardId)));
+    const rows = await withTenant(tenantId, (tx) =>
+      tx
+        .select({ id: pipelineItemsTable.id })
+        .from(pipelineItemsTable)
+        .where(and(eq(pipelineItemsTable.tenantId, tenantId), eq(pipelineItemsTable.boardId, boardId)))
+    );
     return rows.map((r) => r.id);
   },
 
   async deleteMany(tenantId: string, ids: string[]) {
     if (ids.length === 0) return;
-    await db
-      .delete(pipelineItemsTable)
-      .where(and(eq(pipelineItemsTable.tenantId, tenantId), inArray(pipelineItemsTable.id, ids)));
+    await withTenant(tenantId, (tx) =>
+      tx
+        .delete(pipelineItemsTable)
+        .where(and(eq(pipelineItemsTable.tenantId, tenantId), inArray(pipelineItemsTable.id, ids)))
+    );
   },
 
   async update(tenantId: string, id: string, data: Partial<NewPipelineItem>) {
-    const [row] = await db
-      .update(pipelineItemsTable)
-      .set({ ...data, updatedAt: new Date() })
-      .where(and(eq(pipelineItemsTable.tenantId, tenantId), eq(pipelineItemsTable.id, id)))
-      .returning();
+    const [row] = await withTenant(tenantId, (tx) =>
+      tx
+        .update(pipelineItemsTable)
+        .set({ ...data, updatedAt: new Date() })
+        .where(and(eq(pipelineItemsTable.tenantId, tenantId), eq(pipelineItemsTable.id, id)))
+        .returning()
+    );
     return row;
   },
 };
 
 export const pipelineBoardsRepository = {
   async findAllForTenant(tenantId: string) {
-    return db
-      .select()
-      .from(pipelineBoardsTable)
-      .where(eq(pipelineBoardsTable.tenantId, tenantId))
-      .orderBy(pipelineBoardsTable.createdAt);
+    return withTenant(tenantId, (tx) =>
+      tx
+        .select()
+        .from(pipelineBoardsTable)
+        .where(eq(pipelineBoardsTable.tenantId, tenantId))
+        .orderBy(pipelineBoardsTable.createdAt)
+    );
   },
 
   async findSystemBoard(tenantId: string) {
-    return db.query.pipelineBoardsTable.findFirst({
-      where: and(eq(pipelineBoardsTable.tenantId, tenantId), eq(pipelineBoardsTable.isSystem, true)),
-    });
+    return withTenant(tenantId, (tx) =>
+      tx.query.pipelineBoardsTable.findFirst({
+        where: and(eq(pipelineBoardsTable.tenantId, tenantId), eq(pipelineBoardsTable.isSystem, true)),
+      })
+    );
   },
 
   async findById(tenantId: string, id: string) {
-    return db.query.pipelineBoardsTable.findFirst({
-      where: and(eq(pipelineBoardsTable.tenantId, tenantId), eq(pipelineBoardsTable.id, id)),
-    });
+    return withTenant(tenantId, (tx) =>
+      tx.query.pipelineBoardsTable.findFirst({
+        where: and(eq(pipelineBoardsTable.tenantId, tenantId), eq(pipelineBoardsTable.id, id)),
+      })
+    );
   },
 
   async create(tenantId: string, data: { name: string; columns: BoardColumn[]; isSystem?: boolean }) {
-    const [row] = await db
-      .insert(pipelineBoardsTable)
-      .values({ ...data, tenantId })
-      .returning();
+    const [row] = await withTenant(tenantId, (tx) =>
+      tx
+        .insert(pipelineBoardsTable)
+        .values({ ...data, tenantId })
+        .returning()
+    );
     return row;
   },
 
   async update(tenantId: string, id: string, data: { name?: string; archivedAt?: Date | null }) {
-    const [row] = await db
-      .update(pipelineBoardsTable)
-      .set(data)
-      .where(and(eq(pipelineBoardsTable.tenantId, tenantId), eq(pipelineBoardsTable.id, id)))
-      .returning();
+    const [row] = await withTenant(tenantId, (tx) =>
+      tx
+        .update(pipelineBoardsTable)
+        .set(data)
+        .where(and(eq(pipelineBoardsTable.tenantId, tenantId), eq(pipelineBoardsTable.id, id)))
+        .returning()
+    );
     return row;
   },
 
   async delete(tenantId: string, id: string) {
-    await db
-      .delete(pipelineBoardsTable)
-      .where(and(eq(pipelineBoardsTable.tenantId, tenantId), eq(pipelineBoardsTable.id, id)));
+    await withTenant(tenantId, (tx) =>
+      tx
+        .delete(pipelineBoardsTable)
+        .where(and(eq(pipelineBoardsTable.tenantId, tenantId), eq(pipelineBoardsTable.id, id)))
+    );
   },
 };

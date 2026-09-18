@@ -29,6 +29,20 @@
       "when": 1789711179506,
       "tag": "0003_wet_chronomancer",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789717351670,
+      "tag": "0004_app_tenant_role",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789717378345,
+      "tag": "0005_tenant_isolation",
+      "breakpoints": true
     }
   ]
 }

@@ -14,7 +14,7 @@ export type NewPipelineItem = z.infer<typeof createPipelineItemSchema>;
 
 export const moveStageSchema = z.object({
   id: z.uuid(),
-  stage: z.string().min(1),
+  stage: z.string().min(1).max(100),
 });
 
 export const updatePipelineItemSchema = createPipelineItemSchema.partial().extend({
@@ -22,7 +22,7 @@ export const updatePipelineItemSchema = createPipelineItemSchema.partial().exten
 });
 
 export const createBoardSchema = z.object({
-  name: z.string().min(1, "Name is required."),
+  name: z.string().min(1, "Name is required.").max(100),
   columns: z
     .array(boardColumnSchema.pick({ label: true }))
     .min(1, "Add at least one column.")
@@ -33,7 +33,7 @@ export type NewBoard = z.infer<typeof createBoardSchema>;
 
 export const renameBoardSchema = z.object({
   id: z.uuid(),
-  name: z.string().trim().min(1, "Name is required."),
+  name: z.string().trim().min(1, "Name is required.").max(100),
 });
 
 export const setBoardArchivedSchema = z.object({

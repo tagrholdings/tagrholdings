@@ -6,6 +6,36 @@ Instead of separate databases or separate schemas per company, this project uses
 
 Rationale for this choice: the end goal is for the group owner to see everything consolidated (Tagr Holdings + future Menlo Group units), which stays simple with a single table and `WHERE tenantId = ...`, and gets complicated with separate databases/schemas (no direct `JOIN` between them, schema migrations need to run N times).
 
+## Enforcement — three layers
+
+A `WHERE tenantId = ...` that someone forgets is a data leak between companies, so isolation doesn't rest on that filter alone:
+
+1. **Application filter.** Every Repository query still filters by `tenantId` (AGENTS.md rule #12). This is the layer you read in code review.
+2. **Composite foreign keys.** Every reference between tenant tables is `(tenant_id, x_id) → x(tenant_id, id)` — e.g. `pipeline_items (tenant_id, contact_id) → contacts (tenant_id, id)`, backed by `UNIQUE (tenant_id, id)` on each parent. Postgres itself rejects linking a row to another tenant's contact/organization/board/item, even if the ID came from a malicious request. (`activities.assigned_to_user_id` points at Neon Auth's `user` table, which can't be a FK target — `activitiesService.create` checks tenant membership instead.)
+3. **Row-level security.** `organizations`, `contacts`, `pipeline_boards`, `pipeline_items` and `activities` have RLS enabled with one policy each (`tenantIsolationPolicy()` in `tenancy.schema.ts`): the `app_tenant` role only sees and writes rows whose `tenant_id` equals the transaction's `app.tenant_id` setting. That also covers JOINed tables — a join can't surface another tenant's names.
+
+### How RLS is wired
+
+The app's login role (`neondb_owner`) has `BYPASSRLS` — Neon grants it to the owner and it can't be removed — so RLS policies alone would filter nothing. Instead, `withTenant(tenantId, (tx) => ...)` in `lib/db.ts` opens a transaction and runs:
+
+```sql
+select set_config('role', 'app_tenant', true), set_config('app.tenant_id', $1, true)
+```
+
+`app_tenant` is a `NOLOGIN NOBYPASSRLS` role (created in `drizzle/0004_app_tenant_role.sql`, which also grants the login role `SET` on it and grants `app_tenant` CRUD on the five tables above). Both settings are transaction-local, so nothing leaks to the next user of a pooled connection, and it works through Neon's PgBouncer (transaction pooling).
+
+Rules that follow from this:
+
+- **Tenant tables are only queried inside `withTenant`.** ESLint (`no-restricted-imports` in `eslint.config.mjs`) blocks importing the plain `db` in `modules/**`, except `tenancy` and `rate-limit`, whose tables carry no `tenant_id`.
+- **Fail closed.** If `app.tenant_id` isn't set, the policy compares against NULL and returns no rows (no error) — a missing `withTenant` shows up as empty data, never as another tenant's data.
+- **A new tenant table needs, in its migration:** `tenantIsolationPolicy("<table>")` in the Drizzle table definition (drizzle-kit emits `ENABLE ROW LEVEL SECURITY` + `CREATE POLICY`), `unique().on(t.tenantId, t.id)` if anything references it, composite `foreignKey()`s for its own references, and a hand-written `GRANT SELECT, INSERT, UPDATE, DELETE ON <table> TO app_tenant` (drizzle-kit doesn't manage grants). Check the generated SQL: drizzle-kit has emitted composite FKs *before* the `UNIQUE` they reference — reorder if so.
+- **Anything connecting as `neondb_owner` bypasses RLS**: the Neon console's SQL editor, `drizzle-kit studio`, the seed script, and the future Python lead-ingestion job (see `LEAD_INGESTION.md`). The job should either run its writes inside the same `set_config('role', 'app_tenant', true), set_config('app.tenant_id', ...)` transaction, or get a dedicated role — and `raw_leads` gets its own policy + grant when it's created.
+- To inspect tenant data *as* the app sees it from the SQL editor: `begin; select set_config('role','app_tenant',true), set_config('app.tenant_id','<uuid>',true); select ...; rollback;`
+
+### Stronger option (not done yet)
+
+`SET ROLE` can be undone by `RESET ROLE`, so RLS here protects against application bugs (a missing filter, an unchecked ID), not against arbitrary SQL execution — which the app doesn't allow anyway (Drizzle parameterizes everything). A dedicated `LOGIN NOBYPASSRLS` role for the app's `DATABASE_URL` would close that gap too, at the cost of a second credential to manage in Vercel.
+
 ## Current state
 
 Today there is **a single active tenant**: Tagr Holdings. The code already treats everything as multi-tenant from the start (no query without a `tenantId` filter), even with only one tenant running — this avoids architectural rework once the second tenant is added.

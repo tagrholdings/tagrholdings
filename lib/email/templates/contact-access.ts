@@ -1,6 +1,11 @@
 import { emailLayout } from "./layout";
 
-export function contactAccessEmail(name: string | undefined, accessToken: string) {
+/**
+ * Sent to the address typed into the contact form, before anyone has
+ * verified it — so this template must not interpolate anything the
+ * submitter controls (see app/api/contact/route.ts).
+ */
+export function contactAccessEmail(accessToken: string) {
   const siteUrl = process.env.SITE_URL || "http://localhost:3000";
   const portalUrl = `${siteUrl}/portal?token=${accessToken}`;
 
@@ -8,7 +13,7 @@ export function contactAccessEmail(name: string | undefined, accessToken: string
     <h1 style="margin:0 0 20px; font-family: Georgia, 'Times New Roman', serif; font-size:22px; font-weight:600; color:#1b1d1f;">
       Welcome to the private portal!
     </h1>
-    <p style="margin:0 0 16px;">Hi ${name || "there"},</p>
+    <p style="margin:0 0 16px;">Hi there,</p>
     <p style="margin:0 0 16px;">
       Thanks for reaching out. You now have access to the TAGR Holdings private
       operating playbook &mdash; use the button below to open it.

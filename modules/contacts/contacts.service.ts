@@ -1,3 +1,4 @@
+import { UserFacingError } from "@/lib/errors";
 import { contactsRepository } from "./contacts.repository";
 import type { NewContact } from "./contacts.types";
 
@@ -9,7 +10,7 @@ export const contactsService = {
   async getById(tenantId: string, id: string) {
     const contact = await contactsRepository.findByIdWithOrganization(tenantId, id);
     if (!contact) {
-      throw new Error("Contact not found.");
+      throw new UserFacingError("Contact not found.");
     }
     return contact;
   },
@@ -21,7 +22,7 @@ export const contactsService = {
   async update(tenantId: string, id: string, data: Partial<NewContact>) {
     const updated = await contactsRepository.update(tenantId, id, data);
     if (!updated) {
-      throw new Error("Contact not found.");
+      throw new UserFacingError("Contact not found.");
     }
     return updated;
   },

@@ -17,7 +17,7 @@ Project: internal CRM for Tagr Holdings (Phoenix, AZ), with a planned future mul
 
 1. **NEVER** use `"use client"` in `page.tsx` or `layout.tsx`.
 2. **NEVER** access one module's Repository from another module. Use the Service.
-3. **NEVER** return raw database errors to the client. Use Error Masking via `safe-action.ts`.
+3. **NEVER** return raw database errors to the client. Use Error Masking via `safe-action.ts`: only a `UserFacingError` (`lib/errors.ts`) message reaches the client — throw that for user-readable business errors; everything else becomes a generic message.
 4. **NEVER** write business logic in Hooks, Components, or Actions.
 6. **NEVER** use shadows on components.
 7. **NEVER** create global folders like `/services` or `/repositories`. Use Vertical Slicing in `/modules/`.
@@ -25,7 +25,7 @@ Project: internal CRM for Tagr Holdings (Phoenix, AZ), with a planned future mul
 9. **NEVER** show an `authClient` failure with inline state (`setLocalError`) — always `notify.error()` (Toast). ~~`authClient` returns an `AuthResult` and never throws~~ — corrected 2026-09-17: verified against a real failed sign-in on `@neondatabase/auth`, which **does** reject (`AuthApiError`) instead of resolving `{ error }`. Wrap the call in `try/catch` and route both the caught error and a resolved `{ error }` to `notify.error()` — see `app/auth/sign-in/_components/SignInForm.tsx` for the pattern. The "never inline error state" half of this rule still holds.
 10. **NEVER** `fetch("/api/auth/...")` directly from the frontend. Use Server Actions via `authClient`.
 11. **NEVER** manage complex form state manually with `useState`. Use **React Hook Form** + **Zod** for validation and consistency. (Tip: use `z.input<typeof schema>` to export form types and avoid errors with `.default()` fields.)
-12. **NEVER** run a Repository or Service query without filtering by `tenantId`. This is the multi-tenant isolation rule — a query missing this filter is a data-leak bug between companies (Tagr vs. future Menlo Group units).
+12. **NEVER** run a Repository or Service query without filtering by `tenantId`. This is the multi-tenant isolation rule — a query missing this filter is a data-leak bug between companies (Tagr vs. future Menlo Group units). Tenant tables are also protected by Postgres RLS + composite `(tenant_id, x_id)` foreign keys, which only apply when the query runs inside `withTenant()` — see `.agents/docs/TENANCY.md`.
 
 ---
 
@@ -112,12 +112,13 @@ export const moveItemStageAction = protectedAction
 #### Service (The Heart — all the intelligence lives here)
 ```tsx
 // modules/pipeline/pipeline.service.ts
+import { UserFacingError } from "@/lib/errors";
 import { pipelineRepository } from "./pipeline.repository";
 
 export const pipelineService = {
   async moveStage(tenantId: string, itemId: string, newStage: string) {
     const item = await pipelineRepository.findById(tenantId, itemId);
-    if (!item) throw new Error("Item not found"); // tenant isolation built into the query
+    if (!item) throw new UserFacingError("Item not found"); // tenant isolation built into the query
     await pipelineRepository.updateStage(tenantId, itemId, newStage);
   },
 };
@@ -126,19 +127,23 @@ export const pipelineService = {
 #### Repository (Pure DB access — no logic, no checks, always tenant-filtered)
 ```tsx
 // modules/pipeline/pipeline.repository.ts
-import { db } from "@/lib/db";
+import { withTenant } from "@/lib/db"; // NOT `db` — that connection bypasses RLS (ESLint blocks it here)
 import { pipelineItemsTable } from "./pipeline.schema";
 import { and, eq } from "drizzle-orm";
 
 export const pipelineRepository = {
   async findById(tenantId: string, id: string) {
-    return db.query.pipelineItemsTable.findFirst({
-      where: and(eq(pipelineItemsTable.tenantId, tenantId), eq(pipelineItemsTable.id, id)),
-    });
+    return withTenant(tenantId, (tx) =>
+      tx.query.pipelineItemsTable.findFirst({
+        where: and(eq(pipelineItemsTable.tenantId, tenantId), eq(pipelineItemsTable.id, id)),
+      })
+    );
   },
   async updateStage(tenantId: string, id: string, stage: string) {
-    await db.update(pipelineItemsTable).set({ stage })
-      .where(and(eq(pipelineItemsTable.tenantId, tenantId), eq(pipelineItemsTable.id, id)));
+    await withTenant(tenantId, (tx) =>
+      tx.update(pipelineItemsTable).set({ stage })
+        .where(and(eq(pipelineItemsTable.tenantId, tenantId), eq(pipelineItemsTable.id, id)))
+    );
   },
 };
 ```

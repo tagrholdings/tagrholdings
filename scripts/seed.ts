@@ -1,8 +1,15 @@
 /**
- * One-off bootstrap for the first (admin) account. There's no public
- * sign-up page by design (see AGENTS.md/checklist — internal, admin-created
- * users only), so this hits the sign-up endpoint directly against a running
- * dev server, then links the created user to the "Tagr Holdings" tenant.
+ * One-off bootstrap for an account. There's no public sign-up page by
+ * design (see AGENTS.md/checklist — internal, admin-created users only), so
+ * this hits the sign-up endpoint directly against a running dev server,
+ * then links the created user to the "Tagr Holdings" tenant.
+ *
+ * Sign-ups are DISABLED in Neon Auth on both branches (anyone could
+ * otherwise register through /api/auth/sign-up/email). To create a user,
+ * open sign-ups on the target branch only for the duration of this script:
+ *   neon neon-auth config email-password update --branch development --disable-sign-up false
+ *   SEED_ADMIN_EMAIL=... SEED_ADMIN_PASSWORD=... SEED_ADMIN_NAME="..." npx tsx scripts/seed.ts
+ *   neon neon-auth config email-password update --branch development --disable-sign-up true
  *
  * Usage (dev server must be running in another terminal):
  *   SEED_ADMIN_EMAIL=you@tagrholdings.com SEED_ADMIN_PASSWORD=... SEED_ADMIN_NAME="Tanner" npx tsx scripts/seed.ts
@@ -53,7 +60,7 @@ async function resolveUserId(): Promise<string> {
   const body = await response.json();
   if (!response.ok) {
     throw new Error(
-      `Sign-up failed (${response.status}): ${body?.message ?? JSON.stringify(body)}. Is \`npm run dev\` running at ${APP_URL}?`
+      `Sign-up failed (${response.status}): ${body?.message ?? JSON.stringify(body)}. Is \`npm run dev\` running at ${APP_URL}, and are sign-ups temporarily enabled (see the comment at the top of this file)?`
     );
   }
 

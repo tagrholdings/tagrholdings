@@ -1,3 +1,4 @@
+import { UserFacingError } from "@/lib/errors";
 import { pipelineRepository, pipelineBoardsRepository } from "./pipeline.repository";
 import { activitiesService } from "@/modules/activities/activities.service";
 import { DEFAULT_BOARD_NAME, DEFAULT_BOARD_COLUMNS } from "./pipeline.constants";
@@ -30,10 +31,10 @@ export const pipelineService = {
   async getEditableBoard(tenantId: string, id: string) {
     const board = await pipelineBoardsRepository.findById(tenantId, id);
     if (!board) {
-      throw new Error("Project not found.");
+      throw new UserFacingError("Project not found.");
     }
     if (board.isSystem) {
-      throw new Error("The Leads board can't be changed.");
+      throw new UserFacingError("The Leads board can't be changed.");
     }
     return board;
   },
@@ -98,7 +99,7 @@ export const pipelineService = {
   async getById(tenantId: string, id: string) {
     const item = await pipelineRepository.findByIdWithRelations(tenantId, id);
     if (!item) {
-      throw new Error("Pipeline item not found.");
+      throw new UserFacingError("Pipeline item not found.");
     }
     return item;
   },
@@ -110,7 +111,7 @@ export const pipelineService = {
   async moveStage(tenantId: string, id: string, stage: string) {
     const updated = await pipelineRepository.updateStage(tenantId, id, stage);
     if (!updated) {
-      throw new Error("Pipeline item not found.");
+      throw new UserFacingError("Pipeline item not found.");
     }
     return updated;
   },
@@ -118,7 +119,7 @@ export const pipelineService = {
   async update(tenantId: string, id: string, data: Partial<NewPipelineItem>) {
     const updated = await pipelineRepository.update(tenantId, id, data);
     if (!updated) {
-      throw new Error("Pipeline item not found.");
+      throw new UserFacingError("Pipeline item not found.");
     }
     return updated;
   },

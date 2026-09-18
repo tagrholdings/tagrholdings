@@ -3,8 +3,8 @@
 ## Repository
 
 **Does:**
-- Pure queries via Drizzle (`db.query`, `db.insert`, `db.update`, `db.delete`).
-- Always takes `tenantId` as a parameter and includes it in the `where` clause of every domain query.
+- Pure queries via Drizzle, run inside `withTenant(tenantId, (tx) => tx.select()...)` from `lib/db.ts` so Postgres row-level security applies (see `.agents/docs/TENANCY.md`). The plain `db` is only for tables without a `tenant_id` (tenancy, rate-limit) — ESLint blocks it elsewhere in `modules/`.
+- Always takes `tenantId` as a parameter and includes it in the `where` clause of every domain query — RLS is the second layer, not a replacement.
 - Returns raw data (or `undefined`/`null` when not found) — no transforming, no business-rule validation.
 
 **Does not:**
@@ -18,7 +18,7 @@
 - All business logic and domain rules (e.g. "an item can't go back from 'Complete' to 'Planned'").
 - Orchestrates calls to Repositories, including other modules' Repositories when needed (e.g. `pipeline.service` can call `contacts.repository` to validate that the linked contact exists).
 - Guarantees tenant isolation across every flow — it's the last line of defense before data touches the database.
-- Throws business errors with clear messages (`throw new Error("Item not found")`) — these messages are what the Action eventually shows the user via `safe-action`.
+- Throws business errors with clear messages as `UserFacingError` from `lib/errors.ts` (`throw new UserFacingError("Item not found")`) — only that class's message reaches the user via `safe-action`; any other error (including a plain `Error`) becomes a generic "Something went wrong", because a Drizzle error's message contains the full SQL and its parameters.
 
 **Does not:**
 - Know about Next.js (no `revalidatePath`, no cookies, no headers — that's the Action's job).

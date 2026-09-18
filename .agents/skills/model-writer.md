@@ -7,6 +7,12 @@ Use this skill whenever the request involves creating or altering a table, or ad
 1. **Does it store data that belongs to a company?** If so (almost always), it has `tenantId: uuid("tenant_id").notNull().references(() => tenants.id)`. See `.agents/docs/TENANCY.md`.
 2. Does it have `id` (uuid, primary key), `createdAt`, `updatedAt`? Standard on every domain table, even if the request doesn't explicitly mention it.
 3. Relationships (foreign keys) point to the right table, whether within the same module or another module — Drizzle allows this even with the `modules/` separation, since schemas can reference each other across files.
+4. **Tenant tables get the three isolation layers** (details in `.agents/docs/TENANCY.md`):
+   - `tenantIsolationPolicy("<table>")` in the table's extra-config array (from `tenancy.schema.ts`) — drizzle-kit then emits `ENABLE ROW LEVEL SECURITY` + the policy.
+   - References to other tenant tables are composite, not `.references()` on the column: `foreignKey({ name, columns: [t.tenantId, t.contactId], foreignColumns: [contactsTable.tenantId, contactsTable.id] })`. If other tables will reference this one, add `unique("<table>_tenant_id_id_unique").on(t.tenantId, t.id)`.
+   - A custom migration (`drizzle-kit generate --custom`) with `GRANT SELECT, INSERT, UPDATE, DELETE ON <table> TO app_tenant;` — drizzle-kit doesn't manage grants, and without it every `withTenant` query on the table fails with "permission denied".
+   - Read the generated SQL before applying: drizzle-kit has emitted composite FKs before the `UNIQUE` they depend on (see the note in `drizzle/0005_tenant_isolation.sql`).
+5. Every `text` column exposed to an Action gets a max length in its `createInsertSchema` refinement — `(s) => s.max(n)` for NOT NULL columns, `z.string().max(n).nullish()` for nullable ones (a function refinement on a nullable column makes drizzle-zod type it as required).
 
 ## `[domain].schema.ts` file structure
 

@@ -1,3 +1,4 @@
+import { UserFacingError } from "@/lib/errors";
 import { organizationsRepository } from "./organizations.repository";
 import type { NewOrganization } from "./organizations.types";
 
@@ -16,7 +17,7 @@ export const organizationsService = {
   async update(tenantId: string, id: string, data: Partial<NewOrganization>) {
     const updated = await organizationsRepository.update(tenantId, id, data);
     if (!updated) {
-      throw new Error("Organization not found.");
+      throw new UserFacingError("Organization not found.");
     }
     return updated;
   },

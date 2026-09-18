@@ -1,13 +1,22 @@
 import { db } from "@/lib/db";
 import { tenantMembersTable, tenantsTable } from "./tenancy.schema";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
+// Uses the unscoped `db`, not `withTenant`: resolving a user's tenant is what
+// happens *before* a tenant is known, and tenants/tenant_members have no
+// tenant RLS policy (see TENANCY.md).
 export const tenancyRepository = {
   async findTenantIdByUserId(userId: string) {
     const member = await db.query.tenantMembersTable.findFirst({
       where: eq(tenantMembersTable.userId, userId),
     });
     return member?.tenantId;
+  },
+
+  async findMember(tenantId: string, userId: string) {
+    return db.query.tenantMembersTable.findFirst({
+      where: and(eq(tenantMembersTable.tenantId, tenantId), eq(tenantMembersTable.userId, userId)),
+    });
   },
 
   async findTenantBySlug(slug: string) {
