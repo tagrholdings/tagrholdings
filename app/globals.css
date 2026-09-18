@@ -73,6 +73,50 @@
   --success-foreground: var(--cream);
 }
 
+/* Dark mode — only the semantic/surface tokens flip. Brand constants
+   (--brass, --ink, --paper, --cream, --slate) stay put: they're reused
+   directly as raw colors in places like the sidebar ("always dark,
+   independent of the page background") and text-ink/bg-ink utilities, and
+   flipping them would break those, not just the page background. Applied
+   two ways: system preference (unless the user picked a theme explicitly,
+   tracked via `data-theme` — see hooks/ui/use-theme.ts) and an explicit
+   `data-theme="dark"` on <html>. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background: #131417;
+    --foreground: var(--paper);
+    --surface: #1d1e22;
+    --surface-alt: #26272c;
+    --divider: color-mix(in srgb, var(--paper) 14%, transparent);
+    --muted: #1d1e22;
+    --muted-foreground: color-mix(in srgb, var(--paper) 60%, transparent);
+    --popover: #1d1e22;
+    --popover-foreground: var(--paper);
+    --secondary: #26272c;
+    --secondary-foreground: var(--paper);
+    --sidebar-bg: #1a1b1f;
+    --sidebar-hover: color-mix(in srgb, var(--paper) 8%, transparent);
+    --sidebar-border: color-mix(in srgb, var(--paper) 10%, transparent);
+  }
+}
+
+:root[data-theme="dark"] {
+  --background: #131417;
+  --foreground: var(--paper);
+  --surface: #1d1e22;
+  --surface-alt: #26272c;
+  --divider: color-mix(in srgb, var(--paper) 14%, transparent);
+  --muted: #1d1e22;
+  --muted-foreground: color-mix(in srgb, var(--paper) 60%, transparent);
+  --popover: #1d1e22;
+  --popover-foreground: var(--paper);
+  --secondary: #26272c;
+  --secondary-foreground: var(--paper);
+  --sidebar-bg: #1a1b1f;
+  --sidebar-hover: color-mix(in srgb, var(--paper) 8%, transparent);
+  --sidebar-border: color-mix(in srgb, var(--paper) 10%, transparent);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -163,7 +207,6 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 10.5px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--ink) 55%, transparent);
 }
 
 /* Buttons stay pill-shaped, unlike cards/inputs (radius-sm/md/lg) */
@@ -178,4 +221,14 @@ h1, h2, h3, h4, h5, h6 {
 ::selection {
   background: var(--brass);
   color: var(--cream);
+}
+
+/* Theme toggle's circular reveal (components/ui/theme-toggle.tsx) drives the
+   root transition itself via a manual clip-path animation — without this,
+   the browser's default ~250ms cross-fade on ::view-transition-*(root) plays
+   underneath it too, muddying the circle. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
 }

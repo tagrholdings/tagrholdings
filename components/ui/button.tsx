@@ -11,7 +11,7 @@ const buttonVariants = cva(
       variant: {
         default: "bg-brass text-cream hover:bg-accent-hover",
         outline:
-          "border-divider bg-transparent text-ink hover:bg-muted aria-expanded:bg-muted",
+          "border-divider bg-transparent text-foreground hover:bg-muted aria-expanded:bg-muted",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         ghost:

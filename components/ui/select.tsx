@@ -174,7 +174,7 @@ const SelectTrigger = React.forwardRef<
 
     const commonClasses = cn(
         "flex-1",
-        "flex h-11 md:h-9 w-full items-center justify-between gap-2 rounded-md border border-divider bg-surface px-3 py-1 text-sm text-ink transition-all outline-none disabled:cursor-not-allowed disabled:opacity-50",
+        "flex h-11 md:h-9 w-full items-center justify-between gap-2 rounded-md border border-divider bg-surface px-3 py-1 text-sm text-foreground transition-all outline-none disabled:cursor-not-allowed disabled:opacity-50",
         "focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/20",
         "aria-invalid:ring-destructive/20 aria-invalid:border-destructive",
         "data-[size=default]:h-11 md:data-[size=default]:h-9 data-[size=sm]:h-8",

@@ -209,7 +209,7 @@ const VaultTitle = React.forwardRef<
         <Drawer.Title
             ref={ref}
             className={twMerge(
-                "font-serif text-xl font-semibold text-center leading-tight tracking-tight text-ink",
+                "font-serif text-xl font-semibold text-center leading-tight tracking-tight text-foreground",
                 className,
             )}
             {...props}
@@ -293,7 +293,7 @@ const VaultIcon = ({
             ? "text-destructive"
             : type === "success" || type === "confirm"
                 ? "text-success"
-                : "text-ink";
+                : "text-foreground";
 
     const iconContent =
         children ||
@@ -469,7 +469,7 @@ const VaultSecondaryButton = React.forwardRef<
             transition={{ type: "spring", stiffness: 400, damping: 17 }}
             className={twMerge(
                 `flex items-center justify-center gap-2 flex-row min-w-fit px-6 py-3 lg:text-lg md:text-base text-sm font-semibold
-        text-foreground hover:text-ink
+        text-foreground
         bg-muted hover:bg-surface-alt
         rounded-pill transition-all duration-150
         border border-divider hover:border-divider

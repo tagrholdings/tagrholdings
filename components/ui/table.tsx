@@ -57,14 +57,14 @@ export function TableBody({ children, className = "" }: TableBodyProps) {
   );
 }
 
-interface TableRowProps {
-  children: React.ReactNode;
-  className?: string;
-}
+type TableRowProps = React.HTMLAttributes<HTMLTableRowElement>;
 
-export function TableRow({ children, className = "" }: TableRowProps) {
+export function TableRow({ children, className = "", ...props }: TableRowProps) {
   return (
-    <tr className={`block md:table-row bg-surface border border-divider md:border-0 rounded-lg p-4 md:p-0 md:hover:bg-surface-alt/70 transition-colors ${className}`}>
+    <tr
+      className={`block md:table-row bg-surface border border-divider md:border-0 rounded-lg p-4 md:p-0 md:hover:bg-surface-alt/70 transition-colors ${className}`}
+      {...props}
+    >
       {children}
     </tr>
   );

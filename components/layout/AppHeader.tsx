@@ -8,6 +8,7 @@ import { authClient } from "@/lib/auth-client";
 import { notify } from "@/components/ui/toaster";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -92,14 +93,14 @@ function MobileHeader({
         <Link
           href={backHref}
           aria-label="Back"
-          className="flex size-9 shrink-0 items-center justify-center rounded-full text-ink transition-colors hover:bg-muted"
+          className="flex size-9 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted"
         >
           <ChevronLeft className="size-5" />
         </Link>
       ) : (
         <div className="size-1" />
       )}
-      <h1 className="flex-1 truncate font-serif text-base font-semibold text-ink">
+      <h1 className="flex-1 truncate font-serif text-base font-semibold text-foreground">
         {title}
       </h1>
       {primaryAction && (
@@ -107,12 +108,13 @@ function MobileHeader({
           {primaryAction.label}
         </Button>
       )}
+      <ThemeToggle />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
             aria-label="Account menu"
-            className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-ink"
+            className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground"
           >
             {user.initials}
           </button>
@@ -140,6 +142,7 @@ function DesktopHeader({
   className,
 }: AppHeaderProps & { className?: string }) {
   return (
+    //TODO: MAKE THIS GAIN COLOR ON SCROLL TO MAKE IT MORE VISIBLE
     <header
       className={cn(
         "sticky top-4 z-20 h-16 shrink-0 items-center gap-4 rounded-lg px-6",
@@ -147,8 +150,8 @@ function DesktopHeader({
       )}
     >
       <div className="min-w-0 flex-1">
-        {kicker && <p className="label-kicker">{kicker}</p>}
-        <h1 className="truncate font-serif text-xl font-semibold text-ink">{title}</h1>
+        {kicker && <p className="label-kicker text-foreground/50">{kicker}</p>}
+        <h1 className="truncate font-serif text-xl font-semibold text-foreground">{title}</h1>
       </div>
 
       {showSearch && (
@@ -164,12 +167,14 @@ function DesktopHeader({
         </Button>
       )}
 
+      <ThemeToggle className="hover:bg-muted" />
+
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
             aria-label="Account menu"
-            className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold text-ink transition-colors hover:bg-surface-alt"
+            className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold text-foreground transition-colors hover:bg-surface-alt"
           >
             {user.initials}
           </button>
