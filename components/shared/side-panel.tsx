@@ -2,7 +2,6 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 interface SidePanelProps {
   open: boolean;
@@ -13,38 +12,47 @@ interface SidePanelProps {
   footer?: React.ReactNode;
 }
 
+const PANEL_WIDTH = 400;
+
 /**
- * A floating right-side detail panel — same visual language as Sidebar
- * (fixed, inset from the viewport edges, rounded-lg, shadow-lg) rather than
- * the centered/bottom-sheet Vault, for "click a row, see details without
- * leaving the list" flows (Contacts, and per design.md's item 4 notes,
- * Pipeline item detail too). Full-width with a smaller inset on mobile since
- * there's no room for a fixed side column there.
+ * A right-side detail panel that pushes the layout — a real flex sibling
+ * of the main content (not a fixed overlay with a backdrop), so opening it
+ * shrinks the content column exactly like the main Sidebar's collapse does,
+ * instead of floating on top of it. Desktop/tablet only: the caller is
+ * responsible for switching to `Vault` (bottom sheet) below `md` — see
+ * PipelineItemDetail.tsx / WeekActivityDetail.tsx / ContactDetailPanel.tsx
+ * for the established `useIsMobile()` branch. There's no backdrop here on
+ * purpose — this isn't a modal, the main content stays interactive.
+ *
+ * Usage: render as a flex sibling of the main content inside a
+ * `flex gap-4` row, e.g.:
+ * ```tsx
+ * <div className="flex flex-1 gap-4 min-w-0">
+ *   <div className="min-w-0 flex-1">...table/board...</div>
+ *   <SidePanel open={open} .../>
+ * </div>
+ * ```
+ * The outer `motion.div` animates `width` (0 → 400px) with `overflow-hidden`
+ * while the inner content stays a fixed 400px — that's what keeps the panel's
+ * own content from squishing/reflowing mid-animation while its container
+ * width (and therefore the main content's available space) actually changes.
  */
 export function SidePanel({ open, onOpenChange, title, description, children, footer }: SidePanelProps) {
   return (
     <AnimatePresence>
       {open && (
-        <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            onClick={() => onOpenChange(false)}
-            className="fixed inset-0 z-40 bg-ink/40 backdrop-blur-sm"
-          />
-          <motion.div
-            initial={{ x: "110%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "110%" }}
-            transition={{ type: "spring", stiffness: 340, damping: 34 }}
+        <motion.div
+          initial={{ width: 0, opacity: 0 }}
+          animate={{ width: PANEL_WIDTH, opacity: 1 }}
+          exit={{ width: 0, opacity: 0 }}
+          transition={{ type: "spring", stiffness: 340, damping: 34 }}
+          className="flex shrink-0 self-stretch overflow-hidden"
+        >
+          <div
             role="dialog"
             aria-label={title}
-            className={cn(
-              "fixed inset-y-2 inset-x-2 z-50 flex flex-col overflow-hidden rounded-lg border border-divider bg-surface shadow-lg",
-              "md:inset-y-4 md:inset-x-auto md:right-4 md:w-[420px]"
-            )}
+            style={{ width: PANEL_WIDTH }}
+            className="flex h-full shrink-0 flex-col overflow-hidden rounded-lg border border-divider bg-surface shadow-md"
           >
             <div className="flex items-start justify-between gap-2 border-b border-divider px-5 py-4">
               <div className="min-w-0">
@@ -64,8 +72,8 @@ export function SidePanel({ open, onOpenChange, title, description, children, fo
             <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
 
             {footer && <div className="border-t border-divider px-5 py-4">{footer}</div>}
-          </motion.div>
-        </>
+          </div>
+        </motion.div>
       )}
     </AnimatePresence>
   );

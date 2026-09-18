@@ -61,9 +61,9 @@ export function SignInForm({ fieldVariants, dark = false }: SignInFormProps) {
     }
 
     // "/" also works on crm.tagrholdings.com (proxy.ts rewrites it to
-    // /dashboard), but going straight to /dashboard is host-agnostic —
+    // /pipeline), but going straight to /pipeline is host-agnostic —
     // it also works in local dev without a crm.localhost DNS entry.
-    router.push("/dashboard");
+    router.push("/pipeline");
     router.refresh();
   };
 

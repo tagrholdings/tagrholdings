@@ -140,6 +140,7 @@ function DesktopHeader({
   user,
   onSignOut,
   className,
+  backHref
 }: AppHeaderProps & { className?: string }) {
   return (
     //TODO: MAKE THIS GAIN COLOR ON SCROLL TO MAKE IT MORE VISIBLE
@@ -149,6 +150,17 @@ function DesktopHeader({
         className
       )}
     >
+      {backHref ? (
+        <Link
+          href={backHref}
+          aria-label="Back"
+          className="flex size-9 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted"
+        >
+          <ChevronLeft className="size-5" />
+        </Link>
+      ) : (
+        <div className="hidden" />
+      )}
       <div className="min-w-0 flex-1">
         {kicker && <p className="label-kicker text-foreground/50">{kicker}</p>}
         <h1 className="truncate font-serif text-xl font-semibold text-foreground">{title}</h1>

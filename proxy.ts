@@ -38,7 +38,7 @@ export default function proxy(request: NextRequest) {
       // The hub's home has no route of its own at "/" — app/page.tsx there
       // is already the marketing landing page — so rewrite silently to the
       // real page. The URL bar keeps showing crm.tagrholdings.com/.
-      return NextResponse.rewrite(new URL(`/dashboard${search}`, request.url));
+      return NextResponse.rewrite(new URL(`/activities${search}`, request.url));
     }
     if (isMarketingPath(pathname)) {
       // A marketing-only path has nothing to serve on the CRM host.

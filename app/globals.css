@@ -232,3 +232,30 @@ h1, h2, h3, h4, h5, h6 {
   animation: none;
   mix-blend-mode: normal;
 }
+
+/* Thin, low-contrast scrollbar for horizontally-scrolling kanban rows
+   (PipelineBoard, WeekBoard) — real content to scroll to there (unlike a
+   loading skeleton, which uses overflow-hidden instead, see
+   app/(hub)/pipeline/loading.tsx), so it can't just be hidden, but the
+   default OS scrollbar is visually heavy for a board's own footer. */
+.kanban-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--divider) transparent;
+}
+.kanban-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+.kanban-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.kanban-scroll::-webkit-scrollbar-thumb {
+  background: var(--divider);
+  border-radius: var(--radius-pill);
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  &::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
+}

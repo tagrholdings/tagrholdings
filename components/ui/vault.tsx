@@ -6,11 +6,9 @@ import { Drawer } from "vaul";
 import { twMerge } from "tailwind-merge";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
-import { motion, HTMLMotionProps } from "framer-motion";
+import { motion, HTMLMotionProps, AnimatePresence } from "framer-motion";
 import { vaultIcons } from "./vault-icons";
 import { Input } from "./input";
-
-
 
 interface VaultContextProps {
     isOpen: boolean;
@@ -20,6 +18,15 @@ interface VaultContextProps {
 const VaultContext = React.createContext<VaultContextProps | undefined>(
     undefined,
 );
+
+// Hook exportado para podermos acessar e fechar o vault de dentro de botões/forms
+const useVault = () => {
+    const context = React.useContext(VaultContext);
+    if (!context) {
+        throw new Error("useVault must be used within a Vault");
+    }
+    return context;
+};
 
 const Vault = ({
     children,
@@ -144,7 +151,8 @@ const VaultContent = React.forwardRef<
                     }
                 }}
                 className={twMerge(
-                    "fixed z-50 flex flex-col bg-surface shadow-lg border border-divider outline-none",
+                    // overflow-hidden adicionado para que a expansão do botão não quebre as bordas arredondadas do Drawer
+                    "no-scrollbar fixed z-50 flex flex-col bg-surface shadow-lg border border-divider outline-none overflow-hidden",
 
                     isStandalone
                         ? "bottom-2 inset-x-2 w-auto rounded-lg after:hidden! mt-24"
@@ -160,7 +168,7 @@ const VaultContent = React.forwardRef<
                     <Drawer.Title>{props["aria-label"] ?? "Vault"}</Drawer.Title>
                 </VisuallyHidden>
                 {showHandle && (
-                    <div className="mx-auto mt-4 mb-2 h-1.5 w-14 shrink-0 rounded-full bg-divider" />
+                    <div className="mx-auto mt-4 mb-2 h-1.5 w-14 shrink-0 rounded-full bg-divider relative z-10" />
                 )}
 
                 <div className={cn(
@@ -191,11 +199,7 @@ const VaultHeader = React.forwardRef<
             )}
             {...props}
         >
-            <div
-                className={`flex flex-col space-y-2 ${showCloseButton ? "flex-1" : "text-center"}`}
-            >
-                {children}
-            </div>
+            {children}
         </div>
     );
 });
@@ -244,6 +248,7 @@ const VaultFooter = ({
     return (
         <div
             className={twMerge(
+                // Removido o 'relative' daqui do final!
                 "flex lg:flex-row md:flex-row flex-col justify-center gap-3 pt-4 border-t border-divider",
                 className,
             )}
@@ -426,33 +431,132 @@ const VaultInput = React.forwardRef<
 });
 VaultInput.displayName = "VaultInput";
 
+
+// Novo tipo para podermos aceitar promessas no onClick do botão principal
+// Atualizamos o tipo do onClick para aceitar booleanos (tanto em Promise como retorno síncrono)
+type VaultPrimaryButtonProps = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "onClick"> &
+    HTMLMotionProps<"button"> & {
+        variant?: "default" | "destructive" | "secondary";
+        onClick?: (e: React.MouseEvent<HTMLButtonElement>) => Promise<void | boolean> | void | boolean;
+    };
+
 const VaultPrimaryButton = React.forwardRef<
     React.ComponentRef<typeof motion.button>,
-    React.ButtonHTMLAttributes<HTMLButtonElement> & {
-        variant?: "default" | "destructive" | "secondary";
-    } & HTMLMotionProps<"button">
->(({ className, variant = "default", ...props }, ref) => {
+    VaultPrimaryButtonProps
+>(({ className, variant = "default", children, onClick, ...props }, ref) => {
+    const { setIsOpen } = useVault();
+    const [status, setStatus] = React.useState<"idle" | "loading" | "success" | "error">("idle");
+    
+    // Um ID único para que o Framer Motion ligue o botão original ao overlay de ecrã inteiro
+    const layoutId = React.useId();
+
     const variantStyles = {
         default: "bg-accent text-ink hover:bg-accent-hover",
         destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
     };
 
+const handleClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
+        if (!onClick) return;
+
+        const result: unknown = onClick(e);
+
+        if (result instanceof Promise) {
+            setStatus("loading");
+            try {
+                // Aguardamos o resultado da sua função
+                const response = await result;
+                
+                // SEGREDO AQUI: Se a função retornar false, a gente aborta a animação
+                // e volta o botão ao normal silenciosamente.
+                if (response === false) {
+                    setStatus("idle");
+                    return;
+                }
+                
+                setStatus("success");
+            } catch {
+                setStatus("error");
+            }
+
+            setTimeout(() => {
+                setIsOpen(false);
+                setTimeout(() => setStatus("idle"), 300);
+            }, 1600);
+        }
+    };
+
+    const isExpanded = status === "success" || status === "error";
+
     return (
-        <motion.button
-            ref={ref}
-            whileHover={{ scale: 1.005 }}
-            whileTap={{ scale: 0.98 }}
-            transition={{ type: "spring", stiffness: 400, damping: 17 }}
-            className={twMerge(
-                `min-w-fit flex flex-1 items-center justify-center flex-row gap-2 px-7 py-3 lg:text-lg md:text-base text-sm font-semibold rounded-pill
-        transition-all duration-150 focus:outline-none
-        disabled:opacity-50 disabled:cursor-not-allowed
-        ${variantStyles[variant]}`,
-                className,
+        <>
+            {isExpanded ? (
+                /* 
+                 * FANTASMA: Quando o overlay expande, o botão sai de cena. 
+                 * Esta div invisível assume o exato mesmo tamanho para impedir que o formulário encolha ou pisque. 
+                 */
+                <div className={twMerge("flex flex-1 px-7 py-3 opacity-0 pointer-events-none", className)} />
+            ) : (
+                /* BOTÃO REAL */
+                <motion.button
+                    ref={ref}
+                    layoutId={layoutId} // A magia começa aqui
+                    onClick={handleClick}
+                    disabled={status !== "idle" || props.disabled}
+                    whileHover={status === "idle" ? { scale: 1.005 } : undefined}
+                    whileTap={status === "idle" ? { scale: 0.98 } : undefined}
+                    className={twMerge(
+                        "flex flex-1 items-center justify-center gap-2 px-7 py-3 lg:text-lg md:text-base text-sm font-semibold rounded-md transition-colors duration-150 focus:outline-none overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed",
+                        variantStyles[variant],
+                        className,
+                    )}
+                    {...props}
+                >
+                    {status === "idle" && children}
+                    {status === "loading" && (
+                        <motion.svg initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="animate-spin h-6 w-6 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </motion.svg>
+                    )}
+                </motion.button>
             )}
-            {...props}
-        />
+
+            {/* OVERLAY: Expande fisicamente pelo Vault assumindo o layoutId */}
+            <AnimatePresence>
+                {isExpanded && (
+                    <motion.div
+                        layoutId={layoutId} // A magia conecta-se aqui
+                        className={cn(
+                            "absolute inset-0 z-50 flex flex-col items-center justify-center text-white text-2xl shadow-2xl rounded-lg overflow-hidden",
+                            status === "success" ? "bg-green-600" : "bg-destructive"
+                        )}
+                    >
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.5 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: 0.15, type: "spring" }} // Atraso ligeiro para permitir que a expansão chegue perto do fim antes de mostrar o texto
+                            className="flex flex-col items-center gap-3"
+                        >
+                            <div className="rounded-full bg-white/20 p-4">
+                                {status === "success" ? (
+                                    <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                ) : (
+                                    <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                )}
+                            </div>
+                            <span className="font-bold tracking-tight">
+                                {status === "success" ? "Success!" : "An error occurred"}
+                            </span>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </>
     );
 });
 VaultPrimaryButton.displayName = "VaultPrimaryButton";
@@ -471,7 +575,7 @@ const VaultSecondaryButton = React.forwardRef<
                 `flex items-center justify-center gap-2 flex-row min-w-fit px-6 py-3 lg:text-lg md:text-base text-sm font-semibold
         text-foreground
         bg-muted hover:bg-surface-alt
-        rounded-pill transition-all duration-150
+        rounded-md transition-all duration-150
         border border-divider hover:border-divider
         disabled:opacity-50 disabled:cursor-not-allowed`,
                 className,
@@ -483,6 +587,7 @@ const VaultSecondaryButton = React.forwardRef<
 VaultSecondaryButton.displayName = "VaultSecondaryButton";
 
 export {
+    useVault,
     Vault,
     VaultTrigger,
     VaultPortal,
@@ -500,4 +605,30 @@ export {
     VaultPrimaryButton,
     VaultSecondaryButton,
 };
-
+
+/**
+ * 💡 COMO USAR A ANIMAÇÃO MÁGICA DO VAULTPRIMARYBUTTON:
+ * 
+ * Para que o botão gerencie os estados (Loading -> Sucesso/Erro em tela cheia)
+ * automaticamente, a função passada no `onClick` deve ser ASYNC e seguir 3 regras:
+ * 
+ * 1. VALIDAÇÃO (Cancelar silenciosamente): Se o formulário for inválido (ex: usando 
+ *    `await trigger()` do react-hook-form), a função deve dar `return false;`. 
+ *    Isso faz o botão parar o loading sem mostrar a tela verde.
+ * 
+ * 2. ERROS DE SERVIDOR (Tela Vermelha): Se a Server Action retornar um erro, 
+ *    dispare um erro com `throw new Error("...");`. O botão vai capturar 
+ *    isso e mostrar a tela vermelha.
+ * 
+ * 3. SUCESSO (Tela Verde): Se tudo der certo no final, não retorne `false` nem 
+ *    lance erros. O botão fará a animação verde de sucesso cobrindo o Vault 
+ *    inteiro e o fechará automaticamente após 1.5 segundos.
+ * 
+ * Exemplo prático de onSubmit:
+ * const onSubmit = async () => {
+ *   if (!(await trigger())) return false; // 1. Aborta se inválido
+ *   const res = await executeAsync(data);
+ *   if (res.error) throw new Error();     // 2. Tela vermelha se falhar
+ *   reset();                              // 3. Sucesso! (Tela verde automática)
+ * }
+ */

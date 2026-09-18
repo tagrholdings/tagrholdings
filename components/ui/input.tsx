@@ -10,6 +10,8 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
       data-slot="input"
       className={cn(
         "h-11 md:h-9 w-full min-w-0 rounded-md border border-divider bg-surface px-3 py-1 text-sm text-foreground transition-all outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/20 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm",
+        // Truque para sobrescrever a cor de autofill do navegador mantendo as cores do seu tema
+        "[&:-webkit-autofill]:shadow-[inset_0_0_0px_1000px_theme(colors.surface)] [&:-webkit-autofill]:[-webkit-text-fill-color:theme(colors.foreground)]",
         className
       )}
       {...props}

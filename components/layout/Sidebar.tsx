@@ -13,7 +13,7 @@ export interface SidebarUser {
   initials: string;
 }
 
-/** Exported so AppShell can compute its content offset without duplicating
+/** Exported so HubChrome can compute its content offset without duplicating
  *  these numbers — see design.md's Sidebar section. */
 export const SIDEBAR_WIDTH_EXPANDED = 216;
 export const SIDEBAR_WIDTH_COLLAPSED = 72;
@@ -68,7 +68,7 @@ export function Sidebar({
         <div
           className={cn(
             "flex items-center py-6",
-            collapsed ? "flex-col-reverse justify-center gap-2 px-0" : "justify-between gap-2 px-4"
+            collapsed ? "flex-col justify-center gap-6 px-0" : "justify-between gap-2 px-4"
           )}
         >
           <div className={cn("flex min-w-0 items-center gap-2", collapsed && "justify-center")}>

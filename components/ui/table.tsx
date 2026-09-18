@@ -51,7 +51,7 @@ interface TableBodyProps {
 
 export function TableBody({ children, className = "" }: TableBodyProps) {
   return (
-    <tbody className={`block md:table-row-group divide-y-0 md:divide-y divide-divider p-4 md:p-0 space-y-4 md:space-y-0 ${className}`}>
+    <tbody className={`block md:table-row-group divide-y-0 md:divide-y divide-divider md:p-0 space-y-4 md:space-y-0 ${className}`}>
       {children}
     </tbody>
   );

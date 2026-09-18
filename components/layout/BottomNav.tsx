@@ -44,24 +44,29 @@ function NavIcon({
   children: ReactNode;
 }) {
   return (
-    <span className="relative flex size-11 items-center justify-center">
+    <span
+      className={cn(
+        "relative flex h-11 items-center justify-center transition-all duration-300",
+        isActive ? "px-4" : "w-11"
+      )}
+    >
       {isActive && (
         <motion.span
           layoutId={ACTIVE_PILL_LAYOUT_ID}
-          className="absolute inset-1.5 rounded-full bg-accent"
+          className="absolute inset-1 rounded-full bg-accent"
           transition={{ type: "spring", stiffness: 500, damping: 32 }}
         />
       )}
       <span
         className={cn(
-          "relative transition-colors",
+          "relative z-10 flex items-center gap-2 transition-colors",
           isActive ? "text-ink" : "text-sidebar-foreground-muted"
         )}
       >
         {children}
       </span>
       {!!badgeCount && (
-        <span className="absolute right-1 top-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-accent px-1 text-[9px] font-semibold text-ink ring-2 ring-sidebar">
+        <span className="absolute right-0 top-0 z-20 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-ink ring-2 ring-sidebar">
           {badgeCount > 9 ? "9+" : badgeCount}
         </span>
       )}
@@ -81,7 +86,7 @@ export function BottomNav({ activeHref, badges, variant = "responsive", classNam
   return (
     <nav
       className={cn(
-        "left-1/2 z-30 flex w-[87%] max-w-xs -translate-x-1/2 items-center justify-between gap-1 rounded-pill border border-sidebar-border bg-sidebar px-2 py-1.5 shadow-lg",
+        "left-1/2 z-30 flex w-[90%] max-w-sm -translate-x-1/2 items-center justify-between gap-1 rounded-pill border border-sidebar-border bg-sidebar px-2 py-1.5",
         variant === "responsive" ? "fixed md:hidden" : "absolute bottom-4",
         className
       )}
@@ -102,10 +107,18 @@ export function BottomNav({ activeHref, badges, variant = "responsive", classNam
             href={item.href}
             aria-current={isActive ? "page" : undefined}
             aria-label={item.label}
-            className="flex flex-1 items-center justify-center"
+            className={cn(
+              "flex flex-row items-center justify-center transition-all",
+              isActive ? "flex-[2]" : "flex-1"
+            )}
           >
             <NavIcon isActive={isActive} badgeCount={badgeCount}>
-              <Icon className="size-5" aria-hidden />
+              <Icon className="size-5 shrink-0" aria-hidden />
+              {isActive && (
+                <span className="text-sm font-medium whitespace-nowrap">
+                  {item.label}
+                </span>
+              )}
             </NavIcon>
           </Link>
         );
@@ -117,10 +130,18 @@ export function BottomNav({ activeHref, badges, variant = "responsive", classNam
             <button
               type="button"
               aria-label="More"
-              className="flex flex-1 items-center justify-center"
+              className={cn(
+                "flex items-center justify-center transition-all",
+                isOverflowActive ? "flex-[2]" : "flex-1"
+              )}
             >
               <NavIcon isActive={isOverflowActive}>
-                <MoreHorizontal className="size-5" aria-hidden />
+                <MoreHorizontal className="size-5 shrink-0" aria-hidden />
+                {isOverflowActive && (
+                  <span className="text-sm font-medium whitespace-nowrap">
+                    Mais
+                  </span>
+                )}
               </NavIcon>
             </button>
           </DropdownMenuTrigger>

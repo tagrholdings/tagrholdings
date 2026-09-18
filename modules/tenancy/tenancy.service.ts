@@ -8,4 +8,8 @@ export const tenancyService = {
     }
     return tenantId;
   },
+
+  async listMembers(tenantId: string) {
+    return tenancyRepository.findMembersWithUserInfo(tenantId);
+  },
 };

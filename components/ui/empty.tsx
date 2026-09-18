@@ -19,7 +19,7 @@ function Empty({ className, ...props }: React.ComponentProps<typeof motion.div>)
       transition={{ duration: 0.3, ease: "easeOut" }}
       className={cn(
         // min-h-0 lets flex-1 actually shrink/grow to fill a flex-column
-        // ancestor (AppShell's <main>) instead of just hugging its content
+        // ancestor (HubPage's <main>) instead of just hugging its content
         // height — so a lone Empty as a route's only child fills the page.
         "flex w-full min-w-0 flex-1 min-h-0 flex-col items-center justify-center gap-4 rounded-md p-6 text-center text-balance",
         className

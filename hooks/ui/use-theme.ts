@@ -1,34 +1,49 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 
 const STORAGE_KEY = "tagr-theme";
 export type Theme = "light" | "dark";
 
-function systemTheme(): Theme {
+const listeners = new Set<() => void>();
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  window.addEventListener("storage", listener);
+  return () => {
+    listeners.delete(listener);
+    window.removeEventListener("storage", listener);
+  };
+}
+
+/**
+ * `data-theme` on <html> is the source of truth — the inline script in
+ * app/layout.tsx sets it (stored choice, else OS preference) before
+ * hydration, so this just reads that resolved value back.
+ */
+function getSnapshot(): Theme {
+  const attr = document.documentElement.getAttribute("data-theme");
+  if (attr === "dark" || attr === "light") return attr;
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
 /**
  * Persists an explicit theme choice, falling back to the OS preference when
- * the user hasn't picked one. `data-theme` on <html> is the source of truth
- * for CSS (see globals.css); this hook only keeps React state in sync with
- * it and with localStorage. The inline script in app/layout.tsx sets
- * `data-theme` before hydration so there's no flash — this hook just reads
- * that same resolved value back on mount instead of guessing "light" first.
+ * the user hasn't picked one. See globals.css for how `data-theme` drives
+ * the tokens. Server snapshot is "light"; React re-reads the real value
+ * right after hydration (useSyncExternalStore), no effect needed.
  */
 export function useTheme() {
-  const [theme, setThemeState] = useState<Theme>("light");
-
-  useEffect(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEY) as Theme | null;
-    setThemeState(stored ?? systemTheme());
-  }, []);
+  const theme = useSyncExternalStore(subscribe, getSnapshot, (): Theme => "light");
 
   const setTheme = useCallback((value: Theme) => {
-    setThemeState(value);
-    window.localStorage.setItem(STORAGE_KEY, value);
     document.documentElement.setAttribute("data-theme", value);
+    try {
+      window.localStorage.setItem(STORAGE_KEY, value);
+    } catch {
+      // Storage blocked (private mode) — the choice just won't persist.
+    }
+    listeners.forEach((listener) => listener());
   }, []);
 
   const toggleTheme = useCallback(() => {
