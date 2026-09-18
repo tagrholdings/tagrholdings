@@ -65,6 +65,13 @@ export default function proxy(request: NextRequest) {
   return NextResponse.next();
 }
 
+// Static files from public/ are shared by both hosts and never go through the
+// host routing above. Without this exclusion, a marketing-host request for
+// /pwa-icons/* or /brand/* isn't on the allowlist, so it gets redirected to
+// the CRM host — and the CSP's `img-src 'self'` blocks that cross-origin
+// redirect target. Add any new top-level public/ entry here.
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|pwa-icons/|brand/|browserconfig.xml).*)",
+  ],
 };
