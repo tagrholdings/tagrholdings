@@ -73,7 +73,7 @@ export function CreateProjectVault({
         ) : (
           <button
             type="button"
-            className="flex items-center gap-1 rounded-pill px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+            className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-pill px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             <Plus className="size-3.5" />
             New project

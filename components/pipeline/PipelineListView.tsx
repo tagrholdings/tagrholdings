@@ -25,14 +25,17 @@ export function PipelineListView({
 
   return (
     <div className="flex flex-1 flex-col gap-4">
-      <div className="flex flex-wrap gap-2">
+      {/* Horizontal scroll, not wrap — a board can have up to 10 stages,
+          and wrapping that many pills to several lines on mobile pushed the
+          actual list below the fold. */}
+      <div className="no-scrollbar flex gap-2 overflow-x-auto pb-0.5">
         {[{ id: "all", label: "All" }, ...columns].map((column) => (
           <button
             key={column.id}
             type="button"
             onClick={() => setStageFilter(column.id)}
             className={cn(
-              "rounded-pill border px-3 py-1.5 text-xs font-medium transition-colors",
+              "shrink-0 rounded-pill border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors",
               stageFilter === column.id
                 ? "border-accent bg-accent text-ink"
                 : "border-divider bg-surface text-muted-foreground hover:text-foreground"

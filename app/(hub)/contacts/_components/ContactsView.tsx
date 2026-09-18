@@ -199,7 +199,7 @@ export function ContactsView({
               value={peopleSearch}
               onChange={(e) => setPeopleSearch(e.target.value)}
               className="h-9"
-              containerClassName="flex-1 min-w-0"
+              containerClassName="w-full min-w-0 sm:w-auto sm:flex-1 sm:max-w-xs"
             />
           ) : (
             <SearchInput
@@ -207,11 +207,13 @@ export function ContactsView({
               value={orgSearch}
               onChange={(e) => setOrgSearch(e.target.value)}
               className="h-9"
-              containerClassName="flex-1 min-w-0"
+              containerClassName="w-full min-w-0 sm:w-auto sm:flex-1 sm:max-w-xs"
             />
           )}
-          {createOrgVault}
-          {createContactVault}
+          <div className="flex items-center gap-2">
+            {createOrgVault}
+            {createContactVault}
+          </div>
         </div>
 
         {tab === "people" ? (

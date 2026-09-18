@@ -170,7 +170,7 @@ export function ActivitiesView({
 
           {resolvedView === "board" && (
             <>
-              <div className="flex items-center gap-1 rounded-pill border border-divider bg-surface px-1">
+              <div className="flex shrink-0 items-center gap-1 rounded-pill border border-divider bg-surface px-1">
                 <button
                   type="button"
                   aria-label="Previous week"
@@ -242,14 +242,17 @@ export function ActivitiesView({
           <WeekBoard days={days} activities={searched} dateField={dateField} onSelect={setSelectedId} onMoveToDay={handleMoveToDay} />
         ) : (
           <>
-            <div className="flex flex-wrap gap-2">
+            {/* Horizontal scroll, not wrap — a row of 7 filters wrapping to
+                2-3 lines ate too much vertical space on mobile and made the
+                list itself the thing you had to scroll past. */}
+            <div className="no-scrollbar flex gap-2 overflow-x-auto pb-0.5">
               {FILTERS.map((f) => (
                 <button
                   key={f.id}
                   type="button"
                   onClick={() => setFilter(f.id)}
                   className={cn(
-                    "rounded-pill border px-3 py-1.5 text-xs font-medium transition-colors",
+                    "shrink-0 rounded-pill border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors",
                     filter === f.id
                       ? "border-accent bg-accent text-ink"
                       : "border-divider bg-surface text-muted-foreground hover:text-foreground"

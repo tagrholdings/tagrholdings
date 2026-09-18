@@ -25,7 +25,7 @@ export const NAV_ITEMS: NavItem[] = [
 ];
 
 /** Bottom nav shows the first N items as tabs; the rest collapse into "More". */
-export const BOTTOM_NAV_MAX_PRIMARY = 4;
+export const BOTTOM_NAV_MAX_PRIMARY = 5;
 
 export function isNavItemActive(currentHref: string | undefined | null, itemHref: string) {
   if (!currentHref) return false;

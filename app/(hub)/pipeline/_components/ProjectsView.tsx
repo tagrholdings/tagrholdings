@@ -138,36 +138,42 @@ export function ProjectsView({
 
   return (
     <div className="flex flex-1 flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-2">
-        {visibleBoards.map((board) => (
-          <button
-            key={board.id}
-            type="button"
-            onClick={() => setSelectedId(board.id)}
-            className={cn(
-              "flex items-center gap-1.5 rounded-pill border px-3 py-1.5 text-xs font-medium transition-colors",
-              selectedBoard?.id === board.id
-                ? "border-accent bg-accent text-ink"
-                : "border-divider bg-surface text-muted-foreground hover:text-foreground",
-              board.archivedAt && "border-dashed",
-              board.id.startsWith("optimistic-") && "opacity-60"
-            )}
-          >
-            {board.archivedAt && <Archive className="size-3" />}
-            {board.name}
-          </button>
-        ))}
-        {archivedBoards.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setShowArchived((v) => !v)}
-            className="rounded-pill px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            {showArchived ? "Hide archived" : `Show archived (${archivedBoards.length})`}
-          </button>
-        )}
-        <CreateProjectVault variant="link" onCreate={handleCreate} />
-        <div className="ml-auto">{manageVault}</div>
+      <div className="flex items-center gap-2">
+        {/* Horizontal scroll, not wrap — with several projects (plus the
+            archived toggle and "New project"), wrapping pushed the board
+            itself below the fold on mobile. "Manage" stays outside the
+            scroller so it's always reachable without scrolling past the tabs. */}
+        <div className="no-scrollbar flex min-w-0 flex-1 items-center gap-2 overflow-x-auto pb-0.5">
+          {visibleBoards.map((board) => (
+            <button
+              key={board.id}
+              type="button"
+              onClick={() => setSelectedId(board.id)}
+              className={cn(
+                "flex shrink-0 items-center gap-1.5 rounded-pill border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors",
+                selectedBoard?.id === board.id
+                  ? "border-accent bg-accent text-ink"
+                  : "border-divider bg-surface text-muted-foreground hover:text-foreground",
+                board.archivedAt && "border-dashed",
+                board.id.startsWith("optimistic-") && "opacity-60"
+              )}
+            >
+              {board.archivedAt && <Archive className="size-3" />}
+              {board.name}
+            </button>
+          ))}
+          {archivedBoards.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowArchived((v) => !v)}
+              className="shrink-0 rounded-pill px-3 py-1.5 text-xs font-medium whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {showArchived ? "Hide archived" : `Show archived (${archivedBoards.length})`}
+            </button>
+          )}
+          <CreateProjectVault variant="link" onCreate={handleCreate} />
+        </div>
+        <div className="shrink-0">{manageVault}</div>
       </div>
 
       {selectedBoard ? (
