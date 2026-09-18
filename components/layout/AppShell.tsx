@@ -74,7 +74,14 @@ export function AppShell({
           user={user}
           onSignOut={onSignOut}
         />
-        <main className="flex-1 space-y-6 px-4 py-6 pb-24 md:px-6 md:pt-0 md:pb-8">
+        {/* flex flex-col (not just flex-1) so a lone full-height child (e.g.
+            an empty-state fill, see components/ui/empty.tsx) can actually
+            stretch to the remaining height — gap-6 replaces space-y-6
+            specifically because that pairing is what Tailwind expects in a
+            flex container (space-y's margin-based spacing still technically
+            works here, but doubles up oddly once a child itself starts
+            using flex-1/gap). */}
+        <main className="flex flex-1 flex-col gap-6 px-4 py-6 pb-24 md:px-6 md:pt-0 md:pb-8">
           {children}
         </main>
       </div>

@@ -10,12 +10,18 @@ import {
   itemVariants,
 } from "@/lib/animations";
 
-function Empty({ className, ...props }: React.ComponentProps<"div">) {
+function Empty({ className, ...props }: React.ComponentProps<typeof motion.div>) {
   return (
-    <div
+    <motion.div
       data-slot="empty"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
       className={cn(
-        "flex border border-dashed border-divider bg-surface w-full min-w-0 flex-1 flex-col items-center justify-center gap-4 rounded-md border-dashed p-6 text-center text-balance",
+        // min-h-0 lets flex-1 actually shrink/grow to fill a flex-column
+        // ancestor (AppShell's <main>) instead of just hugging its content
+        // height — so a lone Empty as a route's only child fills the page.
+        "flex w-full min-w-0 flex-1 min-h-0 flex-col items-center justify-center gap-4 rounded-md p-6 text-center text-balance",
         className
       )}
       {...props}

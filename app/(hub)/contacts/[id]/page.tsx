@@ -31,11 +31,11 @@ export default async function ContactDetailPage({ params }: { params: Promise<{ 
     >
       <div className="rounded-lg border border-divider bg-surface p-6">
         <div className="flex items-center gap-3">
-          <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-muted text-base font-semibold text-ink">
+          <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-muted text-base font-semibold text-foreground">
             {initialsFor(contact.name)}
           </span>
           <div className="min-w-0">
-            <h2 className="truncate font-serif text-xl font-semibold text-ink">{contact.name}</h2>
+            <h2 className="truncate font-serif text-xl font-semibold text-foreground">{contact.name}</h2>
             {contact.organizationName && (
               <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
                 <Building2 className="size-3.5" />
@@ -46,11 +46,11 @@ export default async function ContactDetailPage({ params }: { params: Promise<{ 
         </div>
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
-          <div className="flex items-center gap-2 rounded-md border border-divider bg-background px-3 py-2.5 text-sm text-ink">
+          <div className="flex items-center gap-2 rounded-md border border-divider bg-background px-3 py-2.5 text-sm text-foreground">
             <Mail className="size-4 shrink-0 text-muted-foreground" />
             {contact.email ?? <span className="text-muted-foreground">No email on file</span>}
           </div>
-          <div className="flex items-center gap-2 rounded-md border border-divider bg-background px-3 py-2.5 text-sm text-ink">
+          <div className="flex items-center gap-2 rounded-md border border-divider bg-background px-3 py-2.5 text-sm text-foreground">
             <Phone className="size-4 shrink-0 text-muted-foreground" />
             {contact.phone ?? <span className="text-muted-foreground">No phone on file</span>}
           </div>
@@ -68,7 +68,7 @@ export default async function ContactDetailPage({ params }: { params: Promise<{ 
           <ul className="divide-y divide-divider">
             {pipelineItems.map((item) => (
               <li key={item.id} className="flex items-center justify-between py-3 text-sm">
-                <span className="font-medium text-ink">{item.title}</span>
+                <span className="font-medium text-foreground">{item.title}</span>
                 <span className="label-kicker">{item.stage}</span>
               </li>
             ))}
@@ -88,7 +88,7 @@ export default async function ContactDetailPage({ params }: { params: Promise<{ 
             {activities.map((activity) => (
               <li key={activity.id} className="flex items-center justify-between py-3 text-sm">
                 <div>
-                  <span className="font-medium text-ink">{activity.subject}</span>
+                  <span className="font-medium text-foreground">{activity.subject}</span>
                   <span className="ml-2 text-muted-foreground">{activity.type}</span>
                 </div>
                 <span className={activity.done ? "text-success" : "text-muted-foreground"}>
