@@ -5,6 +5,7 @@ import { HeroHeader } from "@/components/shared/hero-header";
 import { NavBar } from "@/components/shared/nav-bar";
 import { EosCheckup } from "./eos-checkup";
 import { ScrollToButton } from "./scroll-to-button";
+import { UrgencyIndex } from "./urgency-index";
 
 const statements = [
   "We have a clear vision in writing that has been properly communicated and is shared by everyone.",
@@ -29,6 +30,48 @@ const statements = [
   "We have a budget and are monitoring it regularly (e.g., monthly or quarterly).",
 ];
 
+const urgencyStatements = [
+  "I seem to do my best work when I'm under pressure.",
+  "I often blame the rush and press of external things for my failure to spend deep, introspective time with myself.",
+  "I'm often frustrated by the slowness of people and things around me. I hate to wait or stand in line.",
+  "I feel guilty when I take time off work.",
+  "I always seem to be rushing between places and events.",
+  "I frequently find myself pushing people away so that I can finish a project.",
+  "I feel anxious when I'm out of touch with the office for more than a few minutes.",
+  "I'm often preoccupied with one thing when I'm doing something else.",
+  "I'm at my best when I'm handling a crisis situation.",
+  "The adrenaline rush from a new crisis seems more satisfying to me than the steady accomplishment of long-term results.",
+  "I often give up quality time with important people in my life to handle a crisis.",
+  "I assume people will naturally understand if I have to disappoint them or let things go in order to handle a crisis.",
+  "I rely on solving some crisis to give my day a sense of meaning and purpose.",
+  "I often eat lunch or other meals while I work.",
+  "I keep thinking that someday I'll be able to do what I really want to do.",
+  "Accomplishing a lot of tasks makes me feel like I've been really productive.",
+];
+
+// Ascending by `min`. Totals run 0–64 (16 statements × 0–4). Cutoffs are the
+// book's own key (Habit 3, p. 206): 0–25 / 26–45 / 46+.
+const urgencyBands = [
+  {
+    min: 0,
+    label: "Low urgency mindset",
+    color: "#9bc79b",
+    summary: "Urgency is not driving your days. Protect what is working: keep making room for the important-but-not-urgent work — planning, relationships, and prevention — before the day fills up.",
+  },
+  {
+    min: 26,
+    label: "Strong urgency mindset",
+    color: "#e0a25f",
+    summary: "Urgency is setting your agenda more often than you are. Start with one weekly planning session and one protected block for a non-urgent priority, and treat both as non-negotiable.",
+  },
+  {
+    min: 46,
+    label: "Urgency addiction",
+    color: "#d98a7c",
+    summary: "Crisis and speed have become the way the day gets its meaning. This is worth a direct conversation with your operating partner: reduce commitments, rebuild a weekly planning habit, and re-run this index in 30 days.",
+  },
+];
+
 const navLinks = [
   { href: "#s01", label: "Methodologies" },
   { href: "#s02", label: "SOPs & Tools" },
@@ -36,6 +79,7 @@ const navLinks = [
   { href: "#s04", label: "Cadence" },
   { href: "#s05", label: "Growth" },
   { href: "#eos", label: "EOS Checkup" },
+  { href: "#urgency", label: "Urgency Index" },
 ];
 
 /**
@@ -138,7 +182,7 @@ export function OperatingPlaybook() {
           
           <AnimatedSection className="mt-10 border-l-2 border-[var(--brass)] pl-6">
             <p className="text-[14.5px] leading-[1.6] text-[rgba(27,29,31,0.68)] max-w-4xl">
-              The full 20-point EOS Organizational Checkup — the instrument referenced above — is built out as an interactive, self-scoring tool in <Link href="#eos" className="border-b border-[var(--brass)] pb-[1px] text-[var(--ink)] font-medium transition hover:text-[var(--brass)]">Appendix A</Link>. Score it live at kickoff, save the result, and re-run it at month 12 to track the delta.
+              The full 20-point EOS Organizational Checkup — the instrument referenced above — is built out as an interactive, self-scoring tool in <Link href="#eos" className="border-b border-[var(--brass)] pb-[1px] text-[var(--ink)] font-medium transition hover:text-[var(--brass)]">Appendix A</Link>. Score it live at kickoff, save the result, and re-run it at month 12 to track the delta. Its companion, the 16-statement<Link href="#urgency" className="border-b border-[var(--brass)] pb-[1px] text-[var(--ink)] font-medium transition hover:text-[var(--brass)]">Urgency Index (Appendix B)</Link>, measures how much of an operator&apos;s day is run by urgency rather than importance.
             </p>
           </AnimatedSection>
         </div>
@@ -299,6 +343,7 @@ export function OperatingPlaybook() {
       </section>
 
       <EosCheckup statements={statements} />
+      <UrgencyIndex statements={urgencyStatements} bands={urgencyBands} />
 
       <footer className="bg-[var(--ink)] border-t border-[rgba(245,242,236,0.16)] text-[rgba(245,242,236,0.55)] text-center px-6 py-10 font-mono text-[11px] uppercase tracking-[0.1em]">
         TAGR Holdings — <b className="text-[var(--cream)] font-medium">Confidential</b> — Operating Playbook — Portfolio Executive Framework 2026
