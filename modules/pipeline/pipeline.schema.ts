@@ -15,7 +15,7 @@ export type BoardColumn = z.infer<typeof boardColumnSchema>;
 /**
  * A kanban board. "Leads" is the system default every tenant gets (seeded
  * lazily, see pipeline.service.ts's `ensureDefaultBoard`) and is what
- * /leads-inbox renders. Every other board is a user-created "project",
+ * /leads renders. Every other board is a user-created "project",
  * rendered as a tab on /pipeline (the Projects page). `archivedAt` hides a
  * project from those tabs without deleting its items; the system board is
  * never archived, renamed, or deleted.

@@ -12,7 +12,7 @@ Use this skill whenever the request involves deployment, environment configurati
 
 - **Current phase**: scheduled via **GitHub Actions** (cron syntax), running in short batches (within the 6-hour job limit of GitHub-hosted runners). See `.agents/docs/LEAD_INGESTION.md` for the data contract.
 - **Future phase** (once it needs to run continuously for hours/days): moves to a long-running process on a small always-on server (e.g. a DigitalOcean Droplet, ~$6-12/month). The scraper code is containerized (Docker) from the start specifically so this migration doesn't require rewriting anything — just swapping who starts the container (scheduled run vs. continuous loop).
-- In both cases, the job only needs: the Neon connection string, and the relevant API keys (Google Places, Google Custom Search, Claude API) as environment variables/secrets — never committed.
+- In both cases, the job only needs: the Neon connection string, and the relevant API keys (Google Places/Geocoding, Brave Search, OpenAI — Claude API once extraction moves back to it) as environment variables/secrets — never committed.
 
 ## Checklist before shipping an infrastructure change
 

@@ -47,7 +47,7 @@ export function CreatePipelineItemVault({
   columns: BoardColumn[];
   contacts: { id: string; name: string }[];
   organizations: { id: string; name: string }[];
-  /** "lead" on /leads-inbox, "item" on a project board. */
+  /** "lead" on /leads, "item" on a project board. */
   itemNoun: string;
   /** Adds the item optimistically and runs the action — resolves on success, rejects on failure. */
   onCreate: (input: NewPipelineItem) => Promise<void>;

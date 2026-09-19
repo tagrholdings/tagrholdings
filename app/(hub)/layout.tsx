@@ -1,5 +1,6 @@
 import { getCurrentUser } from "@/lib/auth-server";
 import { HubChrome } from "@/components/layout/HubChrome";
+import { leadsService } from "@/modules/leads/leads.service";
 import { initialsFor } from "@/lib/utils";
 import { Metadata } from "next";
 
@@ -20,9 +21,15 @@ export const dynamic = "force-dynamic";
 
 export default async function HubLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
+  // Unreviewed engine finds — the Leads Inbox badge. A failed count must never
+  // take the whole app shell down, so it degrades to "no badge".
+  const leadsInboxUnread = await leadsService.countNew(user.tenantId).catch(() => 0);
 
   return (
-    <HubChrome user={{ name: user.name || user.email, initials: initialsFor(user.name || user.email) }}>
+    <HubChrome
+      user={{ name: user.name || user.email, initials: initialsFor(user.name || user.email) }}
+      badges={{ leadsInboxUnread }}
+    >
       {children}
     </HubChrome>
   );

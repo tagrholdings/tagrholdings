@@ -59,7 +59,7 @@ function matchesFilter(activity: ActivityRow, filter: (typeof FILTERS)[number]["
 
 /**
  * Every activity in one place — tasks created here, inside a lead
- * (/leads-inbox) or inside a project item (/pipeline) are all the same
+ * (/leads) or inside a project item (/pipeline) are all the same
  * `activities` rows. Board = this week's days as columns (drag to
  * reschedule); List = everything, filterable.
  */

@@ -5,11 +5,11 @@ import { protectedAction } from "@/lib/safe-action";
 import { activitiesService } from "./activities.service";
 import { createActivitySchema, setActivityDoneSchema, updateActivityDateSchema } from "./activities.types";
 
-/** Activities show up on /activities, inside pipeline items (Projects, Leads Inbox) and on a contact's panel. */
+/** Activities show up on /activities, inside pipeline items (Projects, Leads) and on a contact's panel. */
 function revalidateActivityPages() {
   revalidatePath("/activities");
   revalidatePath("/pipeline");
-  revalidatePath("/leads-inbox");
+  revalidatePath("/leads");
   revalidatePath("/contacts");
 }
 

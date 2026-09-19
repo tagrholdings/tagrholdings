@@ -43,6 +43,69 @@
       "when": 1789717378345,
       "tag": "0005_tenant_isolation",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789792825512,
+      "tag": "0006_lead_scraper_role",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789792920339,
+      "tag": "0007_lead_engine_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789792928228,
+      "tag": "0008_lead_engine_grants",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789795810880,
+      "tag": "0009_brave_search_rename",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1789798212916,
+      "tag": "0010_email_sources_criteria_run_now",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1789798226484,
+      "tag": "0011_lead_intake_grants",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1789799846980,
+      "tag": "0012_email_sources_scraper_policy_fix",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1789802415453,
+      "tag": "0013_email_source_origin_run_summary",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1789802424070,
+      "tag": "0014_email_source_detection_grants",
+      "breakpoints": true
     }
   ]
 }

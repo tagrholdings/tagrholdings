@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * Projects — every user-created board (one tab each). The system "Leads"
- * board lives on /leads-inbox and activities on /activities; neither is a
+ * board lives on /leads and activities on /activities; neither is a
  * tab here anymore.
  */
 export default async function ProjectsPage({ searchParams }: { searchParams: Promise<{ board?: string; item?: string }> }) {

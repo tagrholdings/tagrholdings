@@ -19,6 +19,12 @@ export const tenancyRepository = {
     });
   },
 
+  async findTenantById(id: string) {
+    return db.query.tenantsTable.findFirst({
+      where: eq(tenantsTable.id, id),
+    });
+  },
+
   async findTenantBySlug(slug: string) {
     return db.query.tenantsTable.findFirst({
       where: eq(tenantsTable.slug, slug),

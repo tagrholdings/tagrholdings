@@ -5,12 +5,12 @@ import { protectedAction } from "@/lib/safe-action";
 import { organizationsService } from "./organizations.service";
 import { createOrganizationSchema, updateOrganizationSchema } from "./organizations.types";
 
-/** Organization pickers/lists show up on Contacts, Leads Inbox, Projects and Activities. */
+/** Organization pickers/lists show up on Contacts, Leads, Projects and Activities. */
 function revalidateOrganizationPages(id?: string) {
   revalidatePath("/contacts");
   if (id) revalidatePath(`/contacts/${id}`);
   revalidatePath("/pipeline");
-  revalidatePath("/leads-inbox");
+  revalidatePath("/leads");
   revalidatePath("/activities");
 }
 

@@ -43,6 +43,14 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: "/",
     display: "standalone",
     orientation: "portrait",
+    // Web Share Target: "Share → TAGR CRM" from a browser or another app lands on /share, which pre-fills the Leads
+    // Inbox quick-add with the shared link/text. GET keeps it a plain navigation inside the app's scope. Android
+    // (Chrome) only, and only once the PWA is installed — iOS Safari doesn't support share targets.
+    share_target: {
+      action: "/share",
+      method: "GET",
+      params: { title: "title", text: "text", url: "url" },
+    },
     background_color: "#1b1d1f",
     theme_color: "#1b1d1f",
     icons: [

@@ -10,6 +10,11 @@ export const tenancyService = {
     return tenantId;
   },
 
+  /** Cross-checks a tenant id that came from OUTSIDE a session (an API caller, an env var) against a real tenant. */
+  async tenantExists(tenantId: string) {
+    return !!(await tenancyRepository.findTenantById(tenantId));
+  },
+
   async isMember(tenantId: string, userId: string) {
     return !!(await tenancyRepository.findMember(tenantId, userId));
   },

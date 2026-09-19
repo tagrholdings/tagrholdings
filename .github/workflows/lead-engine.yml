@@ -1,0 +1,103 @@
+name: Lead engine
+
+# Runs the lead-discovery engine (scraper/) on a schedule, and on demand.
+#
+# Scheduled (every 6 h): the engine decides which search profiles are actually due (each has its own
+# frequency and lead cap), so ticking often is cheap — profiles that ran recently are skipped, a run cut
+# short by the time limit resumes on the next tick, and a "Run now" clicked in the CRM is picked up here.
+# It then attempts any email-source signups that were requested (or never tried).
+#
+# On demand (workflow_dispatch): started by the CRM's "Run now" / "Attempt subscribe" buttons through the
+# GitHub API (optional — see lib/github-dispatch.ts), or by hand from the Actions tab. Inputs:
+#   task        engine (default) | email-signups
+#   profile_id  engine only: run just this search profile, ignoring its schedule
+#   max_leads   engine only: lower the per-run new-lead cap (cheap test run)
+#
+# Required repository secrets (Settings → Secrets and variables → Actions):
+#   DATABASE_URL_SCRAPER   connection string for the `lead_scraper` Postgres role
+#   GOOGLE_CLOUD_API_KEY   Places / Geocoding key
+#   BRAVE_API_KEY          Brave Search API key (the Brave Search source)
+#   OPENAI_API_KEY         AI extraction
+# Repository variables (optional): OPENAI_MODEL (default gpt-4o-mini);
+#   INBOUND_LEADS_ADDRESS  the dedicated leads inbox the email signups subscribe with (needed for email-signups)
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "What to run"
+        required: false
+        default: engine
+        type: choice
+        options:
+          - engine
+          - email-signups
+      profile_id:
+        description: "engine: run only this search profile id (ignores its schedule)"
+        required: false
+        type: string
+      max_leads:
+        description: "engine: lower the per-run new-lead cap (cheap test run)"
+        required: false
+        type: string
+
+# Never two engine runs at once (the engine also takes a database lock).
+concurrency:
+  group: lead-engine
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    # GitHub kills a job at 6h; the engine stops starting new work at 5h (--max-minutes)
+    # and needs the remaining time for its final writes.
+    timeout-minutes: 345
+    defaults:
+      run:
+        working-directory: scraper
+    env:
+      PYTHONPATH: src
+      DATABASE_URL_SCRAPER: ${{ secrets.DATABASE_URL_SCRAPER }}
+      GOOGLE_CLOUD_API_KEY: ${{ secrets.GOOGLE_CLOUD_API_KEY }}
+      BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_MODEL: ${{ vars.OPENAI_MODEL }}
+      INBOUND_LEADS_ADDRESS: ${{ vars.INBOUND_LEADS_ADDRESS }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: scraper/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          # Chromium is needed by the marketplace source and the email-signup automation.
+          playwright install --with-deps chromium
+
+      - name: Run the engine
+        if: github.event_name != 'workflow_dispatch' || inputs.task == 'engine'
+        env:
+          # Inputs go through env, never interpolated into the script (injection-safe).
+          PROFILE_ID: ${{ inputs.profile_id }}
+          MAX_LEADS: ${{ inputs.max_leads }}
+        run: |
+          args=(--max-minutes 300)
+          if [ -n "$PROFILE_ID" ]; then args+=(--profile-id "$PROFILE_ID"); fi
+          if [ -n "$MAX_LEADS" ]; then args+=(--max-leads "$MAX_LEADS"); fi
+          python -m leadengine.main "${args[@]}"
+
+      # Runs after the engine on a scheduled tick, and on its own for task=email-signups. `always()` keeps it
+      # independent of the engine step: a failed engine run must not stop a requested signup. With nothing due
+      # it exits 0 immediately.
+      - name: Attempt email-source signups
+        if: always() && (github.event_name != 'workflow_dispatch' || inputs.task == 'email-signups')
+        run: python -m leadengine.email_signup
