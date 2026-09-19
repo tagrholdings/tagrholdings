@@ -52,7 +52,8 @@ const SECTIONS: DocSection[] = [
       ["View original listing", "Opens the page (Google Maps, the search result or the marketplace listing) the engine found it on."],
     ],
     tips: [
-      "The spend numbers at the top are what the engine has cost so far. Click “See where it went” for the breakdown.",
+      "What the engine has cost so far is on the Engine spend tab, not on this page — that tab has the totals and the full breakdown.",
+      "The list shows 10 leads per page; use Previous / Next under the table. Changing the tab, the search or the sort takes you back to page 1.",
       "A candidate can show fewer details than another — the engine only fills in what the source actually said. Empty means unknown, never a guess.",
       "Leads reach the inbox three ways: the engine's scheduled searches, you adding one by hand (the box at the top, the phone's Share button, or the ingest API), and listing emails sent to the leads inbox. The Source column says which.",
       "On an Android phone with the CRM installed, Share → TAGR CRM from any page opens the inbox with that link already in the box. (iPhones don't support this.)",

@@ -1,15 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Inbox, Loader2, Undo2, X, Plus } from "lucide-react";
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
 import { SearchInput } from "@/components/ui/search-input";
 import { SegmentedControl } from "@/components/shared/segmented-control";
 import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/ui/pagination";
 import { notify } from "@/components/ui/toaster";
 import { formatDateUS } from "@/utils/date";
+import { paginate } from "@/utils/pagination";
 import { dismissRawLeadAction, promoteRawLeadAction, restoreRawLeadAction } from "@/modules/leads/leads.actions";
 import { SOURCE_LABELS } from "@/modules/leads/leads.constants";
 import type { RawLeadStatus } from "@/modules/leads/leads.schema";
@@ -34,6 +36,9 @@ const EMPTY_COPY: Record<RawLeadStatus, string> = {
 
 type Sort = "newest" | "fit";
 
+// Leads per page: ~10 rows fill a screen, so reviewing the inbox never means a long scroll.
+const PAGE_SIZE = 10;
+
 export function RawLeadsView({
   leads,
   initialSelectedId,
@@ -47,6 +52,8 @@ export function RawLeadsView({
   const [filter, setFilter] = useState<RawLeadStatus>("new");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<Sort>("newest");
+  const [page, setPage] = useState(1);
+  const tableTop = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
   // Leads handled in this session flip immediately, before the revalidated
   // server list arrives; `pipelineItemId` is filled in by the server list.
@@ -88,6 +95,21 @@ export function RawLeadsView({
 
   const selected = leads.find((l) => l.id === selectedId) ?? null;
 
+  // Changing what's listed (tab, search, sort) starts over at page 1.
+  const changeFilter = (value: RawLeadStatus) => {
+    setFilter(value);
+    setPage(1);
+  };
+  const changeSort = (value: Sort) => {
+    setSort(value);
+    setPage(1);
+  };
+  const goToPage = (next: number) => {
+    setPage(next);
+    // Land back at the top of the table, not wherever the Next button was.
+    tableTop.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   const query = search.trim().toLowerCase();
   const visible = leads
     .filter((lead) => statusOf(lead) === filter)
@@ -104,11 +126,14 @@ export function RawLeadsView({
       sort === "fit" ? FIT_RANK[a.fit?.status ?? "none"] - FIT_RANK[b.fit?.status ?? "none"] || +new Date(b.createdAt) - +new Date(a.createdAt) : 0
     );
 
+  // `page` is clamped, so dismissing the last lead on the last page just shows the new last page.
+  const paged = paginate(visible, page, PAGE_SIZE);
+
   const quickAdd = (
     <QuickAddLead
       initialValue={initialAdd}
       onStart={(key, label) => {
-        setFilter("new");
+        changeFilter("new"); // the pending row sits at the top of page 1 of New
         setPending((prev) => [{ key, label }, ...prev]);
       }}
       onFinish={(key) => setPending((prev) => prev.filter((p) => p.key !== key))}
@@ -146,20 +171,23 @@ export function RawLeadsView({
         <div className="sticky top-14 z-10 flex flex-wrap items-center gap-2 bg-background pb-4 pt-2">
           <SegmentedControl
             value={filter}
-            onChange={setFilter}
+            onChange={changeFilter}
             options={FILTERS.map((f) => ({ value: f.value, label: `${f.label} ${counts[f.value] + (f.value === "new" ? pending.length : 0)}` }))}
           />
           <SearchInput
             placeholder="Filter by name, industry or city"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
             className="h-9"
             containerClassName="w-full min-w-0 sm:w-auto sm:flex-1 sm:max-w-xs"
           />
           {hasFit && (
             <SegmentedControl
               value={sort}
-              onChange={setSort}
+              onChange={changeSort}
               options={[
                 { value: "newest", label: "Newest" },
                 { value: "fit", label: "Best fit" },
@@ -173,6 +201,7 @@ export function RawLeadsView({
             <EmptyTitle className="text-sm">{query ? `No leads match “${search}”` : EMPTY_COPY[filter]}</EmptyTitle>
           </Empty>
         ) : (
+          <div ref={tableTop} className="flex scroll-mt-32 flex-col gap-4">
           <Table>
             <TableHeader>
               <tr>
@@ -188,7 +217,7 @@ export function RawLeadsView({
               </tr>
             </TableHeader>
             <TableBody>
-              {filter === "new" &&
+              {filter === "new" && paged.page === 1 &&
                 pending.map((p) => (
                   <TableRow key={p.key} aria-busy="true">
                     <TableCell mobileLabel="Business" noWrapper>
@@ -208,7 +237,7 @@ export function RawLeadsView({
                     <TableCell hideBorderMobile>{null}</TableCell>
                   </TableRow>
                 ))}
-              {visible.map((lead) => {
+              {paged.items.map((lead) => {
                 const fields = lead.extractedFields ?? {};
                 const status = statusOf(lead);
                 const numbers = [text(fields.askingPrice), text(fields.estimatedRevenue)].filter(Boolean).join(" / ");
@@ -269,6 +298,8 @@ export function RawLeadsView({
               })}
             </TableBody>
           </Table>
+          <Pagination slice={paged} onPageChange={goToPage} noun="leads" />
+          </div>
         )}
       </div>
 

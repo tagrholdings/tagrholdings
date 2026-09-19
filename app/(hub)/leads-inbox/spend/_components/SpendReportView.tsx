@@ -104,7 +104,7 @@ export function SpendReportView({ report }: { report: SpendReport }) {
 
   return (
     <div className="space-y-6">
-      <SpendStrip totals={totals} showLink={false} />
+      <SpendStrip totals={totals} />
 
       <p className="max-w-prose text-sm text-muted-foreground">
         Amounts are estimates at each provider&rsquo;s list price, calculated when each call is made. They don&rsquo;t subtract free monthly

@@ -1,10 +1,8 @@
 import { getCurrentUser } from "@/lib/auth-server";
 import { HubPage } from "@/components/layout/HubPage";
 import { leadsService } from "@/modules/leads/leads.service";
-import { leadEngineService } from "@/modules/lead-engine/lead-engine.service";
 import { initialsFor } from "@/lib/utils";
 import { LeadsInboxTabs } from "./_components/LeadsInboxTabs";
-import { SpendStrip } from "./_components/SpendStrip";
 import { RawLeadsView } from "./_components/RawLeadsView";
 
 export const dynamic = "force-dynamic";
@@ -16,10 +14,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function LeadsInboxPage({ searchParams }: { searchParams: Promise<{ lead?: string; add?: string }> }) {
   const [{ lead, add }, user] = await Promise.all([searchParams, getCurrentUser()]);
-  const [leads, totals] = await Promise.all([
-    leadsService.listForTenant(user.tenantId),
-    leadEngineService.getSpendTotals(user.tenantId),
-  ]);
+  const leads = await leadsService.listForTenant(user.tenantId);
 
   return (
     <HubPage
@@ -28,7 +23,6 @@ export default async function LeadsInboxPage({ searchParams }: { searchParams: P
       title="Leads Inbox"
     >
       <LeadsInboxTabs active="inbox" />
-      <SpendStrip totals={totals} />
       <RawLeadsView leads={leads} initialSelectedId={lead ?? null} initialAdd={(add ?? "").slice(0, 5000)} />
     </HubPage>
   );
