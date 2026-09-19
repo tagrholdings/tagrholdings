@@ -8,6 +8,7 @@ export const LEAD_SOURCE_TYPES = [
   "google_places",
   "brave_search",
   "marketplace_scrape",
+  "broker_listings",
   "company_site_scrape",
   "email_digest",
   "manual_assist",
@@ -45,6 +46,8 @@ export interface ExtractedFields {
   matchedSignals?: string[] | null;
   /** Free text from whoever added the lead by hand (manual_assist). */
   note?: string | null;
+  /** Stable identity of a listing found in an email digest (name + place + asking price): the same listing re-sent in a later digest is recognised and skipped. */
+  listingSignature?: string | null;
   signals?: string[] | null;
   [key: string]: unknown;
 }

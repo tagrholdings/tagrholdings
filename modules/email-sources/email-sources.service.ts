@@ -1,7 +1,7 @@
 import { UserFacingError } from "@/lib/errors";
 import { dispatchLeadEngineWorkflow, type DispatchOutcome } from "@/lib/github-dispatch";
 import { emailSourcesRepository } from "./email-sources.repository";
-import type { NewEmailSource } from "./email-sources.types";
+import { signupHandoffReason, type EmailSourceRow, type NewEmailSource } from "./email-sources.types";
 
 /** A unique-violation on (tenant, signup_url) means the same site is already listed. */
 function isDuplicateUrl(error: unknown) {
@@ -9,8 +9,9 @@ function isDuplicateUrl(error: unknown) {
 }
 
 export const emailSourcesService = {
-  async listForTenant(tenantId: string) {
-    return emailSourcesRepository.findAllForTenant(tenantId);
+  async listForTenant(tenantId: string, now: Date = new Date()): Promise<EmailSourceRow[]> {
+    const rows = await emailSourcesRepository.findAllForTenant(tenantId);
+    return rows.map((row) => ({ ...row, handoffReason: signupHandoffReason(row, now) }));
   },
 
   async create(tenantId: string, data: NewEmailSource) {

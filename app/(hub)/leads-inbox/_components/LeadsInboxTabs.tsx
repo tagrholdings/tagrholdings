@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 const TABS = [
   { id: "inbox", label: "Inbox", href: "/leads-inbox" },
   { id: "profiles", label: "Search profiles", href: "/leads-inbox/profiles" },
+  { id: "listing-sites", label: "Listing sites", href: "/leads-inbox/listing-sites" },
   { id: "email-sources", label: "Email sources", href: "/leads-inbox/email-sources" },
   { id: "spend", label: "Engine spend", href: "/leads-inbox/spend" },
 ] as const;
@@ -11,7 +12,7 @@ const TABS = [
 export type LeadsInboxTab = (typeof TABS)[number]["id"];
 
 /**
- * Sub-navigation for the lead engine's three screens. Same look as
+ * Sub-navigation for the lead engine's screens. Same look as
  * SegmentedControl, but real links (each tab is its own route with its own
  * server data), so it stays a Server Component.
  */

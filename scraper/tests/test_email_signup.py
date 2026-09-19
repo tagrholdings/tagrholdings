@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import pytest
+
+from leadengine.email_signup_form import Buyer
 from leadengine.email_signup import (
     SignupOutcome,
     SignupTarget,
@@ -55,6 +58,16 @@ class FakePage:
     def wait_for_timeout(self, timeout):
         self.calls.append(("wait", timeout))
 
+    # These pages can't be read as a form (evaluate gives nothing) -> the plain email-only behaviour.
+    def evaluate(self, script, arg=None):
+        return None
+
+    def select_option(self, selector, value, **kwargs):
+        self.calls.append(("select", selector, value))
+
+    def check(self, selector, **kwargs):
+        self.calls.append(("check", selector))
+
 
 class TestCaptchaDetection:
     def test_recognises_the_common_widgets(self):
@@ -103,6 +116,9 @@ class FakeDb:
     def due_email_sources(self, only_ids=None):
         return [t for t in self.targets if only_ids is None or t.id in only_ids]
 
+    def industries_for_tenant(self, tenant_id):
+        return ["HVAC", "plumbing"]
+
     def record_signup_attempt(self, target, result, error):
         self.recorded.append((result, error))
 
@@ -112,8 +128,9 @@ class FakeDriver:
         self.outcome = outcome
         self.attempts: list[str] = []
 
-    def attempt(self, target, address):
+    def attempt(self, target, address, buyer=None, industries=None):
         self.attempts.append(address)
+        self.context = (buyer, industries)
         return self.outcome
 
 
@@ -131,7 +148,7 @@ class TestRunSignups:
     def test_a_successful_submit_is_recorded_as_submitted_and_never_as_subscribed(self):
         db, driver = FakeDb([TARGET]), FakeDriver(SignupOutcome("submitted"))
         counts = run_signups(db, driver, ADDRESS, robots=AllowAll())
-        assert counts == {"submitted": 1, "captcha": 0, "failed": 0}
+        assert counts == {"submitted": 1, "captcha": 0, "manual": 0, "failed": 0}
         assert db.recorded == [("submitted", None)]
         # The Database has no way to mark subscribed here at all: record_signup_attempt is the only write,
         # and (see test_db_sql) it never touches the subscribed column.
@@ -142,6 +159,13 @@ class TestRunSignups:
         counts = run_signups(db, FakeDriver(SignupOutcome("captcha")), ADDRESS, robots=AllowAll())
         assert counts["captcha"] == 1 and db.recorded == [("captcha", None)]
 
+    def test_a_manual_outcome_is_recorded_with_its_reason_and_counted(self):
+        db, driver = FakeDb([TARGET]), FakeDriver(SignupOutcome("manual", "The site requires accepting: NDA"))
+        buyer = Buyer("Tanner", "480 282 2225", "TAGR Holdings")
+        counts = run_signups(db, driver, ADDRESS, robots=AllowAll(), buyer=buyer)
+        assert counts["manual"] == 1 and db.recorded == [("manual", "The site requires accepting: NDA")]
+        assert driver.context == (buyer, ["HVAC", "plumbing"])  # who to sign up as, and the tenant's industries
+
     def test_robots_txt_disallow_means_no_browser_is_opened(self):
         db, driver = FakeDb([TARGET]), FakeDriver(SignupOutcome("submitted"))
         counts = run_signups(db, driver, ADDRESS, robots=DenyAll())
@@ -150,7 +174,7 @@ class TestRunSignups:
 
     def test_nothing_due_does_nothing(self):
         db, driver = FakeDb([]), FakeDriver(SignupOutcome("submitted"))
-        assert run_signups(db, driver, ADDRESS) == {"submitted": 0, "captcha": 0, "failed": 0}
+        assert run_signups(db, driver, ADDRESS) == {"submitted": 0, "captcha": 0, "manual": 0, "failed": 0}
         assert driver.attempts == []
 
 
@@ -181,3 +205,193 @@ class TestDatabaseNeverMarksSubscribed:
             "attempt_requested_at is not null or last_attempt_at is null",
         ):
             assert fragment in sql
+
+
+# -- forms read from the page (planner + attempt_signup with an inspected form) --------------------------------------------
+
+from leadengine.email_signup_form import BODY_TEXT_JS, ERRORS_JS, INSPECT_JS, FormStep, plan_form, rejection_reason  # noqa: E402
+
+BUYER = Buyer("Tanner", "480 282 2225", "TAGR Holdings")
+
+
+def fld(i, **kw):
+    base = dict(i=i, tag="input", type="text", name="", id="", label="", placeholder="", required=False, visible=True, value="", checked=False, isEmail=False, options=[])
+    return {**base, **kw}
+
+
+EMAIL = fld(0, type="email", name="email", label="Email", required=True, isEmail=True)
+
+
+def plan(*fields, buyer=BUYER, industries=("HVAC", "plumbing")):
+    return plan_form([EMAIL, *fields], buyer, list(industries), ADDRESS)
+
+
+class TestPlanForm:
+    def test_an_email_only_form_needs_nothing_else(self):
+        result = plan_form([EMAIL], BUYER, [], ADDRESS)
+        assert result.steps == [] and result.manual_reason is None
+
+    def test_fills_name_phone_and_company_from_the_buyer_identity(self):
+        result = plan(
+            fld(1, name="first_name", label="First name *", required=True),
+            fld(2, name="phone", type="tel", label="Phone", required=True),
+            fld(3, name="company", label="Company", required=True),
+        )
+        assert result.manual_reason is None
+        assert result.steps == [
+            FormStep("fill", '[data-tagr-i="1"]', "Tanner"),
+            FormStep("fill", '[data-tagr-i="2"]', "480 282 2225"),
+            FormStep("fill", '[data-tagr-i="3"]', "TAGR Holdings"),
+        ]
+
+    def test_a_full_name_field_gets_the_whole_configured_name(self):
+        assert plan(fld(1, name="name", label="Your name", required=True)).steps == [FormStep("fill", '[data-tagr-i="1"]', "Tanner")]
+
+    def test_a_required_last_name_is_manual_when_the_configured_name_has_only_one_word(self):
+        result = plan(fld(1, name="last_name", label="Last name", required=True))
+        assert result.manual_reason and "last name" in result.manual_reason and result.steps == []
+
+    def test_an_optional_last_name_is_left_empty(self):
+        assert plan(fld(1, name="last_name", label="Last name")).steps == []
+
+    def test_a_second_email_field_is_filled_with_the_same_address(self):
+        assert plan(fld(1, type="email", name="email2", label="Confirm email", required=True)).steps == [FormStep("fill", '[data-tagr-i="1"]', ADDRESS)]
+
+    @pytest.mark.parametrize(
+        "field, expected",
+        [
+            (fld(1, type="password", name="pw", label="Password"), "password"),
+            (fld(1, type="file", name="cv", label="Upload"), "file"),
+            (fld(1, type="checkbox", label="I agree to the Terms of Service", required=True), "accepting"),
+            (fld(1, type="checkbox", label="I will sign the NDA / confidentiality agreement", required=True), "accepting"),
+            (fld(1, type="checkbox", label="I have read the privacy policy", required=True), "accepting"),
+            (fld(1, name="zip", label="ZIP code *", required=True), "ZIP code"),
+            (fld(1, name="budget", label="Budget", required=True), "Budget"),
+            (fld(1, name="c", label="Please complete the captcha"), "captcha"),
+            (fld(1, tag="select", name="size", label="Company size", required=True, options=[{"value": "1", "text": "1-10"}]), "Company size"),
+        ],
+    )
+    def test_things_only_a_person_can_give_stop_the_signup_with_a_reason(self, field, expected):
+        result = plan(field)
+        assert result.manual_reason and expected in result.manual_reason
+        assert result.steps == []  # nothing typed before the verdict
+
+    def test_optional_terms_and_unknown_optional_fields_are_ignored(self):
+        assert plan(fld(1, type="checkbox", label="I agree to the Terms"), fld(2, name="zip", label="ZIP")).steps == []
+
+    def test_only_marketing_consent_checkboxes_are_ticked(self):
+        result = plan(
+            fld(1, type="checkbox", label="Send me new listings by email", required=True),
+            fld(2, type="checkbox", label="HVAC businesses"),
+            fld(3, type="checkbox", label="Franchise opportunities"),
+        )
+        assert result.steps == [FormStep("check", '[data-tagr-i="1"]'), FormStep("check", '[data-tagr-i="2"]')]
+
+    def test_invisible_fields_are_never_filled_even_when_required(self):
+        assert plan(fld(1, name="website", label="Leave empty", required=True, visible=False)).steps == []
+
+    def test_industry_select_picks_the_option_matching_the_profile(self):
+        select = fld(
+            1, tag="select", name="industry", label="Industry", required=True,
+            options=[{"value": "", "text": "Select…"}, {"value": "r", "text": "Restaurants"}, {"value": "h", "text": "Heating & Air Conditioning"}],
+        )
+        assert plan(select).steps == [FormStep("select", '[data-tagr-i="1"]', "h")]
+
+    def test_industry_select_falls_back_to_an_all_industries_option_or_asks_for_a_person(self):
+        options = [{"value": "", "text": "Select"}, {"value": "r", "text": "Restaurants"}]
+        select = fld(1, tag="select", name="industry", label="Industry", required=True, options=options)
+        assert plan(select).manual_reason
+        assert plan(fld(1, tag="select", name="industry", label="Industry", required=True, options=[*options, {"value": "all", "text": "All industries"}])).steps == [
+            FormStep("select", '[data-tagr-i="1"]', "all")
+        ]
+
+    def test_i_am_a_buyer_choice_and_how_did_you_hear(self):
+        role = fld(1, tag="select", name="role", label="I am a", required=True, options=[{"value": "s", "text": "Seller"}, {"value": "b", "text": "Buyer"}])
+        heard = fld(2, tag="select", name="src", label="How did you hear about us?", required=True, options=[{"value": "f", "text": "Friend"}, {"value": "g", "text": "Google search"}])
+        assert plan(role, heard).steps == [FormStep("select", '[data-tagr-i="1"]', "b"), FormStep("select", '[data-tagr-i="2"]', "g")]
+
+    def test_radio_groups_choose_the_industry_or_role_that_fits(self):
+        radios = [
+            fld(1, type="radio", name="who", label="[group] I am a Seller", required=True),
+            fld(2, type="radio", name="who", label="[group] I am a Buyer", required=True),
+        ]
+        assert plan(*radios).steps == [FormStep("check", '[data-tagr-i="2"]')]
+        unknown = [fld(1, type="radio", name="x", label="Yes", required=True), fld(2, type="radio", name="x", label="No", required=True)]
+        assert plan(*unknown).manual_reason
+
+    def test_a_required_message_gets_a_short_honest_note_an_optional_one_stays_empty(self):
+        required = plan(fld(1, tag="textarea", name="message", label="Message", required=True))
+        assert required.steps[0].value.startswith("Interested in buying a business (HVAC, plumbing)")
+        assert plan(fld(1, tag="textarea", name="message", label="Message")).steps == []
+
+    def test_without_any_configured_identity_a_required_name_is_manual(self):
+        assert plan(fld(1, name="name", label="Name", required=True), buyer=Buyer()).manual_reason
+
+
+class TestRejectionReason:
+    def test_error_messages_are_a_rejection_but_thank_yous_are_not(self):
+        assert "required" in (rejection_reason(["This field is required"]) or "")
+        assert rejection_reason(["Thank you! Please check your email to confirm."]) is None
+        assert rejection_reason(["Success: you are subscribed"]) is None
+        assert rejection_reason([]) is None and rejection_reason(None) is None
+
+    def test_a_native_block_counts_unless_the_page_shows_a_thank_you(self):
+        native = ['NATIVE: the browser blocked the submit — required or invalid field "phone"']
+        assert "phone" in (rejection_reason(native, "<h1>Join us</h1>") or "")
+        assert rejection_reason(native, "Thank you for subscribing") is None  # the form was reset after a success
+
+
+class InspectedPage(FakePage):
+    """A page whose form can be read: `evaluate` answers INSPECT_JS with `form` and ERRORS_JS with `errors`."""
+
+    def __init__(self, fields, html="<form></form>", after="<h1>Thanks</h1>", errors=None):
+        super().__init__("<html>", after)
+        self.form = {"fields": fields, "html": html}
+        self.errors = errors or []
+
+    def evaluate(self, script, arg=None):
+        if script is INSPECT_JS:
+            return self.form
+        if script is BODY_TEXT_JS:
+            return "Thanks for subscribing" if "Thanks" in self.after else ""
+        assert script is ERRORS_JS
+        return self.errors
+
+
+class TestAttemptSignupWithAForm:
+    def test_fills_the_buyer_details_then_the_email_then_submits(self):
+        page = InspectedPage([EMAIL, fld(1, name="name", label="Name", required=True), fld(2, type="checkbox", label="Email me listings")])
+        outcome = attempt_signup(page, TARGET, ADDRESS, BUYER, ["HVAC"])
+        assert outcome == SignupOutcome("submitted")
+        assert page.calls.count(("fill", "#email", ADDRESS)) == 1
+        assert ("fill", '[data-tagr-i="1"]', "Tanner") in page.calls and ("check", '[data-tagr-i="2"]') in page.calls
+        assert page.calls.index(("click", "button[type=submit]")) > page.calls.index(("check", '[data-tagr-i="2"]'))
+
+    def test_a_form_that_needs_a_person_is_left_untouched_and_reported_as_manual(self):
+        page = InspectedPage([EMAIL, fld(1, type="password", name="pw", label="Password")])
+        outcome = attempt_signup(page, TARGET, ADDRESS, BUYER, [])
+        assert outcome.result == "manual" and "password" in (outcome.error or "")
+        assert not any(call[0] in ("fill", "click", "check", "select") for call in page.calls)
+
+    def test_a_captcha_widget_inside_the_form_stops_it(self):
+        page = InspectedPage([EMAIL], html='<form><div class="g-recaptcha" data-sitekey="k"></div></form>')
+        assert attempt_signup(page, TARGET, ADDRESS, BUYER, []).result == "captcha"
+        assert not any(call[0] == "fill" for call in page.calls)
+
+    def test_a_sitewide_captcha_script_outside_the_form_does_not(self):
+        page = InspectedPage([EMAIL], html="<form></form>")
+        page.before = '<script src="https://www.google.com/recaptcha/api.js"></script><form></form>'  # e.g. the contact form's
+        assert attempt_signup(page, TARGET, ADDRESS, BUYER, []).result == "submitted"
+
+    def test_a_visible_validation_error_after_the_submit_makes_it_manual(self):
+        page = InspectedPage([EMAIL], errors=["Please select an option"])
+        outcome = attempt_signup(page, TARGET, ADDRESS, BUYER, [])
+        assert outcome.result == "manual" and "Please select an option" in (outcome.error or "")
+
+    def test_a_native_block_is_manual_but_not_when_the_thank_you_is_showing(self):
+        native = ['NATIVE: the browser blocked the submit — required or invalid field "zz"']
+        assert attempt_signup(InspectedPage([EMAIL], after="<h1>Join us</h1>", errors=native), TARGET, ADDRESS, BUYER, []).result == "manual"
+        assert attempt_signup(InspectedPage([EMAIL], after="<h1>Thanks</h1>", errors=native), TARGET, ADDRESS, BUYER, []).result == "submitted"
+
+    def test_a_challenge_after_the_submit_is_still_a_captcha(self):
+        assert attempt_signup(InspectedPage([EMAIL], after=CHALLENGE_HTML), TARGET, ADDRESS, BUYER, []).result == "captcha"

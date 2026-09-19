@@ -20,6 +20,7 @@ name: Lead engine
 #   OPENAI_API_KEY         AI extraction
 # Repository variables (optional): OPENAI_MODEL (default gpt-4o-mini);
 #   INBOUND_LEADS_ADDRESS  the dedicated leads inbox the email signups subscribe with (needed for email-signups)
+#   BUYER_NAME / BUYER_PHONE / BUYER_COMPANY  who the email signups sign up as when a form asks (e.g. Tanner / 480 282 2225 / TAGR Holdings)
 
 on:
   schedule:
@@ -68,6 +69,9 @@ jobs:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       OPENAI_MODEL: ${{ vars.OPENAI_MODEL }}
       INBOUND_LEADS_ADDRESS: ${{ vars.INBOUND_LEADS_ADDRESS }}
+      BUYER_NAME: ${{ vars.BUYER_NAME }}
+      BUYER_PHONE: ${{ vars.BUYER_PHONE }}
+      BUYER_COMPANY: ${{ vars.BUYER_COMPANY }}
     steps:
       - uses: actions/checkout@v4
 

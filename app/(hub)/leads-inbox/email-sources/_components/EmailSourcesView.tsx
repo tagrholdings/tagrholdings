@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, Plus, Trash2, Wand2 } from "lucide-react";
+import { AlertTriangle, ExternalLink, Mail, Plus, Trash2, Wand2 } from "lucide-react";
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { notify } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 import { formatDateUS } from "@/utils/date";
@@ -14,7 +14,7 @@ import {
   deleteEmailSourceAction,
   setEmailSourceSubscribedAction,
 } from "@/modules/email-sources/email-sources.actions";
-import { emailSourceState, type EmailSourceState, type EmailSourceSummary } from "@/modules/email-sources/email-sources.types";
+import { emailSourceState, type EmailSourceRow, type EmailSourceState, type EmailSourceSummary } from "@/modules/email-sources/email-sources.types";
 import { EmailSourceVault } from "./EmailSourceVault";
 
 const STATE_LABELS: Record<EmailSourceState, { label: string; tone: "good" | "warn" | "bad" | "neutral" }> = {
@@ -24,6 +24,7 @@ const STATE_LABELS: Record<EmailSourceState, { label: string; tone: "good" | "wa
   ready: { label: "Ready to attempt", tone: "neutral" },
   manual: { label: "Manual signup", tone: "neutral" },
   captcha: { label: "Captcha — sign up by hand", tone: "bad" },
+  needs_person: { label: "Needs a person — sign up by hand", tone: "bad" },
   failed: { label: "Last attempt failed", tone: "bad" },
 };
 
@@ -34,7 +35,12 @@ const TONE_CLASSES = {
   neutral: "border-divider bg-transparent text-muted-foreground",
 } as const;
 
-export function EmailSourcesView({ sources, inboxAddress }: { sources: EmailSourceSummary[]; inboxAddress: string | null }) {
+/** A site the engine couldn't do is shown in the "bad" tone even while its state is still "awaiting confirmation". */
+function handoffTone(source: EmailSourceRow, tone: keyof typeof TONE_CLASSES) {
+  return TONE_CLASSES[source.handoffReason ? "bad" : tone];
+}
+
+export function EmailSourcesView({ sources, inboxAddress }: { sources: EmailSourceRow[]; inboxAddress: string | null }) {
   // undefined = closed, null = creating, source = editing.
   const [editing, setEditing] = useState<EmailSourceSummary | null | undefined>(undefined);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -78,6 +84,30 @@ export function EmailSourcesView({ sources, inboxAddress }: { sources: EmailSour
   );
   const vault = <EmailSourceVault open={editing !== undefined} onOpenChange={(open) => !open && setEditing(undefined)} source={editing ?? null} />;
 
+  const handoff = sources.filter((s) => s.handoffReason);
+  const handoffBanner =
+    handoff.length > 0 ? (
+      <div role="alert" className="flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm">
+        <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden />
+        <div className="min-w-0">
+          <p className="font-medium text-destructive">
+            {handoff.length === 1 ? "1 site needs to be signed up to by hand" : `${handoff.length} sites need to be signed up to by hand`}
+          </p>
+          <p className="mt-0.5 text-muted-foreground">
+            The engine doesn&rsquo;t solve captchas, accept NDAs or terms, or make up answers. Open each site below, sign up with the leads inbox address
+            {inboxAddress ? <> ({inboxAddress})</> : null}, then click &ldquo;Mark subscribed&rdquo;.
+          </p>
+          <ul className="mt-2 list-inside list-disc text-muted-foreground">
+            {handoff.map((s) => (
+              <li key={s.id}>
+                <span className="font-medium text-foreground">{s.siteName}</span> — {s.handoffReason}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    ) : null;
+
   const intro = (
     <div className="rounded-lg border border-divider bg-surface p-4 text-sm text-muted-foreground">
       <p>
@@ -91,8 +121,8 @@ export function EmailSourcesView({ sources, inboxAddress }: { sources: EmailSour
         : every email that arrives there is read automatically and becomes a lead in the Inbox.
       </p>
       <p className="mt-2">
-        Signing up is a separate step from receiving. Where a site&rsquo;s form has no captcha, the engine can fill it in for you (give it the two selectors);
-        sites with a captcha stay a manual signup. When the site sends its &ldquo;confirm your subscription&rdquo; email, the CRM clicks the link for you and marks the site
+        Signing up is a separate step from receiving. Where a site&rsquo;s form has no captcha, the engine can fill it in for you (give it the two selectors) —
+        including your name, phone and company when the form asks. Sites with a captcha, or that want an NDA, terms or an account, are flagged here for you to do by hand. When the site sends its &ldquo;confirm your subscription&rdquo; email, the CRM clicks the link for you and marks the site
         subscribed.
       </p>
     </div>
@@ -119,6 +149,7 @@ export function EmailSourcesView({ sources, inboxAddress }: { sources: EmailSour
 
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-4">
+      {handoffBanner}
       {intro}
       <div className="flex justify-end">{addButton}</div>
 
@@ -138,7 +169,7 @@ export function EmailSourcesView({ sources, inboxAddress }: { sources: EmailSour
             const state = emailSourceState(source);
             const { label, tone } = STATE_LABELS[state];
             const url = httpUrl(source.signupUrl);
-            const canAttempt = state === "ready" || state === "failed" || state === "awaiting_confirmation";
+            const canAttempt = state === "ready" || state === "failed" || state === "awaiting_confirmation" || state === "needs_person";
             return (
               <TableRow key={source.id} className="cursor-pointer" onClick={() => setEditing(source)}>
                 <TableCell mobileLabel="Site" noWrapper>
@@ -157,7 +188,9 @@ export function EmailSourcesView({ sources, inboxAddress }: { sources: EmailSour
                   </div>
                 </TableCell>
                 <TableCell mobileLabel="Status">
-                  <span className={cn("inline-flex items-center rounded-pill border px-2 py-0.5 text-xs font-medium", TONE_CLASSES[tone])}>{label}</span>
+                  <span className={cn("inline-flex items-center rounded-pill border px-2 py-0.5 text-xs font-medium", handoffTone(source, tone))}>
+                    {source.handoffReason && state === "awaiting_confirmation" ? "No confirmation email — sign up by hand" : label}
+                  </span>
                 </TableCell>
                 <TableCell mobileLabel="Last attempt" noWrapper>
                   <div className="min-w-0 text-right text-sm text-muted-foreground md:text-left">
@@ -166,7 +199,11 @@ export function EmailSourcesView({ sources, inboxAddress }: { sources: EmailSour
                       : source.lastAttemptAt
                         ? formatDateUS(source.lastAttemptAt, { month: "short", day: "numeric" })
                         : "—"}
-                    {source.lastAttemptError && <span className="block max-w-xs truncate text-xs text-destructive" title={source.lastAttemptError}>{source.lastAttemptError}</span>}
+                    {(source.handoffReason ?? source.lastAttemptError) && (
+                      <span className="block max-w-xs text-xs text-destructive md:truncate" title={source.handoffReason ?? source.lastAttemptError ?? undefined}>
+                        {source.handoffReason ?? source.lastAttemptError}
+                      </span>
+                    )}
                   </div>
                 </TableCell>
                 <TableCell hideBorderMobile className="md:justify-end">
@@ -176,6 +213,12 @@ export function EmailSourcesView({ sources, inboxAddress }: { sources: EmailSour
                         <Wand2 />
                         {state === "awaiting_confirmation" ? "Retry signup" : "Attempt subscribe"}
                       </Button>
+                    )}
+                    {source.handoffReason && url && (
+                      <a href={url} target="_blank" rel="noopener noreferrer" className={buttonVariants({ variant: "outline", size: "sm" })}>
+                        <ExternalLink />
+                        Open signup page
+                      </a>
                     )}
                     {state === "subscribed" ? (
                       <Button size="sm" variant="outline" disabled={busyId === source.id} onClick={() => setSubscribed(source, false)}>

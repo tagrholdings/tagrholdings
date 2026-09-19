@@ -11,6 +11,7 @@ import * as searchProfilesSchema from "@/modules/search-profiles/search-profiles
 import * as leadsSchema from "@/modules/leads/leads.schema";
 import * as leadEngineSchema from "@/modules/lead-engine/lead-engine.schema";
 import * as emailSourcesSchema from "@/modules/email-sources/email-sources.schema";
+import * as listingSitesSchema from "@/modules/listing-sites/listing-sites.schema";
 import * as rateLimitSchema from "@/modules/rate-limit/rate-limit.schema";
 
 const schema = {
@@ -23,6 +24,7 @@ const schema = {
   ...leadsSchema,
   ...leadEngineSchema,
   ...emailSourcesSchema,
+  ...listingSitesSchema,
   ...rateLimitSchema,
 };
 

@@ -9,6 +9,7 @@ pricing.py — nothing else in the engine knows which model ran.
 from __future__ import annotations
 
 import json
+import re
 import logging
 import math
 from dataclasses import dataclass
@@ -32,10 +33,14 @@ class Extractor(Protocol):
     def extract(self, candidate: Candidate, text: str) -> Extraction: ...
 
 
+# The model sometimes writes "null" / "N/A" as TEXT for a missing fact; it must not reach the inbox as a value.
+_NOT_A_VALUE = re.compile(r"^(null|none|n/a|na|unknown|not (stated|specified|provided|available))\.?$", re.IGNORECASE)
+
+
 def _clean(value: Any) -> str | None:
     if isinstance(value, str):
         value = value.strip()
-        return value or None
+        return value if value and not _NOT_A_VALUE.match(value) else None
     return None
 
 

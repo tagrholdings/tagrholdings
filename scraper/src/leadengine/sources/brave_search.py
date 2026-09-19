@@ -125,3 +125,16 @@ def _retry_after_seconds(response: httpx.Response) -> float:
             except ValueError:
                 continue
     return 1.0
+
+
+def web_search(ctx: SourceContext, query: str, page: int = 0) -> list[dict]:
+    """One Brave request for `query` -> its raw web results (title/url/description). Billed like any other Brave call
+    (only when Brave accepted it). Used by sources that need search hits but not this adapter's candidate shape."""
+    api_key = ctx.settings.brave_api_key
+    if not api_key:
+        raise SourceNotConfigured("BRAVE_API_KEY is not set.")
+    params = {"q": query, "count": PAGE_SIZE, "offset": page, "country": "US", "search_lang": "en"}
+    headers = {"X-Subscription-Token": api_key, "Accept": "application/json"}
+    data = BraveSearchSource._request(ctx, params, headers)
+    ctx.record_usage(UsageEvent(provider="brave_search", operation="search", cost_usd=BRAVE_SEARCH_USD))
+    return list((data.get("web") or {}).get("results") or [])

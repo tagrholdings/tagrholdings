@@ -14,11 +14,11 @@ export interface ReceivedEmailInput extends InboundEmail {
 export type InboundOutcome =
   | { kind: "subscription_confirmed"; emailSourceId: string }
   | { kind: "confirmation_failed"; emailSourceId: string }
-  | { kind: "lead"; leadId: string; duplicate: boolean };
+  | { kind: "lead"; leadIds: string[]; listingsFound: number; alreadyKnown: number; duplicate: boolean };
 
 const INBOUND_USAGE = { provider: "resend", operation: "receive", requests: 1, costUsd: RESEND_INBOUND_USD_PER_EMAIL } as const;
 
-/** Enough of a long digest for the AI (which reads ~6k chars) while keeping the stored audit copy bounded. */
+/** Enough of a long digest for the listing extraction (which reads up to 30k chars) while keeping the stored copy bounded. */
 const MAX_BODY_CHARS = 30_000;
 
 export const emailInboundService = {
@@ -26,8 +26,8 @@ export const emailInboundService = {
    * One received email, two possible meanings:
    *   1. a "confirm your subscription" message for a signup we listed -> click the link, mark that source
    *      subscribed, and DO NOT create a lead from it;
-   *   2. anything else (or a confirmation we can't confidently match) -> a lead: same AI extraction as every
-   *      other source, saved as sourceType "email_digest".
+   *   2. anything else (or a confirmation we can't confidently match) -> leads: ONE per business listed for sale in
+   *      the email (a BizBuySell alert lists many), saved as sourceType "email_digest" — see ingestEmailListings.
    * A confirmation we can't tie to exactly one listed site falls through to (2) — never guess.
    */
   async process(tenantId: string, email: ReceivedEmailInput): Promise<InboundOutcome> {
@@ -53,20 +53,20 @@ export const emailInboundService = {
       }
     }
 
-    const body = (email.text?.trim() ? email.text : email.html ? htmlToText(email.html) : "").slice(0, MAX_BODY_CHARS);
+    // Prefer the HTML version: its links survive as `label (url)`, and a listing's link is the most valuable part.
+    const body = (email.html ? htmlToText(email.html, MAX_BODY_CHARS) : "") || (email.text ?? "").slice(0, MAX_BODY_CHARS);
     const address = senderAddress(email.from);
-    const rawText = [`From: ${email.from}`, `Subject: ${email.subject}`, "", body].join("\n");
 
-    const result = await leadsIngestService.ingestRaw(tenantId, {
-      sourceType: "email_digest",
-      sourceUrl: senderSiteUrl(email.from),
-      rawText,
-      fallbackName: email.subject.trim() || address || null,
-      dedupeKey: `email:${email.emailId}`,
-      // The inbound email itself is a (small) billable event — logged as its own service. Not logged when the
-      // email was a duplicate delivery, since ingestRaw returns before using it.
+    const result = await leadsIngestService.ingestEmailListings(tenantId, {
+      emailId: email.emailId,
+      from: email.from || address,
+      subject: email.subject,
+      body,
+      senderSite: senderSiteUrl(email.from),
+      // The inbound email itself is a (small) billable event — logged as its own service, once per email. Not logged when
+      // the email was a redelivery, since ingestEmailListings returns before using it.
       extraUsage: [INBOUND_USAGE],
     });
-    return { kind: "lead", leadId: result.id, duplicate: result.duplicate };
+    return { kind: "lead", leadIds: result.leadIds, listingsFound: result.listingsFound, alreadyKnown: result.alreadyKnown, duplicate: result.redelivery };
   },
 };

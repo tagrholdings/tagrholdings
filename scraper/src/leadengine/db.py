@@ -18,7 +18,7 @@ import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
-from .models import RawLead, SearchProfile, UsageEvent
+from .models import ListingSite, RawLead, SearchProfile, UsageEvent
 
 log = logging.getLogger(__name__)
 
@@ -101,6 +101,71 @@ class Database:
                 """,
                 (Jsonb(run_state), mark_ran, profile.id, profile.tenant_id),
             )
+
+    # -- listing sites (broker crawler) -----------------------------------------
+
+    def listing_sites_for_crawl(self, tenant_id: str) -> list[ListingSite]:
+        """The tenant's ACTIVE sites, least recently crawled first (so a run that stops early still rotates through them)."""
+        with self._tenant(tenant_id) as conn:
+            rows = conn.execute(
+                """
+                select id::text, site_name, domain, site_url, listings_url, status, last_crawled_at, content_hashes
+                from listing_sites where tenant_id = %s and active
+                order by last_crawled_at nulls first, created_at
+                """,
+                (tenant_id,),
+            ).fetchall()
+        return [
+            ListingSite(
+                id=r["id"], tenant_id=tenant_id, site_name=r["site_name"], domain=r["domain"], site_url=r["site_url"],
+                listings_url=r["listings_url"], status=r["status"], last_crawled_at=r["last_crawled_at"],
+                content_hashes=dict(r["content_hashes"] or {}),
+            )
+            for r in rows
+        ]
+
+    def known_site_domains(self, tenant_id: str) -> set[str]:
+        """EVERY domain on the tenant's list — active or ignored — so discovery never re-adds a site a person turned off."""
+        with self._tenant(tenant_id) as conn:
+            rows = conn.execute("select domain from listing_sites where tenant_id = %s", (tenant_id,)).fetchall()
+        return {r["domain"] for r in rows}
+
+    def add_discovered_site(self, tenant_id: str, site_name: str, domain: str, site_url: str) -> bool:
+        """Adds a site the engine found. True when a NEW row was created (the DB pins source='auto_detected', active)."""
+        with self._tenant(tenant_id) as conn:
+            row = conn.execute(
+                """
+                insert into listing_sites (tenant_id, site_name, domain, site_url, source)
+                values (%s, %s, %s, %s, 'auto_detected')
+                on conflict (tenant_id, domain) do nothing
+                returning id
+                """,
+                (tenant_id, site_name[:200], domain, site_url[:2048]),
+            ).fetchone()
+            return row is not None
+
+    def record_site_crawl(
+        self, tenant_id: str, site_id: str, status: str, detail: str | None, listing_count: int, listings_url: str | None, hashes: dict[str, str]
+    ) -> None:
+        with self._tenant(tenant_id) as conn:
+            conn.execute(
+                """
+                update listing_sites
+                set status = %s, status_detail = %s, last_crawled_at = now(), last_listing_count = %s,
+                    listings_url = coalesce(%s, listings_url), content_hashes = %s, updated_at = now()
+                where id = %s and tenant_id = %s
+                """,
+                (status, detail[:500] if detail else None, listing_count, listings_url, Jsonb(hashes), site_id, tenant_id),
+            )
+
+    def industries_for_tenant(self, tenant_id: str) -> list[str]:
+        """Every industry the tenant's active search profiles name — what a signup form's "industry" choice is matched against."""
+        with self._tenant(tenant_id) as conn:
+            rows = conn.execute("select category, keywords from search_profiles where tenant_id = %s and active", (tenant_id,)).fetchall()
+        terms: list[str] = []
+        for r in rows:
+            terms += [r["category"], *(r["keywords"] or [])]
+        return list(dict.fromkeys(t.strip() for t in terms if t and t.strip()))
 
     # -- email sources (auto-signup) ------------------------------------------
 

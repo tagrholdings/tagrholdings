@@ -17,6 +17,7 @@ import { SearchProfileVault } from "./SearchProfileVault";
 const SOURCE_SHORT_LABELS: Record<keyof ProfileSources, string> = {
   google_places: "Places",
   brave_search: "Brave",
+  broker_listings: "Brokers",
   marketplace_scrape: "Marketplace",
   company_site_scrape: "Websites",
 };

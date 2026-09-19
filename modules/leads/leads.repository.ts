@@ -1,5 +1,5 @@
 import { withTenant } from "@/lib/db";
-import { and, count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, like, or, sql } from "drizzle-orm";
 import { rawLeadsTable, type ExtractedFields, type LeadSourceType, type RawLeadStatus } from "./leads.schema";
 import { searchProfilesTable } from "@/modules/search-profiles/search-profiles.schema";
 
@@ -49,6 +49,48 @@ export const leadsRepository = {
         .select({ id: rawLeadsTable.id })
         .from(rawLeadsTable)
         .where(and(eq(rawLeadsTable.tenantId, tenantId), eq(rawLeadsTable.sourceType, sourceType), eq(rawLeadsTable.dedupeKey, dedupeKey)))
+    );
+    return row?.id;
+  },
+
+  /**
+   * True when any lead was already saved from this exact email: a single-lead key `email:<id>` or a per-listing key
+   * `email:<id>:<n>`. Webhooks are retried and replayable, so this is what stops a redelivery from paying for the AI again.
+   */
+  async existsForEmail(tenantId: string, emailId: string): Promise<boolean> {
+    const key = `email:${emailId}`;
+    // LIKE wildcards in an id would widen the match: only ids made of plain characters get the prefix form.
+    const prefixSafe = /^[A-Za-z0-9_-]+$/.test(emailId);
+    const [row] = await withTenant(tenantId, (tx) =>
+      tx
+        .select({ id: rawLeadsTable.id })
+        .from(rawLeadsTable)
+        .where(
+          and(
+            eq(rawLeadsTable.tenantId, tenantId),
+            eq(rawLeadsTable.sourceType, "email_digest"),
+            prefixSafe ? or(eq(rawLeadsTable.dedupeKey, key), like(rawLeadsTable.dedupeKey, `${key}:%`)) : eq(rawLeadsTable.dedupeKey, key)
+          )
+        )
+        .limit(1)
+    );
+    return row !== undefined;
+  },
+
+  /** A listing already saved from an earlier digest (matched by the signature stored in its extracted fields). */
+  async findIdByListingSignature(tenantId: string, signature: string): Promise<string | undefined> {
+    const [row] = await withTenant(tenantId, (tx) =>
+      tx
+        .select({ id: rawLeadsTable.id })
+        .from(rawLeadsTable)
+        .where(
+          and(
+            eq(rawLeadsTable.tenantId, tenantId),
+            eq(rawLeadsTable.sourceType, "email_digest"),
+            sql`${rawLeadsTable.extractedFields}->>'listingSignature' = ${signature}`
+          )
+        )
+        .limit(1)
     );
     return row?.id;
   },

@@ -11,7 +11,7 @@ import { dispatchLeadEngineWorkflow } from "@/lib/github-dispatch";
 
 const NOW = new Date("2026-09-19T12:00:00Z");
 const profile = { id: "p1", active: true, runRequestedAt: null };
-const sources = { google_places: true, brave_search: false, company_site_scrape: true, marketplace_scrape: false };
+const sources = { google_places: true, brave_search: false, broker_listings: false, company_site_scrape: true, marketplace_scrape: false };
 
 beforeEach(() => {
   vi.resetAllMocks();

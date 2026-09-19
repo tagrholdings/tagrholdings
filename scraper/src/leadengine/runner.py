@@ -27,6 +27,7 @@ from .enrich.email_signup_detect import EmailSignupDetection, detect_email_only_
 from .extraction.extractor import Extractor, fields_from_hints_only
 from .models import (
     DISCOVERY_SOURCES,
+    SOURCE_BROKER_LISTINGS,
     SOURCE_COMPANY_SITE,
     Candidate,
     RawLead,
@@ -97,7 +98,14 @@ class Runner:
     @staticmethod
     def plan(profile: SearchProfile) -> list[tuple[str, str]]:
         """Every (source, term) pair this profile searches this cycle, in a stable order."""
-        return [(src, term) for src in DISCOVERY_SOURCES if profile.source_enabled(src) for term in profile.terms]
+        plan: list[tuple[str, str]] = []
+        for src in DISCOVERY_SOURCES:
+            if not profile.source_enabled(src):
+                continue
+            # The broker crawler reads each site ONCE for all the profile's industries — running it per term would open
+            # every broker N times — so it is a single step.
+            plan += [(src, "*")] if src == SOURCE_BROKER_LISTINGS else [(src, term) for term in profile.terms]
+        return plan
 
     @staticmethod
     def _resume_index(plan: list[tuple[str, str]], cursor: dict[str, Any] | None) -> int:
@@ -121,6 +129,7 @@ class Runner:
 
         state = dict(profile.run_state)
         ctx = self._make_context(state, record_usage)
+        ctx.store = self._db  # the listing-sites list, for sources that crawl broker sites
         counters = _Counters()
         # A page a source visited expecting listings but found none (e.g. the marketplace): a signup-only site?
         ctx.on_empty_page = lambda html, url: self._log_email_source(profile, detect_email_only_signup(html, url), counters)
@@ -246,6 +255,25 @@ class Runner:
         if counters.added >= cap:
             raise _Stop("cap")
 
+    def _lead_from_prefilled(self, profile: SearchProfile, candidate: Candidate) -> RawLead:
+        """A candidate whose fields the source already extracted (a broker's listing): saved as-is — no website to
+        enrich, no second AI call."""
+        fields = dict(candidate.fields or {})
+        raw_text = (candidate.text or "")[:MAX_RAW_TEXT_CHARS]
+        matched = match_signals(
+            profile.criteria, raw_text, fields.get("summary"), fields.get("reasonForSelling"), fields.get("businessName")
+        )
+        if matched:
+            fields["matchedSignals"] = matched
+        return RawLead(
+            source_type=candidate.source_type,
+            dedupe_key=candidate.dedupe_key,
+            business_name=fields.get("businessName") or candidate.business_name,
+            source_url=candidate.source_url,
+            raw_text=raw_text,
+            extracted_fields=fields,
+        )
+
     def _build_lead(
         self,
         profile: SearchProfile,
@@ -253,6 +281,8 @@ class Runner:
         record_usage: Callable[[UsageEvent], None],
         counters: _Counters,
     ) -> RawLead:
+        if candidate.fields is not None:
+            return self._lead_from_prefilled(profile, candidate)
         text_parts = [candidate.text]
         if candidate.website:
             candidate.hints.setdefault("website", candidate.website)

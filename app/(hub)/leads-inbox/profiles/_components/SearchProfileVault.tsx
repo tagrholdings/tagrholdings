@@ -50,6 +50,7 @@ const formSchema = z.object({
   sources: z.object({
     google_places: z.boolean(),
     brave_search: z.boolean(),
+    broker_listings: z.boolean(),
     company_site_scrape: z.boolean(),
     marketplace_scrape: z.boolean(),
   }),
@@ -73,6 +74,11 @@ type FormValues = z.input<typeof formSchema>;
 const SOURCE_OPTIONS: { key: keyof ProfileSources; label: string; hint: string }[] = [
   { key: "google_places", label: "Google Places", hint: "Finds local businesses by category and area." },
   { key: "brave_search", label: "Brave Search", hint: "Finds company websites by keyword (Brave Search API)." },
+  {
+    key: "broker_listings",
+    label: "Broker listing sites",
+    hint: "For businesses FOR SALE: finds business brokers on its own, reads their listings pages and saves each business for sale in your industries (the category and search terms above). Broker listings change slowly: run it about weekly (168 hours) with a higher lead cap (around 100).",
+  },
   { key: "marketplace_scrape", label: "Marketplaces", hint: "“Businesses for sale” listings, e.g. BizBuySell." },
   { key: "company_site_scrape", label: "Company websites", hint: "Reads each business's own site for contact details. Adds no new leads by itself." },
 ];
@@ -165,7 +171,7 @@ function ProfileForm({ profile, onClose }: { profile: SearchProfileSummary | nul
       <VaultField label="Extra search terms" error={errors.keywordsText?.message}>
         <VaultInput placeholder="air conditioning repair, heating installation" {...register("keywordsText")} />
         <p className="text-xs text-muted-foreground">
-          Comma-separated. Each term is searched separately (more terms = more results, and more API cost). Leave empty to search the category only.
+          Comma-separated. Each term is searched separately (more terms = more results, and more API cost). Leave empty to search the category only. With Broker listing sites, every term is an industry you want to buy — e.g. HVAC, plumbing, pest control, property management.
         </p>
       </VaultField>
 
