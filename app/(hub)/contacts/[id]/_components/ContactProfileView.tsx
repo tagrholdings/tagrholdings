@@ -64,7 +64,7 @@ function Section({
  * The full contact profile — editable info + organization, and its leads,
  * projects and activities. Clicking one of those opens the exact same
  * `PipelineItemDetail` / `ActivityDetailPanel` side panels used on
- * /leads-inbox, /pipeline and /activities, instead of navigating away.
+ * /leads, /pipeline and /activities, instead of navigating away.
  */
 export function ContactProfileView({
   contact: initialContact,

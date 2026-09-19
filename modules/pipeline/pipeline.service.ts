@@ -27,7 +27,7 @@ export const pipelineService = {
     return boards.filter((board) => !board.isSystem);
   },
 
-  /** The system board is off-limits to rename/archive/delete — it's what /leads-inbox is built on. */
+  /** The system board is off-limits to rename/archive/delete — it's what /leads is built on. */
   async getEditableBoard(tenantId: string, id: string) {
     const board = await pipelineBoardsRepository.findById(tenantId, id);
     if (!board) {
@@ -63,7 +63,7 @@ export const pipelineService = {
   },
 
   /**
-   * Every tenant needs the "Leads" system board to exist before /leads-inbox
+   * Every tenant needs the "Leads" system board to exist before /leads
    * can render — seeded lazily on first visit
    * rather than at tenant-creation time, so tenants created before this
    * feature existed still get one.

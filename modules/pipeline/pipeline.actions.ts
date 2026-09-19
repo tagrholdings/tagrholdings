@@ -13,10 +13,10 @@ import {
   updatePipelineItemSchema,
 } from "./pipeline.types";
 
-/** Pipeline items show up on Projects, Leads Inbox, a contact's panel, and as activity links. */
+/** Pipeline items show up on Projects, Leads, a contact's panel, and as activity links. */
 function revalidatePipelinePages() {
   revalidatePath("/pipeline");
-  revalidatePath("/leads-inbox");
+  revalidatePath("/leads");
   revalidatePath("/contacts");
   revalidatePath("/activities");
 }

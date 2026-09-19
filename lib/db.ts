@@ -7,6 +7,10 @@ import * as organizationsSchema from "@/modules/organizations/organizations.sche
 import * as contactsSchema from "@/modules/contacts/contacts.schema";
 import * as pipelineSchema from "@/modules/pipeline/pipeline.schema";
 import * as activitiesSchema from "@/modules/activities/activities.schema";
+import * as searchProfilesSchema from "@/modules/search-profiles/search-profiles.schema";
+import * as leadsSchema from "@/modules/leads/leads.schema";
+import * as leadEngineSchema from "@/modules/lead-engine/lead-engine.schema";
+import * as emailSourcesSchema from "@/modules/email-sources/email-sources.schema";
 import * as rateLimitSchema from "@/modules/rate-limit/rate-limit.schema";
 
 const schema = {
@@ -15,6 +19,10 @@ const schema = {
   ...contactsSchema,
   ...pipelineSchema,
   ...activitiesSchema,
+  ...searchProfilesSchema,
+  ...leadsSchema,
+  ...leadEngineSchema,
+  ...emailSourcesSchema,
   ...rateLimitSchema,
 };
 

@@ -40,6 +40,27 @@ export const selectTenantMemberSchema = createSelectSchema(tenantMembersTable);
 export const appTenantRole = pgRole("app_tenant").existing();
 
 /**
+ * The external lead-discovery job's login role (drizzle/0006). Also
+ * NOBYPASSRLS — the job sets `app.tenant_id` per transaction (taken from the
+ * search profile it is processing) and the policies below hold it to that
+ * tenant. The one cross-tenant thing it may do is *read* active search
+ * profiles, which is how it discovers which tenants have work to do.
+ */
+export const leadScraperRole = pgRole("lead_scraper").existing();
+
+/** Same tenant check as `tenantIsolationPolicy`, for the scraper role's write path. */
+export function scraperTenantPolicy(tableName: string, forCommand: "all" | "select" | "insert" | "update" = "all") {
+  const sameTenant = sql`tenant_id = nullif(current_setting('app.tenant_id', true), '')::uuid`;
+  return pgPolicy(`${tableName}_scraper_${forCommand}`, {
+    as: "permissive",
+    for: forCommand,
+    to: leadScraperRole,
+    ...(forCommand === "insert" ? {} : { using: sameTenant }),
+    ...(forCommand === "select" ? {} : { withCheck: sameTenant }),
+  });
+}
+
+/**
  * One policy per tenant-owned table: `app_tenant` only sees, inserts and
  * updates rows whose `tenant_id` matches the transaction's `app.tenant_id`.
  * `nullif(..., '')` makes an unset/reset setting compare as NULL (no rows)

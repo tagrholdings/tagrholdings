@@ -1,0 +1,4 @@
+ALTER TABLE "email_sources" ADD COLUMN "source" text DEFAULT 'manual' NOT NULL;--> statement-breakpoint
+ALTER TABLE "lead_runs" ADD COLUMN "email_sources_detected" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+CREATE POLICY "email_sources_scraper_tenant_select" ON "email_sources" AS PERMISSIVE FOR SELECT TO "lead_scraper" USING (tenant_id = nullif(current_setting('app.tenant_id', true), '')::uuid);--> statement-breakpoint
+CREATE POLICY "email_sources_scraper_tenant_insert" ON "email_sources" AS PERMISSIVE FOR INSERT TO "lead_scraper" WITH CHECK (tenant_id = nullif(current_setting('app.tenant_id', true), '')::uuid and source = 'auto_detected' and not subscribed and not captcha_protected);

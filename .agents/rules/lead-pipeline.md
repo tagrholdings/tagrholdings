@@ -4,7 +4,7 @@
 
 The lead-discovery engine is a **separate** process from the Next.js app (a Python job, run via external scheduling — see `deploy-manager.md`). It doesn't import code from this repo or call Server Actions — it writes directly to the `raw_leads` table in the same Postgres database (Neon), always with `tenantId` populated.
 
-The Next.js app never triggers the scraper directly via a synchronous HTTP request — the relationship between the two is asynchronous, via the shared database.
+The Next.js app never calls the scraper — the relationship between the two is asynchronous, via the shared database. The one nuance: "Run now" and "Attempt subscribe" record a request row-flag in the database first (that is the contract the job honors) and may additionally ask GitHub Actions to start the workflow right away (`lib/github-dispatch.ts`); if that isn't configured the request just waits for the next scheduled run. Leads that must appear in real time (manual adds, inbound email) don't wait for the job at all: the app extracts them itself with the same shared prompt/schema (`modules/lead-extraction/`, spec in `scraper/src/leadengine/shared/lead-engine-spec.json`).
 
 ## The two AI stages (don't conflate them)
 

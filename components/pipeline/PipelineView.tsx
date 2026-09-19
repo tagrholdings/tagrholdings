@@ -30,7 +30,7 @@ function applyPatch(state: PipelineItemRow[], patch: Patch): PipelineItemRow[] {
 
 /**
  * One board's kanban + list, item detail and "New" vault. Shared by
- * /leads-inbox (the system "Leads" board) and /pipeline (one project board
+ * /leads (the system "Leads" board) and /pipeline (one project board
  * per tab) — both are the same `pipeline_items` data, just different boards.
  */
 export function PipelineView({

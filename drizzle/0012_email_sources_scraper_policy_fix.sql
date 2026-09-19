@@ -1,0 +1,2 @@
+ALTER POLICY "email_sources_scraper_select" ON "email_sources" TO lead_scraper USING (not subscribed);--> statement-breakpoint
+ALTER POLICY "email_sources_scraper_update" ON "email_sources" TO lead_scraper USING (not subscribed) WITH CHECK (true);
