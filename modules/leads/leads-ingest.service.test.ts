@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("./leads.repository", () => ({ leadsRepository: { findIdByDedupeKey: vi.fn(), createIfNew: vi.fn() } }));
-vi.mock("@/modules/lead-extraction/lead-extraction.service", () => ({ leadExtractionService: { extract: vi.fn() } }));
+vi.mock("./leads.repository", () => ({ leadsRepository: { findIdByDedupeKey: vi.fn(), createIfNew: vi.fn(), existsForEmail: vi.fn(), findIdByListingSignature: vi.fn() } }));
+vi.mock("@/modules/lead-extraction/lead-extraction.service", () => ({ leadExtractionService: { extract: vi.fn(), extractListings: vi.fn() } }));
 vi.mock("@/modules/lead-engine/lead-engine.service", () => ({ leadEngineService: { recordUsage: vi.fn() } }));
 vi.mock("@/lib/safe-fetch", () => ({ safeFetchText: vi.fn() }));
 
-import { leadsIngestService } from "./leads-ingest.service";
+import { leadsIngestService, listingSignature } from "./leads-ingest.service";
 import { leadsRepository } from "./leads.repository";
 import { leadExtractionService } from "@/modules/lead-extraction/lead-extraction.service";
 import { leadEngineService } from "@/modules/lead-engine/lead-engine.service";
@@ -140,5 +140,151 @@ describe("quickAdd (Leads Inbox)", () => {
 
   it("rejects empty input", async () => {
     await expect(leadsIngestService.quickAdd(TENANT_A, "   ")).rejects.toThrow("Paste a link");
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Inbound listing emails: one email -> one lead PER listing
+// ---------------------------------------------------------------------------------------------------------------------
+
+describe("ingestEmailListings", () => {
+  const RESEND_USAGE = { provider: "resend", operation: "receive", requests: 1, costUsd: 0.0009 } as const;
+  const email = {
+    emailId: "re_abc123",
+    from: "BizBuySell <alerts@bizbuysell.test>",
+    subject: "New HVAC businesses for sale in Arizona",
+    body: "1) HVAC company Phoenix - Asking $850,000 (https://bizbuysell.test/l/1)\n2) Plumbing route Mesa (https://bizbuysell.test/l/2)\n3) Heating & air Tucson (https://bizbuysell.test/l/3)",
+    senderSite: "https://bizbuysell.test",
+    extraUsage: [RESEND_USAGE],
+  };
+  const listing = (n: number, over: Record<string, unknown> = {}) => ({
+    fields: { businessName: `Listing ${n}`, askingPrice: `$${n}00,000`, location: { city: "Phoenix", state: "AZ" }, estimatedRevenue: `$${n}M` },
+    listingUrl: `https://bizbuysell.test/l/${n}` as string | null,
+    ...over,
+  });
+
+  beforeEach(() => {
+    vi.mocked(leadsRepository.existsForEmail).mockResolvedValue(false);
+    vi.mocked(leadsRepository.findIdByListingSignature).mockResolvedValue(undefined);
+    vi.mocked(leadsRepository.createIfNew).mockImplementation(async (_t, lead) => ({ id: `id:${lead.dedupeKey}` }));
+    vi.mocked(leadExtractionService.extractListings).mockResolvedValue({ listings: [listing(1), listing(2), listing(3)], usage, fallback: false });
+  });
+
+  it("creates one lead per listing, each pointing at its own link, from ONE AI call", async () => {
+    const result = await leadsIngestService.ingestEmailListings(TENANT_A, email);
+
+    expect(leadExtractionService.extractListings).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(leadExtractionService.extractListings).mock.calls[0][0].text).toContain(`Subject: ${email.subject}`);
+    const saved = vi.mocked(leadsRepository.createIfNew).mock.calls.map(([tenant, lead]) => ({ tenant, ...lead }));
+    expect(saved.map((l) => l.tenant)).toEqual([TENANT_A, TENANT_A, TENANT_A]);
+    expect(saved.map((l) => l.dedupeKey)).toEqual(["email:re_abc123:0", "email:re_abc123:1", "email:re_abc123:2"]);
+    expect(saved.map((l) => l.sourceUrl)).toEqual(["https://bizbuysell.test/l/1", "https://bizbuysell.test/l/2", "https://bizbuysell.test/l/3"]);
+    expect(saved.map((l) => l.businessName)).toEqual(["Listing 1", "Listing 2", "Listing 3"]);
+    expect(saved.every((l) => l.sourceType === "email_digest")).toBe(true);
+    expect(result).toMatchObject({ listingsFound: 3, alreadyKnown: 0, redelivery: false, extractionFallback: false });
+    expect(result.leadIds).toHaveLength(3);
+  });
+
+  it("stores the whole email once (on the first listing); the others point back at it", async () => {
+    await leadsIngestService.ingestEmailListings(TENANT_A, email);
+    const [first, second] = vi.mocked(leadsRepository.createIfNew).mock.calls.map(([, lead]) => lead);
+    expect(first.rawText).toContain("Plumbing route Mesa"); // the full body
+    expect(second.rawText).toContain("Listing 2 of 3");
+    expect(second.rawText).not.toContain("Heating & air Tucson");
+  });
+
+  it("logs the AI call and the inbound email ONCE each, however many listings", async () => {
+    await leadsIngestService.ingestEmailListings(TENANT_A, email);
+    expect(leadEngineService.recordUsage).toHaveBeenCalledTimes(2);
+    expect(leadEngineService.recordUsage).toHaveBeenCalledWith(TENANT_A, usage);
+    expect(leadEngineService.recordUsage).toHaveBeenCalledWith(TENANT_A, RESEND_USAGE);
+  });
+
+  it("remembers each listing's signature so the same one in a later digest is recognised", async () => {
+    await leadsIngestService.ingestEmailListings(TENANT_A, email);
+    const [first] = vi.mocked(leadsRepository.createIfNew).mock.calls.map(([, lead]) => lead);
+    expect(first.extractedFields.listingSignature).toBe(listingSignature(listing(1).fields, listing(1).listingUrl));
+  });
+
+  it("skips a listing an earlier digest already brought, but keeps the others (indexes stay stable)", async () => {
+    const secondSignature = listingSignature(listing(2).fields, listing(2).listingUrl)!;
+    vi.mocked(leadsRepository.findIdByListingSignature).mockImplementation(async (_t, sig) => (sig === secondSignature ? "old-lead" : undefined));
+
+    const result = await leadsIngestService.ingestEmailListings(TENANT_A, email);
+    expect(result).toMatchObject({ listingsFound: 3, alreadyKnown: 1 });
+    expect(vi.mocked(leadsRepository.createIfNew).mock.calls.map(([, lead]) => lead.dedupeKey)).toEqual(["email:re_abc123:0", "email:re_abc123:2"]);
+  });
+
+  it("a redelivered webhook is recognised before any AI call: nothing extracted, nothing paid, nothing created", async () => {
+    vi.mocked(leadsRepository.existsForEmail).mockResolvedValue(true);
+    const result = await leadsIngestService.ingestEmailListings(TENANT_A, email);
+    expect(result).toMatchObject({ redelivery: true, leadIds: [] });
+    expect(leadExtractionService.extractListings).not.toHaveBeenCalled();
+    expect(leadEngineService.recordUsage).not.toHaveBeenCalled();
+    expect(leadsRepository.createIfNew).not.toHaveBeenCalled();
+  });
+
+  it("the redelivery check is scoped to the tenant", async () => {
+    await leadsIngestService.ingestEmailListings("tenant-b", email);
+    expect(leadsRepository.existsForEmail).toHaveBeenCalledWith("tenant-b", "re_abc123");
+    expect(leadsRepository.findIdByListingSignature).toHaveBeenCalledWith("tenant-b", expect.any(String));
+  });
+
+  it("a listing with no link falls back to the sender's site; one with no title gets a numbered name from the subject", async () => {
+    vi.mocked(leadExtractionService.extractListings).mockResolvedValue({
+      listings: [{ fields: { askingPrice: "$1M" }, listingUrl: "https://bizbuysell.test/l/9" }, { fields: { businessName: "No link here" }, listingUrl: null }],
+      usage,
+      fallback: false,
+    });
+    await leadsIngestService.ingestEmailListings(TENANT_A, email);
+    const [first, second] = vi.mocked(leadsRepository.createIfNew).mock.calls.map(([, lead]) => lead);
+    expect(first.businessName).toBe("New HVAC businesses for sale in Arizona (#1)");
+    expect(second.sourceUrl).toBe("https://bizbuysell.test");
+  });
+
+  it("an email the AI ran on but found no business for sale in is kept as ONE plain lead saying so", async () => {
+    vi.mocked(leadExtractionService.extractListings).mockResolvedValue({ listings: [], usage, fallback: false });
+    const result = await leadsIngestService.ingestEmailListings(TENANT_A, { ...email, subject: "Welcome to BizBuySell alerts" });
+    const [lead] = vi.mocked(leadsRepository.createIfNew).mock.calls.map(([, l]) => l);
+    expect(vi.mocked(leadsRepository.createIfNew)).toHaveBeenCalledTimes(1);
+    expect(lead).toMatchObject({ dedupeKey: "email:re_abc123", businessName: "Welcome to BizBuySell alerts" });
+    expect(lead.extractedFields.summary).toContain("No business for sale was recognised");
+    expect(result).toMatchObject({ listingsFound: 0, extractionFallback: false });
+    expect(leadEngineService.recordUsage).toHaveBeenCalledWith(TENANT_A, usage); // the AI call happened, so it is billed
+  });
+
+  it("if the AI step fails the email is still kept (one plain lead, flagged) and only the inbound email is billed", async () => {
+    vi.mocked(leadExtractionService.extractListings).mockResolvedValue({ listings: [], usage: null, fallback: true });
+    const result = await leadsIngestService.ingestEmailListings(TENANT_A, email);
+    const [lead] = vi.mocked(leadsRepository.createIfNew).mock.calls.map(([, l]) => l);
+    expect(lead.extractedFields.note).toBe("Automatic extraction failed for this email.");
+    expect(result.extractionFallback).toBe(true);
+    expect(leadEngineService.recordUsage).toHaveBeenCalledTimes(1);
+    expect(leadEngineService.recordUsage).toHaveBeenCalledWith(TENANT_A, RESEND_USAGE);
+  });
+
+  it("a failing usage log never blocks saving the leads", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(leadEngineService.recordUsage).mockRejectedValue(new Error("db down"));
+    expect((await leadsIngestService.ingestEmailListings(TENANT_A, email)).leadIds).toHaveLength(3);
+  });
+});
+
+describe("listingSignature", () => {
+  const base = { businessName: "Profitable HVAC Co", location: { city: "Phoenix", state: "AZ" }, askingPrice: "$850,000" };
+
+  it("is the same for the same listing however it is cased or spaced", () => {
+    expect(listingSignature(base, null)).toBe(listingSignature({ ...base, businessName: "  profitable hvac co ", askingPrice: "$850,000 " }, "https://x.test/other-link"));
+  });
+
+  it("differs when the asking price or the place differs (a different listing)", () => {
+    expect(listingSignature({ ...base, askingPrice: "$900,000" }, null)).not.toBe(listingSignature(base, null));
+    expect(listingSignature({ ...base, location: { city: "Mesa", state: "AZ" } }, null)).not.toBe(listingSignature(base, null));
+  });
+
+  it("falls back to the normalised link when there is no title, and to null when there is nothing to go on", () => {
+    expect(listingSignature({}, "https://www.x.test/l/1/?utm_source=a")).toBe(listingSignature({}, "https://x.test/l/1"));
+    expect(listingSignature({}, null)).toBeNull();
+    expect(listingSignature({}, "not a url")).toBeNull();
   });
 });

@@ -181,3 +181,27 @@ def test_extractor_failure_keeps_the_lead(profile):
     assert result.leads_added == 1
     assert db.leads[("google_places", "a")].extracted_fields["businessName"] == "Biz a"
     assert db.usage == []  # nothing billed for a call that never returned
+
+
+def test_broker_listings_is_one_plan_step_however_many_industries_the_profile_has(profile):
+    p = replace(profile, category="HVAC", keywords=["plumbing", "pest control"], sources={"broker_listings": True, "google_places": True})
+    plan = Runner.plan(p)
+    assert [s for s in plan if s[0] == "broker_listings"] == [("broker_listings", "*")]
+    assert [t for s, t in plan if s == "google_places"] == ["HVAC", "plumbing", "pest control"]
+
+
+def test_prefilled_candidates_are_saved_as_extracted_without_calling_the_ai(profile):
+    listing = Candidate(
+        source_type="broker_listings", dedupe_key="url:https://b.test/l/1", business_name="HVAC Co", source_url="https://b.test/l/1",
+        text="Asking $1M\nListed by Broker", fields={"businessName": "HVAC Co", "askingPrice": "$1M", "signals": []},
+    )
+    db, extractor = FakeDb(), CountingExtractor()
+    source = ScriptedSource("broker_listings", [[listing]])
+    p = replace(profile, sources={"broker_listings": True})
+    result = make_runner(db, [source], extractor).run_profile(p)
+
+    assert (result.candidates_seen, result.leads_added) == (1, 1)
+    assert extractor.calls == 0 and db.usage == []
+    saved = db.leads[("broker_listings", "url:https://b.test/l/1")]
+    assert saved.extracted_fields["askingPrice"] == "$1M" and saved.source_url == "https://b.test/l/1"
+    assert source.searched == ["*"]

@@ -11,10 +11,12 @@ from typing import Any
 SOURCE_GOOGLE_PLACES = "google_places"
 SOURCE_BRAVE = "brave_search"
 SOURCE_MARKETPLACE = "marketplace_scrape"
+# Reads business brokers' own listing pages (businesses FOR SALE). The same id is the lead's source_type.
+SOURCE_BROKER_LISTINGS = "broker_listings"
 SOURCE_COMPANY_SITE = "company_site_scrape"  # enrichment toggle, not a discovery source
 
 # Discovery order within one cycle.
-DISCOVERY_SOURCES = (SOURCE_GOOGLE_PLACES, SOURCE_BRAVE, SOURCE_MARKETPLACE)
+DISCOVERY_SOURCES = (SOURCE_GOOGLE_PLACES, SOURCE_BRAVE, SOURCE_BROKER_LISTINGS, SOURCE_MARKETPLACE)
 
 
 @dataclass
@@ -66,6 +68,24 @@ class Candidate:
     text: str = ""
     # Structured facts the source already knows for sure (phone, address, ...).
     hints: dict[str, Any] = field(default_factory=dict)
+    # Set when the source ALREADY extracted the fields (a broker's listing read by the AI): the runner saves them as-is,
+    # with no website enrichment and no second AI call.
+    fields: dict[str, Any] | None = None
+
+
+@dataclass
+class ListingSite:
+    """A row of `listing_sites`: a business broker / listing website the engine reads."""
+
+    id: str
+    tenant_id: str
+    site_name: str
+    domain: str
+    site_url: str
+    listings_url: str | None = None
+    status: str = "pending"
+    last_crawled_at: datetime | None = None  # naive UTC, as Postgres stores it
+    content_hashes: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass

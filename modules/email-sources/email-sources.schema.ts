@@ -8,7 +8,14 @@ import { tenantsTable, tenantIsolationPolicy, leadScraperRole } from "@/modules/
 export const EMAIL_SOURCE_ORIGINS = ["manual", "auto_detected"] as const;
 export type EmailSourceOrigin = (typeof EMAIL_SOURCE_ORIGINS)[number];
 
-export const SIGNUP_ATTEMPT_RESULTS = ["submitted", "captcha", "failed"] as const;
+/**
+ * submitted: the form went out (NOT a subscription yet — the confirmation email does that)
+ * captcha:   a captcha is in the form; never solved or bypassed
+ * manual:    the form asks for something the engine must not or cannot supply (a password/account, an NDA or terms
+ *            to accept, a last name it wasn't given...) — `lastAttemptError` says what, for the person who does it by hand
+ * failed:    something broke (selector not found, timeout)
+ */
+export const SIGNUP_ATTEMPT_RESULTS = ["submitted", "captcha", "manual", "failed"] as const;
 export type SignupAttemptResult = (typeof SIGNUP_ATTEMPT_RESULTS)[number];
 
 /**

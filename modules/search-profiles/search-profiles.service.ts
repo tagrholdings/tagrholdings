@@ -13,8 +13,8 @@ const RUN_REQUEST_LOCK_MS = 15 * 60 * 1000;
  * marketplace already found.
  */
 function assertHasDiscoverySource(sources: ProfileSources) {
-  if (!sources.google_places && !sources.brave_search && !sources.marketplace_scrape) {
-    throw new UserFacingError("Turn on at least one source that finds businesses (Google Places, Brave Search or a marketplace).");
+  if (!sources.google_places && !sources.brave_search && !sources.broker_listings && !sources.marketplace_scrape) {
+    throw new UserFacingError("Turn on at least one source that finds businesses (Google Places, Brave Search, Broker listing sites or a marketplace).");
   }
 }
 

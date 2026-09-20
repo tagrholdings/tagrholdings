@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { UserFacingError } from "@/lib/errors";
 import { safeFetchText } from "@/lib/safe-fetch";
 import { htmlToText } from "@/lib/html-text";
-import { firstUrlIn, hostOf, isSingleUrl, normalizeUrlForDedupe } from "@/utils/url";
+import { firstUrlIn, hostOf, isSingleUrl, normalizeUrlForDedupe, parseHttpUrl } from "@/utils/url";
 import { leadsRepository } from "./leads.repository";
 import { leadExtractionService, type ExtractionInput } from "@/modules/lead-extraction/lead-extraction.service";
 import { leadEngineService } from "@/modules/lead-engine/lead-engine.service";
@@ -34,6 +34,49 @@ export interface IngestCore {
 }
 
 const MAX_STORED_TEXT = 50_000;
+
+/** What an inbound listing email needs to become leads. */
+export interface EmailListingsInput {
+  /** Resend's id for the email — the idempotency key. */
+  emailId: string;
+  from: string;
+  subject: string;
+  /** The email's text, links kept as `label (url)` (see lib/html-text.ts). */
+  body: string;
+  /** The sender's site, used as the lead's source link when a listing has none of its own. */
+  senderSite: string | null;
+  /** Spend that comes with the email itself (the inbound email), logged once however many leads it makes. */
+  extraUsage: UsageEventInput[];
+}
+
+export interface EmailListingsResult {
+  /** Leads created by THIS call (none when the email was a redelivery, or every listing was already known). */
+  leadIds: string[];
+  /** Listings the AI found in the email. */
+  listingsFound: number;
+  /** Listings skipped because an earlier digest already brought them. */
+  alreadyKnown: number;
+  /** The email had already been processed (a redelivered webhook): nothing was extracted or paid for. */
+  redelivery: boolean;
+  /** The AI step failed, so the email was saved as one plain lead instead. */
+  extractionFallback: boolean;
+}
+
+/**
+ * Same business listed again in a later digest -> same signature. Built from what identifies a listing to a human
+ * (its title, where it is, its asking price); when it has no title the link stands in.
+ */
+export function listingSignature(fields: ExtractedFields, listingUrl: string | null): string | null {
+  const name = fields.businessName?.trim().toLowerCase();
+  const basis = name
+    ? [name, fields.location?.city ?? "", fields.location?.state ?? "", fields.askingPrice ?? String(fields.askingPriceUsd ?? "")]
+        .map((part) => part.trim().toLowerCase())
+        .join("|")
+    : listingUrl && parseHttpUrl(listingUrl)
+      ? normalizeUrlForDedupe(listingUrl)
+      : null;
+  return basis ? createHash("sha256").update(basis).digest("hex").slice(0, 24) : null;
+}
 
 function textHash(text: string) {
   return createHash("sha256").update(text.replace(/\s+/g, " ").trim().toLowerCase()).digest("hex").slice(0, 24);
@@ -83,6 +126,83 @@ export const leadsIngestService = {
       return { id: winner, duplicate: true, extractionFallback: extraction.fallback };
     }
     return { id: created.id, duplicate: false, extractionFallback: extraction.fallback };
+  },
+
+  /**
+   * A marketplace/broker email (BizBuySell alert, a broker's weekly list…): ONE AI call reads it and every business
+   * listed for sale in it becomes its OWN lead — pointing at that listing's own link, with its own price/revenue.
+   *
+   *   - Idempotent per email: a redelivered webhook is recognised before any AI call, so it costs nothing.
+   *   - The same listing re-sent in a later digest is recognised by its signature and skipped.
+   *   - If the AI step fails, the email is still kept as one plain lead (subject as name) rather than lost; if it ran
+   *     and found no listing at all (a welcome mail, a promo), it is also kept as one lead saying so, so nothing an
+   *     email brought disappears silently.
+   */
+  async ingestEmailListings(tenantId: string, email: EmailListingsInput): Promise<EmailListingsResult> {
+    if (await leadsRepository.existsForEmail(tenantId, email.emailId)) {
+      return { leadIds: [], listingsFound: 0, alreadyKnown: 0, redelivery: true, extractionFallback: false };
+    }
+
+    const header = `From: ${email.from}\nSubject: ${email.subject}`;
+    const extraction = await leadExtractionService.extractListings({ text: `${header}\n\n${email.body}`, sourceType: "email_digest" });
+
+    // The money is spent whether or not the saves below work, so it is logged first (and never blocks them).
+    for (const usage of [extraction.usage, ...email.extraUsage]) {
+      if (!usage) continue;
+      await leadEngineService.recordUsage(tenantId, usage).catch((error) => console.error("Could not record lead-engine usage:", error));
+    }
+
+    const subject = email.subject.trim();
+    const senderName = hostOf(email.senderSite ?? "") || email.from;
+
+    if (extraction.fallback || extraction.listings.length === 0) {
+      const created = await leadsRepository.createIfNew(tenantId, {
+        sourceType: "email_digest",
+        sourceUrl: email.senderSite,
+        businessName: (subject || senderName || "Email").slice(0, 300),
+        rawText: `${header}\n\n${email.body}`.slice(0, MAX_STORED_TEXT),
+        extractedFields: {
+          summary: extraction.fallback
+            ? "The email could not be read automatically — open it to see what it says."
+            : "No business for sale was recognised in this email.",
+          note: extraction.fallback ? "Automatic extraction failed for this email." : undefined,
+        },
+        dedupeKey: `email:${email.emailId}`,
+      });
+      return { leadIds: created ? [created.id] : [], listingsFound: 0, alreadyKnown: 0, redelivery: !created, extractionFallback: extraction.fallback };
+    }
+
+    const leadIds: string[] = [];
+    let alreadyKnown = 0;
+    for (const [index, { fields, listingUrl }] of extraction.listings.entries()) {
+      const signature = listingSignature(fields, listingUrl);
+      if (signature && (await leadsRepository.findIdByListingSignature(tenantId, signature))) {
+        alreadyKnown += 1;
+        continue;
+      }
+      const facts = [
+        fields.location?.city && fields.location?.state ? `${fields.location.city}, ${fields.location.state}` : null,
+        fields.askingPrice ? `Asking ${fields.askingPrice}` : null,
+        fields.estimatedRevenue ? `Revenue ${fields.estimatedRevenue}` : null,
+        listingUrl,
+      ].filter(Boolean);
+      // The whole email is stored once (on the first listing); the others point back at it instead of copying it N times.
+      const rawText =
+        index === 0
+          ? `${header}\n\n${email.body}`
+          : `${header}\n\nListing ${index + 1} of ${extraction.listings.length} in this email (full text stored with the first listing).\n${facts.join(" · ")}`;
+
+      const created = await leadsRepository.createIfNew(tenantId, {
+        sourceType: "email_digest",
+        sourceUrl: listingUrl ?? email.senderSite,
+        businessName: (fields.businessName ?? `${subject || "Listing"} (#${index + 1})`).slice(0, 300),
+        rawText: rawText.slice(0, MAX_STORED_TEXT),
+        extractedFields: signature ? { ...fields, listingSignature: signature } : fields,
+        dedupeKey: `email:${email.emailId}:${index}`,
+      });
+      if (created) leadIds.push(created.id);
+    }
+    return { leadIds, listingsFound: extraction.listings.length, alreadyKnown, redelivery: false, extractionFallback: false };
   },
 
   /** POST /api/leads/ingest — someone (or something) hands us a URL and the text they got from it. */

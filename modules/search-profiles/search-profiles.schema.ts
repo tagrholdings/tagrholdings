@@ -13,6 +13,8 @@ import { tenantsTable, tenantIsolationPolicy, leadScraperRole } from "@/modules/
 export const profileSourcesSchema = z.object({
   google_places: z.boolean(),
   brave_search: z.boolean(),
+  /** Finds business brokers by itself, reads their listing pages and saves each business FOR SALE in the profile's industries. */
+  broker_listings: z.boolean(),
   company_site_scrape: z.boolean(),
   marketplace_scrape: z.boolean(),
 });
@@ -21,6 +23,7 @@ export type ProfileSources = z.infer<typeof profileSourcesSchema>;
 export const DEFAULT_PROFILE_SOURCES: ProfileSources = {
   google_places: true,
   brave_search: false,
+  broker_listings: false,
   company_site_scrape: true,
   marketplace_scrape: false,
 };

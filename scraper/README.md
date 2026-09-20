@@ -59,7 +59,11 @@ Flags: `--max-minutes N` (stop starting work, save checkpoint), `--profile-id ID
 
 Docker (same image for CI and the future server): `docker build -t tagr-lead-engine scraper/` then `docker run --rm --env-file scraper/.env tagr-lead-engine --max-minutes 5`.
 
-Scheduled: `.github/workflows/lead-engine.yml` (every 6 h + manual dispatch). Repository secrets: `DATABASE_URL_SCRAPER`, `GOOGLE_CLOUD_API_KEY`, `BRAVE_API_KEY`, `OPENAI_API_KEY`; optional variables `OPENAI_MODEL` and `INBOUND_LEADS_ADDRESS` (needed for the email signups). Manual runs: Actions tab → Run workflow (`task`: `engine` or `email-signups`).
+Scheduled: `.github/workflows/lead-engine.yml` (every 6 h + manual dispatch). Repository secrets: `DATABASE_URL_SCRAPER`, `GOOGLE_CLOUD_API_KEY`, `BRAVE_API_KEY`, `OPENAI_API_KEY`; optional variables `OPENAI_MODEL`, `INBOUND_LEADS_ADDRESS` (needed for the email signups) and `BUYER_NAME` / `BUYER_PHONE` / `BUYER_COMPANY` (who the signups sign up as). Manual runs: Actions tab → Run workflow (`task`: `engine` or `email-signups`).
+
+## Broker listing sites (businesses for sale)
+
+Source `broker_listings` (`sources/broker_listings.py`, helpers in `util/pages.py`, `util/fetch.py`, `extraction/listings.py`). For a profile whose category + terms are *industries to buy* it discovers business brokers with Brave (weekly, ≤ 20 new sites, kept in the tenant's `listing_sites` list), then crawls each politely: finds the listings page, follows industry category links, the site's own GET keyword search and next pages, has the AI extract every listing, keeps the ones in the wanted industries (skipping sold ones) and saves **one lead per listing** with the listing's own link. Unchanged pages cost no AI call. Sites that refuse (robots.txt, 401/403/429) are recorded as `blocked` and shown in the CRM for a person — never worked around. A profile for this mode wants a higher lead cap (≈ 100) and weekly frequency (168 h). Details: `.agents/docs/LEAD_INGESTION.md` → *Broker listing sites*.
 
 ## Email-source signups
 
@@ -67,6 +71,7 @@ Scheduled: `.github/workflows/lead-engine.yml` (every 6 h + manual dispatch). Re
 
 - **Captcha → stop.** reCAPTCHA / hCaptcha / Turnstile / Arkose markup before submitting, or a "verify you're human" challenge after, sets `captcha_protected` and leaves the site a manual signup. It never solves or bypasses one.
 - **It never sets `subscribed`.** Most sites use double opt-in; a submitted form is only recorded as `last_attempt_result = submitted`. The site's confirmation email reaches the inbox and the CRM's inbound webhook (`modules/email-inbound`) clicks the link and marks the site subscribed.
+- **The form is read, not just the email box** (`email_signup_form.py`): name / phone / company are filled from `BUYER_NAME` / `BUYER_PHONE` / `BUYER_COMPANY`, the industry choice from the tenant's profiles, marketing-consent boxes are ticked. An NDA / terms / privacy checkbox, a password, a file upload, a captcha field or a required field with no configured answer ends the attempt as `manual` (with the reason) **before anything is typed**; the CRM flags the site for a person. Only a captcha inside the signup form counts, not a sitewide script.
 - Selectors are configured per site in the CRM (Leads Inbox → Email sources) — no guessing. One attempt per request: nothing is retried by itself.
 - Exits 0 immediately when nothing is due, so it needs no setup on ticks where there's no work.
 
@@ -103,4 +108,5 @@ Covers the shared-spec golden mapping, signal-keyword matching, the email-signup
 - **Marketplace (BizBuySell) — shelved**: the site blocks bots and no bypass is being pursued; leave "Marketplaces" off on every profile. Written from its public URL scheme and **not verified against the live site**; these sites use bot protection and restrict automated access. The adapter stops on the first block and never circumvents it. Adjust `_LISTING_HREF` / `parse_listings` in `sources/marketplace/bizbuysell.py` when you first run it for real, or leave "Marketplaces" off.
 - Google Places radius is a *bias* (max ≈ 31 mi), not a hard filter; a resumed term restarts from page 1 (known results are skipped, but the page is billed again).
 - No cross-source dedup (the same business from Places and Search appears twice) and no scoring — both are checklist item 11.
-- Email-digest source (checklist item 9) is not implemented: the engine cannot subscribe to listing sites that deliver by email, nor read those emails. See `.agents/docs/LEAD_INGESTION.md`.
+- Broker crawler: pages that only render with JavaScript read as empty; a listings search that needs POST/JS isn't paginated; Brave discovery also surfaces non-brokers (they end `no_listings` — Ignore them in the CRM).
+- Signups: the form planner is keyword-based — an unusual required field is handed to a person rather than guessed; a hidden-but-required control can only be detected after the submit (the browser's validity check).

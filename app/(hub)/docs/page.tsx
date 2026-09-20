@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, BookOpen, Coins, FolderKanban, Inbox, ListChecks, Mail, Radar, Target, Users } from "lucide-react";
+import { ArrowUpRight, BookOpen, Building2, Coins, FolderKanban, Inbox, ListChecks, Mail, Radar, Target, Users } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth-server";
 import { HubPage } from "@/components/layout/HubPage";
 import { initialsFor } from "@/lib/utils";
@@ -86,7 +86,7 @@ const SECTIONS: DocSection[] = [
     controls: [
       ["New profile", "Create one. Give it a name, a category (“HVAC contractors”), optional extra search terms, a city and state, and a radius."],
       ["Extra search terms", "Each term is searched separately, in addition to the category (“air conditioning repair”, “heating installation”). More terms find more businesses — and cost more, because every search is a paid call."],
-      ["Sources", "Google Places finds local businesses by category and area. Brave Search finds company websites by keyword. Marketplaces reads “businesses for sale” listings (BizBuySell) — currently shelved because the site blocks automated visitors, so leave it off. Company websites lets the engine read each business's own site for contact details — it doesn't find new businesses on its own."],
+      ["Sources", "Google Places finds local businesses by category and area. Brave Search finds company websites by keyword. Broker listing sites is the “businesses for sale” mode: the category and extra terms are the industries you want to buy (HVAC, plumbing, pest control, property management…) and the engine reads business brokers' websites for them — see Listing sites. Marketplaces (BizBuySell) is shelved because the site blocks automated visitors, so leave it off. Company websites lets the engine read each business's own site for contact details — it doesn't find new businesses on its own."],
       ["Max new leads / run", "The main spend guard. A run stops as soon as it has added this many new leads; the next run continues from where it stopped."],
       ["Run every (hours)", "The minimum time between runs of this profile. The engine may check more often, but it skips a profile that ran more recently than this."],
       ["Qualification criteria", "Optional: min/max revenue, min/max profit (cash flow), max asking price, min/max employees, minimum years in business, and signal keywords like “retiring” or “owner selling”. Each lead the profile finds is flagged Match / Partial / Miss / Unknown against them in the Leads Inbox — it annotates, it never discards. Editing the criteria re-scores existing leads at once."],
@@ -98,6 +98,31 @@ const SECTIONS: DocSection[] = [
     tips: [
       "Profiles are never deleted, because past leads and costs refer to them. Pause one instead.",
       "Criteria only judge what a source actually states. A Google Maps record almost never has revenue, so most Places leads show Unknown; listings and emails that state figures get a real Match or Miss.",
+    ],
+  },
+  {
+    id: "listing-sites",
+    title: "Listing sites",
+    href: "/leads-inbox/listing-sites",
+    icon: Building2,
+    summary:
+      "The business brokers' websites the engine reads for businesses that are for sale — the same thing you do by hand each week: open a broker's “buy a business” page and look at the industries you want. The engine finds the brokers itself and turns every matching listing into a lead.",
+    steps: [
+      ["You pick the industries", "In a search profile, turn on Broker listing sites and put the industries you want to buy in the category and extra terms (for example HVAC, plumbing, pest control, property management). The state and city only steer which brokers are found first — listings from other states are kept, because you don't want to filter by place early."],
+      ["The engine finds brokers", "About once a week it searches for business brokers in the state and for your industries, and adds the new sites here, marked “Found by the engine”. You can add a broker yourself, or Ignore one you don't want — an ignored site is never read or added again."],
+      ["It reads each site like a person would", "It opens the broker's listings page, follows links named after your industries, uses the site's own search box and goes through the next pages. Sold listings are skipped. A page that hasn't changed since the last run isn't read again."],
+      ["Each listing becomes a lead", "One lead per business, with the listing's own link, asking price, revenue and profit when the page states them, in the Leads Inbox as “Broker listing”. The same listing also arriving by email isn't added twice."],
+    ],
+    controls: [
+      ["Add site", "The broker's website address. The name and the listings page are optional — the engine finds the page itself."],
+      ["Read / Not read yet / No matching listings", "Read: listings for your industries were found (the count is shown). No matching listings: the site was read but has nothing for your industries right now — it is checked again in two weeks."],
+      ["Blocked — check by hand / Couldn't read — check by hand", "The site refuses automated visitors (or could not be opened). The engine never works around that: the site is listed in a red banner so you can look at it yourself — and if it has an email list for new listings, add it under Email sources so those emails reach the inbox."],
+      ["Ignore / Use again", "Ignore stops the engine from reading the site and from adding it again. Use again switches it back on."],
+    ],
+    tips: [
+      "Two sources of “for sale” leads work side by side: this crawler and the listing emails the inbox receives (Email sources). A listing that shows up in both is kept once.",
+      "A profile in this mode is best with a higher “Max new leads / run” (around 100) and “Run every” about a week (168 hours): broker listings change slowly.",
+      "Not every discovered site is a broker — associations and directories can slip in. They show “No matching listings”; Ignore them.",
     ],
   },
   {
@@ -119,13 +144,16 @@ const SECTIONS: DocSection[] = [
       ["Attempt subscribe / Retry signup", "Queues an automatic signup. The engine opens the page, types the leads inbox address into the email box and clicks the button. It does NOT mark the site subscribed — that only happens when the confirmation email arrives."],
       ["Waiting for confirmation email", "The form was submitted. If the confirmation never arrives, check spam settings or Retry signup."],
       ["Captcha — sign up by hand", "The engine found a captcha and stopped: it never solves or works around one. Sign up yourself, then click Mark subscribed."],
+      ["Needs a person — sign up by hand", "The engine read the form and it asks for something only you can give: accepting an NDA or terms, a password or account, a file, or an answer the engine doesn't have. It fills in your name, phone and company where the form asks, but never accepts legal terms or makes anything up. The reason is shown in the row. Open the signup page, sign up with the leads inbox address, then click Mark subscribed."],
+      ["“N sites need to be signed up to by hand” banner", "At the top of the screen: every site the engine could not sign up to — a captcha, an NDA or terms, a failed attempt, or a form it submitted more than three days ago with no confirmation email — each with the reason and an Open signup page button."],
       ["Last attempt failed", "Usually a selector that no longer matches the page. The reason is shown in the row; fix the selector and retry."],
       ["Mark subscribed / Mark not subscribed", "For sites you signed up to yourself, or to undo a mistake."],
     ],
     tips: [
       "The CRM can't sign up for you on sites with a captcha — that stays manual by design. Finding sites that need an email signup is best-effort: the engine catches the obvious ones while it searches, but a signup form that only appears through JavaScript, or that doesn't use wording like “subscribe”, will be missed — add those yourself.",
       "A confirmation email the CRM isn't sure about (it can't tie it to exactly one site on your list) is not clicked and not skipped: it shows up in the Leads Inbox as an ordinary email lead, where you can see it and click the link yourself.",
-      "One email becomes one lead. If a digest lists ten businesses, you get one lead with the most prominent one filled in — the full email text is kept on the lead.",
+      "A digest that lists several businesses becomes one lead per business, each with its own link, asking price, revenue and profit when the email states them. Ads, “sell your business” blocks and unsubscribe links are ignored. The same listing arriving again in a later email isn't added twice. An email with no business for sale in it (a welcome message, say) is kept as a single lead so you can see it.",
+      "Listing emails are the best source for “businesses for sale”: sites like BizBuySell only email their listings, and the engine can't browse them. Subscribe the leads inbox to a saved search there (for example “HVAC — Arizona”, daily or weekly) and every alert turns into separate leads.",
     ],
   },
   {
@@ -169,7 +197,7 @@ const SECTIONS: DocSection[] = [
     ],
     controls: [
       ["Candidate / raw lead", "Something the engine found that you haven't reviewed. It only becomes a real lead when you click Add to pipeline."],
-      ["Source", "Where it was found: Google Places, Brave Search, Marketplace, or Company site."],
+      ["Source", "Where it was found: Google Places, Brave Search, Marketplace, Company site, Broker listing (a broker’s website), or Email digest."],
       ["Run", "One pass of the engine over one profile. Each run has a status: Completed, Stopped early (time limit — it resumes), or Failed."],
       ["Cap", "A profile's “max new leads per run” — the ceiling that limits how much one run can spend."],
       ["Checkpoint", "The engine's bookmark inside a profile, so a stopped run resumes instead of repeating work."],
@@ -177,7 +205,7 @@ const SECTIONS: DocSection[] = [
     ],
     tips: [
       "Not everything comes from the scheduled searches: you can add a lead by hand (the box at the top of the Leads Inbox, or a link/text shared from your phone), and emails sent to the leads inbox become leads automatically. All of them go through the same AI extraction and are tracked on the same spend page.",
-      "Subscribing to a listing site is a separate step from receiving its emails — see Email sources. The engine can fill in a signup form only where there's no captcha, and it never marks a site subscribed itself: the site's confirmation email does that.",
+      "Subscribing to a listing site is a separate step from receiving its emails — see Email sources. The engine can fill in a signup form (your name, phone and company where it asks) only where there's no captcha and nothing to accept but marketing emails; every other site is flagged on the Email sources screen for you to do by hand. It never marks a site subscribed itself: the site's confirmation email does that.",
       "What is deliberately not built yet: scoring or ranking leads with AI, merging the same business found by two different sources, splitting a multi-listing email into one lead per listing, and drafting outreach. The qualification criteria on a search profile (revenue, profit, size, signal keywords) already flag each lead Match / Partial / Miss / Unknown, but nothing is ever discarded for missing them.",
       "Nothing shows up? Check, in order: the profile is Active; it has at least one source that finds businesses; “Last run” isn't recent (the profile may simply not be due — its “run every” time hasn't passed); the latest run on Engine spend isn't Failed; and, for the Brave Search source, that a Brave API key is configured for the engine (a run whose only source is unconfigured shows it as a note and finds nothing).",
       "Marketplace listing sites actively block automated visitors. The engine follows their rules and gives up politely when it's blocked (the run shows a note); it never tries to get around a block. Expect some runs to return nothing from that source.",

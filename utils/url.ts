@@ -10,6 +10,16 @@ export function parseHttpUrl(value: string): URL | null {
   }
 }
 
+const TWO_PART_TLDS = new Set(["co.uk", "org.uk", "com.au", "co.nz", "com.br", "co.jp", "co.za", "com.mx"]);
+
+/** "mail.example.co.uk" -> "example.co.uk". Naive on purpose (no public-suffix list); enough to tell one site from another. */
+export function registrableDomain(host: string): string {
+  const parts = host.toLowerCase().replace(/^www\./, "").split(".").filter(Boolean);
+  if (parts.length <= 2) return parts.join(".");
+  const lastTwo = parts.slice(-2).join(".");
+  return TWO_PART_TLDS.has(lastTwo) ? parts.slice(-3).join(".") : lastTwo;
+}
+
 /** Hostname without a leading "www.", lowercased ("" if not a URL). */
 export function hostOf(value: string): string {
   return parseHttpUrl(value)?.hostname.toLowerCase().replace(/^www\./, "") ?? "";

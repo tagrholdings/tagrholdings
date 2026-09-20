@@ -38,6 +38,8 @@ class SourceContext:
     # Optional: called as (html, url) with a page a source visited expecting listings but got none from. The
     # runner uses it to spot "listings by email signup" pages (enrich/email_signup_detect). Must never raise.
     on_empty_page: Callable[[str, str], None] | None = None
+    # The listing-sites list (Database, bound by the runner): sources that crawl broker sites read and update it.
+    store: Any | None = None
 
 
 class Source(Protocol):

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import ipaddress
+import re
 import socket
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 # Aggregators, social networks and directories: a search hit on these is never
 # "the business's own website", so they are not useful candidates. (The business
@@ -55,6 +56,25 @@ def normalize_url(url: str) -> str:
     host = (parts.hostname or "").lower().removeprefix("www.")
     path = parts.path.rstrip("/")
     return urlunsplit((parts.scheme.lower() or "https", host, path, "", ""))
+
+
+_TRACKING_PARAM = re.compile(r"^(utm_.*|swpmtx.*|.*nonce.*|fbclid|gclid|msclkid|mc_.*|_ga|sid|sessionid|phpsessid|jsessionid|token)$", re.IGNORECASE)
+
+
+def clean_listing_url(url: str) -> str:
+    """The link to a listing without per-visit noise (tracking tags, session/nonce tokens) but WITH any parameter that
+    identifies the listing (`detail.aspx?id=123`) — unlike normalize_url, which drops the whole query string."""
+    parts = urlsplit(url.strip())
+    kept = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True) if not _TRACKING_PARAM.match(k)]
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(kept), ""))
+
+
+def listing_key(url: str) -> str:
+    """Stable identity of a listing link for dedupe: normalize_url plus the identifying query parameters, sorted."""
+    parts = urlsplit(clean_listing_url(url))
+    query = urlencode(sorted(parse_qsl(parts.query, keep_blank_values=True)))
+    base = normalize_url(url)
+    return f"{base}?{query}" if query else base
 
 
 def is_public_http_url(url: str) -> bool:

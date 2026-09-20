@@ -19,10 +19,12 @@ from .config import ConfigError, Settings, load_settings
 from .db import Database
 from .enrich.company_site import CompanySiteScraper
 from .extraction.extractor import OpenAIExtractor
-from .models import SOURCE_BRAVE, SOURCE_GOOGLE_PLACES, SOURCE_MARKETPLACE
+from .extraction.listings import OpenAIListingsExtractor
+from .models import SOURCE_BRAVE, SOURCE_BROKER_LISTINGS, SOURCE_GOOGLE_PLACES, SOURCE_MARKETPLACE
 from .runner import Runner
 from .sources.base import SourceContext
 from .sources.brave_search import BraveSearchSource
+from .sources.broker_listings import BrokerListingsSource
 from .sources.google_places import GooglePlacesSource
 from .sources.marketplace.bizbuysell import BizBuySellSource
 from .util.ratelimit import DomainThrottle
@@ -59,6 +61,7 @@ def build_runner(settings: Settings, db: Database, http: httpx.Client, deadline:
         sources={
             SOURCE_GOOGLE_PLACES: GooglePlacesSource(),
             SOURCE_BRAVE: BraveSearchSource(),
+            SOURCE_BROKER_LISTINGS: BrokerListingsSource(OpenAIListingsExtractor(settings) if settings.openai_api_key else None),
             SOURCE_MARKETPLACE: BizBuySellSource(),
         },
         extractor=extractor,

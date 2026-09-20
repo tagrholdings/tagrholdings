@@ -8,7 +8,7 @@ vi.mock("@/lib/github-dispatch", () => ({ dispatchLeadEngineWorkflow: vi.fn() })
 import { emailSourcesService } from "./email-sources.service";
 import { emailSourcesRepository } from "./email-sources.repository";
 import { dispatchLeadEngineWorkflow } from "@/lib/github-dispatch";
-import { emailSourceState } from "./email-sources.types";
+import { emailSourceState, signupHandoffReason } from "./email-sources.types";
 
 const base = {
   id: "s1", siteName: "BizListings", signupUrl: "https://bizlistings.test/join", emailFieldSelector: "#email", submitSelector: "button[type=submit]",
@@ -86,9 +86,40 @@ describe("emailSourceState", () => {
     [{ ...base, attemptRequestedAt: new Date() }, "queued"],
     [{ ...base, lastAttemptResult: "submitted" }, "awaiting_confirmation"],
     [{ ...base, lastAttemptResult: "failed" }, "failed"],
+    [{ ...base, lastAttemptResult: "manual", lastAttemptError: "The site requires accepting: NDA" }, "needs_person"],
+    [{ ...base, lastAttemptResult: "manual", attemptRequestedAt: new Date() }, "queued"],
     [base, "ready"],
     [{ ...base, submitSelector: null }, "manual"],
   ])("derives %#: %s", (source, expected) => {
     expect(emailSourceState(source as never)).toBe(expected);
+  });
+});
+
+describe("signupHandoffReason", () => {
+  const now = new Date("2026-09-19T12:00:00Z");
+  const daysAgo = (n: number) => new Date(now.getTime() - n * 86_400_000);
+
+  it("flags the sites a person has to sign up to, with the reason", () => {
+    expect(signupHandoffReason({ ...base, captchaProtected: true }, now)).toMatch(/captcha/);
+    expect(signupHandoffReason({ ...base, lastAttemptResult: "manual", lastAttemptError: "The site requires accepting: NDA" }, now)).toBe("The site requires accepting: NDA");
+    expect(signupHandoffReason({ ...base, lastAttemptResult: "manual" }, now)).toMatch(/only a person/);
+    expect(signupHandoffReason({ ...base, lastAttemptResult: "failed", lastAttemptError: "TimeoutError: #email" }, now)).toBe("The automatic signup failed: TimeoutError: #email");
+  });
+
+  it("flags a submitted form whose confirmation email never came, but not a fresh one", () => {
+    expect(signupHandoffReason({ ...base, lastAttemptResult: "submitted", lastAttemptAt: daysAgo(1) }, now)).toBeNull();
+    expect(signupHandoffReason({ ...base, lastAttemptResult: "submitted", lastAttemptAt: daysAgo(4) }, now)).toMatch(/4 days ago/);
+  });
+
+  it("stays quiet for subscribed, queued and untouched sites", () => {
+    expect(signupHandoffReason({ ...base, subscribed: true, lastAttemptResult: "captcha" }, now)).toBeNull();
+    expect(signupHandoffReason({ ...base, attemptRequestedAt: now, lastAttemptResult: "manual" }, now)).toBeNull();
+    expect(signupHandoffReason(base, now)).toBeNull();
+  });
+
+  it("listForTenant attaches the reason to every row", async () => {
+    vi.mocked(emailSourcesRepository.findAllForTenant).mockResolvedValue([{ ...base, lastAttemptResult: "manual", lastAttemptError: "needs a password" }, base] as never);
+    const rows = await emailSourcesService.listForTenant("t1", now);
+    expect(rows.map((r) => r.handoffReason)).toEqual(["needs a password", null]);
   });
 });

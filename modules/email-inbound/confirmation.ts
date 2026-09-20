@@ -1,5 +1,7 @@
 import { extractLinks, htmlToText } from "@/lib/html-text";
-import { hostOf, parseHttpUrl } from "@/utils/url";
+import { hostOf, parseHttpUrl, registrableDomain } from "@/utils/url";
+
+export { registrableDomain };
 
 /**
  * Is this incoming email a "please confirm your subscription" message, and for which signup?
@@ -26,19 +28,10 @@ const NOT_A_CONFIRM_LINK = /unsubscribe|preferences|manage|privacy|terms|view[- 
 /** Confirmation emails are a couple of sentences and a button; a digest is long. */
 const MAX_CONFIRMATION_TEXT_CHARS = 2500;
 
-const TWO_PART_TLDS = new Set(["co.uk", "org.uk", "com.au", "co.nz", "com.br", "co.jp", "co.za", "com.mx"]);
 const FREE_MAIL_DOMAINS = new Set([
   "gmail.com", "googlemail.com", "yahoo.com", "outlook.com", "hotmail.com", "live.com", "msn.com",
   "icloud.com", "me.com", "aol.com", "proton.me", "protonmail.com", "gmx.com", "mail.com",
 ]);
-
-/** "mail.example.co.uk" -> "example.co.uk". Naive on purpose (no public-suffix list); good enough to relate a sender to a site. */
-export function registrableDomain(host: string): string {
-  const parts = host.toLowerCase().replace(/^www\./, "").split(".").filter(Boolean);
-  if (parts.length <= 2) return parts.join(".");
-  const lastTwo = parts.slice(-2).join(".");
-  return TWO_PART_TLDS.has(lastTwo) ? parts.slice(-3).join(".") : lastTwo;
-}
 
 /** The address in `"Name" <addr@host>` (or a bare address), lowercased; "" when there isn't one. */
 export function senderAddress(from: string): string {
