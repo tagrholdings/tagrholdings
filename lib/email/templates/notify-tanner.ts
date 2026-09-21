@@ -26,7 +26,7 @@ export function notifyTannerEmail(
   name: string | undefined,
   email: string,
   message: string | undefined,
-  meta: { submittedAt: Date; ip: string }
+  meta: { submittedAt: Date; ip: string; title?: string }
 ) {
   const safeName = escapeHtml(name || "Not provided");
   const safeEmail = escapeHtml(email);
@@ -41,7 +41,7 @@ export function notifyTannerEmail(
 
   const body = `
     <h1 style="margin:0 0 20px; font-family: Georgia, 'Times New Roman', serif; font-size:20px; font-weight:600; color:#1b1d1f;">
-      New contact form submission
+      ${escapeHtml(meta.title ?? "New contact form submission")}
     </h1>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
       ${row("Name", safeName)}

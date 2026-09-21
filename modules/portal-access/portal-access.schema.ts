@@ -21,6 +21,17 @@ export const portalAccessRequestsTable = pgTable("portal_access_requests", {
   lastAccessedAt: timestamp("last_accessed_at").notNull().defaultNow(),
 });
 
+/**
+ * No name/email here on purpose: the sender is whoever the access token was
+ * granted to, looked up server-side, so the message can't be attributed to
+ * someone else. `token` is only for the emailed-link case where there is no
+ * cookie (see app/portal/_lib/get-portal-access.ts).
+ */
+export const sendPortalMessageSchema = z.object({
+  message: z.string().trim().min(1, "Please write a message.").max(5000),
+  token: z.string().max(64).optional(),
+});
+
 export const requestPortalAccessSchema = z.object({
   name: z
     .string()

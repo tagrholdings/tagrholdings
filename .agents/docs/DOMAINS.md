@@ -15,7 +15,7 @@ The marketing site and the CRM are **one Next.js app, one Vercel deployment**, r
 
 ## The marketing allowlist, and why it's an allowlist
 
-`MARKETING_PATHS` / `MARKETING_API_PREFIXES` in `proxy.ts` is a short, hand-maintained list (`/`, `/portal`, `/api/contact` today). Everything **not** on that list is treated as a hub route by default.
+`MARKETING_PATHS` / `MARKETING_API_PREFIXES` in `proxy.ts` is a short, hand-maintained list (`/`, `/portal`, `/portal/tools`, `/api/contact` today). Everything **not** on that list is treated as a hub route by default.
 
 This is the opposite of enumerating hub routes, and deliberately so: the hub is the fast-growing part of this app (checklist items 4 onward add a new route per screen), while the marketing site is small and rarely changes. An allowlist means new hub routes need zero changes to `proxy.ts` to work correctly on both hosts. The cost: **every new marketing-only route must be added to the allowlist**, or `proxy.ts` will treat it as a hub route and redirect marketing visitors straight to `crm.tagrholdings.com`. There's no build-time check for this — forgetting the update fails silently as a wrong redirect, not a build error.
 

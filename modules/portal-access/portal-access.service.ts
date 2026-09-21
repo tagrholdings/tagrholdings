@@ -15,14 +15,17 @@ export const portalAccessService = {
     return token;
   },
 
-  /** True if `token` maps to a granted request. Also bumps `lastAccessedAt` so repeat visits are visible in the lead list. */
-  async verifyToken(token: string | undefined | null) {
-    if (!token) return false;
+  /**
+   * Who `token` was granted to, or null if it maps to no request. Also bumps
+   * `lastAccessedAt` so repeat visits are visible in the lead list.
+   */
+  async findVisitor(token: string | undefined | null) {
+    if (!token) return null;
     const record = await portalAccessRepository.findByToken(token);
-    if (!record) return false;
+    if (!record) return null;
     portalAccessRepository.touchLastAccessed(token).catch((error) => {
       console.error("Failed to record portal access visit", error);
     });
-    return true;
+    return { email: record.email, name: record.name };
   },
 };

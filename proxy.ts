@@ -9,7 +9,7 @@ const MARKETING_HOSTS = new Set(["www.tagrholdings.com", "tagrholdings.com"]);
 // gets redirected there from a known marketing host. Keeping this list
 // small (instead of enumerating every hub path) is what makes this scale as
 // the hub grows — see .agents/docs/DOMAINS.md for why.
-const MARKETING_PATHS = ["/", "/portal"];
+const MARKETING_PATHS = ["/", "/portal", "/portal/tools"];
 const MARKETING_API_PREFIXES = ["/api/contact"];
 
 function isMarketingPath(pathname: string) {

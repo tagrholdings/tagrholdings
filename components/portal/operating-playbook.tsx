@@ -3,97 +3,34 @@ import Link from "next/link";
 import { AnimatedSection } from "@/components/landing/animated-section";
 import { HeroHeader } from "@/components/shared/hero-header";
 import { NavBar } from "@/components/shared/nav-bar";
-import { EosCheckup } from "./eos-checkup";
+import type { ReactNode } from "react";
 import { ScrollToButton } from "./scroll-to-button";
-import { UrgencyIndex } from "./urgency-index";
-
-const statements = [
-  "We have a clear vision in writing that has been properly communicated and is shared by everyone.",
-  "Our core values are clear, and we are hiring, reviewing, rewarding, and firing around them.",
-  "Our core business is clear, and our systems and processes reflect that.",
-  "Our 10-Year Target is clear and has been communicated to everyone.",
-  "Our target market is clear, and our sales and marketing efforts are focused on it.",
-  "Our differentiators are clear, and all of our sales and marketing efforts communicate them.",
-  "We have a proven process for doing business with our customers. It has been named and visually illustrated, and everyone is adhering to it.",
-  "All of the people in our organization are the right people.",
-  "Our accountability chart is clear, complete, and constantly updated.",
-  "Everyone is in the right seat.",
-  "Our leadership team is open and honest, and demonstrates a high level of trust.",
-  "Everyone has Rocks and is focused on them (3 to 7 priorities per quarter).",
-  "Everyone is engaged in regular weekly meetings.",
-  "All meetings are on the same day and at the same time each week, have the same printed agenda, start on time, and end on time.",
-  "All teams clearly identify, discuss, and solve key issues for the greater good and long term.",
-  "Our systems and processes are documented, simplified, and followed by all.",
-  "We have a system for receiving regular customer and employee feedback, and we know their level of satisfaction.",
-  "A Scorecard for weekly metrics and measurables is in place.",
-  "Everyone in the organization has a number.",
-  "We have a budget and are monitoring it regularly (e.g., monthly or quarterly).",
-];
-
-const urgencyStatements = [
-  "I seem to do my best work when I'm under pressure.",
-  "I often blame the rush and press of external things for my failure to spend deep, introspective time with myself.",
-  "I'm often frustrated by the slowness of people and things around me. I hate to wait or stand in line.",
-  "I feel guilty when I take time off work.",
-  "I always seem to be rushing between places and events.",
-  "I frequently find myself pushing people away so that I can finish a project.",
-  "I feel anxious when I'm out of touch with the office for more than a few minutes.",
-  "I'm often preoccupied with one thing when I'm doing something else.",
-  "I'm at my best when I'm handling a crisis situation.",
-  "The adrenaline rush from a new crisis seems more satisfying to me than the steady accomplishment of long-term results.",
-  "I often give up quality time with important people in my life to handle a crisis.",
-  "I assume people will naturally understand if I have to disappoint them or let things go in order to handle a crisis.",
-  "I rely on solving some crisis to give my day a sense of meaning and purpose.",
-  "I often eat lunch or other meals while I work.",
-  "I keep thinking that someday I'll be able to do what I really want to do.",
-  "Accomplishing a lot of tasks makes me feel like I've been really productive.",
-];
-
-// Ascending by `min`. Totals run 0–64 (16 statements × 0–4). Cutoffs are the
-// book's own key (Habit 3, p. 206): 0–25 / 26–45 / 46+.
-const urgencyBands = [
-  {
-    min: 0,
-    label: "Low urgency mindset",
-    color: "#9bc79b",
-    summary: "Urgency is not driving your days. Protect what is working: keep making room for the important-but-not-urgent work — planning, relationships, and prevention — before the day fills up.",
-  },
-  {
-    min: 26,
-    label: "Strong urgency mindset",
-    color: "#e0a25f",
-    summary: "Urgency is setting your agenda more often than you are. Start with one weekly planning session and one protected block for a non-urgent priority, and treat both as non-negotiable.",
-  },
-  {
-    min: 46,
-    label: "Urgency addiction",
-    color: "#d98a7c",
-    summary: "Crisis and speed have become the way the day gets its meaning. This is worth a direct conversation with your operating partner: reduce commitments, rebuild a weekly planning habit, and re-run this index in 30 days.",
-  },
-];
-
-const navLinks = [
-  { href: "#s01", label: "Methodologies" },
-  { href: "#s02", label: "SOPs & Tools" },
-  { href: "#s03", label: "Governance" },
-  { href: "#s04", label: "Cadence" },
-  { href: "#s05", label: "Growth" },
-  { href: "#eos", label: "EOS Checkup" },
-  { href: "#urgency", label: "Urgency Index" },
-];
 
 /**
  * Server Component on purpose — this is the confidential content behind the
  * portal token. As a "use client" module it shipped in the route's public JS
- * chunk, readable without any token. Only the interactive pieces
- * (EosCheckup, ScrollToButton) are client islands, and they receive their
- * text as props, which is only serialized when app/portal/page.tsx renders
- * this after verifying the token.
+ * chunk, readable without any token. Only the interactive piece
+ * (ScrollToButton) is a client island. The scoring tools live on
+ * /portal/tools (see PortalTools).
+ *
+ * `toolsHref` carries the emailed-link token when access came from it, so
+ * moving to the tools page doesn't drop access on a device with no cookie.
  */
-export function OperatingPlaybook() {
+export function OperatingPlaybook({ toolsHref, contact }: { toolsHref: string; contact: ReactNode }) {
+  const navLinks = [
+    { href: "#s01", label: "Methodologies" },
+    { href: "#s02", label: "SOPs & Tools" },
+    { href: "#s03", label: "Governance" },
+    { href: "#s04", label: "Cadence" },
+    { href: "#s05", label: "Growth" },
+    { href: toolsHref, label: "Tools" },
+  ];
+  // toolsHref may already carry `?token=` (see the doc comment above).
+  const urgencyHref = `${toolsHref}${toolsHref.includes("?") ? "&" : "?"}tool=urgency`;
+
   return (
     <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)] selection:bg-[var(--brass)] selection:text-[var(--ink)]">
-      <NavBar links={navLinks} />
+      <NavBar links={navLinks} contact={contact} />
 
       <HeroHeader
         kicker="Portfolio Executive Framework · 2026"
@@ -111,12 +48,12 @@ export function OperatingPlaybook() {
             >
               Explore Framework
             </ScrollToButton>
-            <ScrollToButton
-              targetId="eos"
-              className="rounded-full border border-[rgba(245,242,236,0.2)] px-6 py-3 font-mono text-[11.5px] uppercase tracking-[0.06em] text-[var(--cream)] transition-colors hover:border-[var(--brass)] hover:bg-[rgba(199,166,103,0.05)]"
+            <Link
+              href={toolsHref}
+              className="rounded-full border border-[rgba(245,242,236,0.2)] px-6 py-3 text-center font-mono text-[11.5px] uppercase tracking-[0.06em] text-[var(--cream)] transition-colors hover:border-[var(--brass)] hover:bg-[rgba(199,166,103,0.05)]"
             >
-              EOS Checkup
-            </ScrollToButton>
+              Tools
+            </Link>
           </div>
         }
       >
@@ -140,7 +77,7 @@ export function OperatingPlaybook() {
             <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.1em] text-[rgba(245,242,236,0.55)]">
               <span>Confidential</span>
               <span className="h-1 w-1 rounded-full bg-[#C7A667]"></span>
-              <span>v1.1</span>
+              <span>v2.0</span>
             </div>
           </div>
         </div>
@@ -164,7 +101,7 @@ export function OperatingPlaybook() {
 
           <div className="grid gap-8 border-y border-[rgba(27,29,31,0.14)] py-8 md:grid-cols-2 xl:grid-cols-3">
             {[
-              ["Operating System", "EOS — Traction", "A full Organizational Checkup at engagement kickoff, repeated at the 12-month mark to measure movement. The live scoring tool is included below as Appendix A."],
+              ["Operating System", "EOS — Traction", "A full Organizational Checkup at engagement kickoff, repeated at the 12-month mark to measure movement. The live scoring tool is on the Tools page."],
               ["Culture & Team", "The Five Dysfunctions of a Team", "Our shared language for healthy team dynamics — trust, conflict, commitment, accountability, and results."],
               ["Management", "The Effective Manager", "Our baseline standard for people leadership across every operator in the portfolio."],
               ["Marketing Strategy", "StoryBrand", "Clear, customer-centered messaging discipline applied consistently across the portfolio."],
@@ -182,7 +119,7 @@ export function OperatingPlaybook() {
           
           <AnimatedSection className="mt-10 border-l-2 border-[var(--brass)] pl-6">
             <p className="text-[14.5px] leading-[1.6] text-[rgba(27,29,31,0.68)] max-w-4xl">
-              The full 20-point EOS Organizational Checkup — the instrument referenced above — is built out as an interactive, self-scoring tool in <Link href="#eos" className="border-b border-[var(--brass)] pb-[1px] text-[var(--ink)] font-medium transition hover:text-[var(--brass)]">Appendix A</Link>. Score it live at kickoff, save the result, and re-run it at month 12 to track the delta. Its companion, the 16-statement<Link href="#urgency" className="border-b border-[var(--brass)] pb-[1px] text-[var(--ink)] font-medium transition hover:text-[var(--brass)]">Urgency Index (Appendix B)</Link>, measures how much of an operator&apos;s day is run by urgency rather than importance.
+              The full 20-point EOS Organizational Checkup — the instrument referenced above — is built out as an interactive, self-scoring tool on the <Link href={toolsHref} className="border-b border-[var(--brass)] pb-[1px] text-[var(--ink)] font-medium transition hover:text-[var(--brass)]">Tools page</Link>. Score it live at kickoff, save the result, and re-run it at month 12 to track the delta. Its companion, the 16-statement{" "}<Link href={urgencyHref} className="border-b border-[var(--brass)] pb-[1px] text-[var(--ink)] font-medium transition hover:text-[var(--brass)]">Urgency Index</Link>, measures how much of an operator&apos;s day is run by urgency rather than importance.
             </p>
           </AnimatedSection>
         </div>
@@ -341,9 +278,6 @@ export function OperatingPlaybook() {
           </AnimatedSection>
         </div>
       </section>
-
-      <EosCheckup statements={statements} />
-      <UrgencyIndex statements={urgencyStatements} bands={urgencyBands} />
 
       <footer className="bg-[var(--ink)] border-t border-[rgba(245,242,236,0.16)] text-[rgba(245,242,236,0.55)] text-center px-6 py-10 font-mono text-[11px] uppercase tracking-[0.1em]">
         TAGR Holdings — <b className="text-[var(--cream)] font-medium">Confidential</b> — Operating Playbook — Portfolio Executive Framework 2026

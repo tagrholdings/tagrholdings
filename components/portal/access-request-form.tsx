@@ -5,8 +5,26 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { requestPortalAccessAction } from "@/modules/portal-access/portal-access.actions";
 
-export function AccessRequestForm() {
+// Fixed set of landing spots: the destination comes from a URL param, so it is
+// looked up here rather than used as a path.
+const DESTINATIONS = {
+  playbook: {
+    href: "/portal",
+    intro: <>open the <strong>Operating Playbook</strong> right now</>,
+    button: "Open the Playbook",
+    pending: "Opening playbook...",
+  },
+  tools: {
+    href: "/portal/tools",
+    intro: <>open the <strong>EOS Checkup</strong> and <strong>Urgency Index</strong> right now</>,
+    button: "Open the Tools",
+    pending: "Opening tools...",
+  },
+} as const;
+
+export function AccessRequestForm({ destination = "playbook" }: { destination?: keyof typeof DESTINATIONS }) {
   const router = useRouter();
+  const target = DESTINATIONS[destination];
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -31,8 +49,8 @@ export function AccessRequestForm() {
     }
 
     // The action already set the access cookie, so this navigation lands
-    // straight on the playbook instead of another gate.
-    router.push("/portal");
+    // straight on the destination instead of another gate.
+    router.push(target.href);
   }
 
   return (
@@ -54,7 +72,7 @@ export function AccessRequestForm() {
           </h1>
 
           <p className="mt-3 text-[14.5px] leading-relaxed text-[#a9b6cf]">
-            Enter your details to open the <strong>Operating Playbook</strong> right now. We&apos;ll also email you a private link so you can get back in later from any device.
+            Enter your details to {target.intro}. We&apos;ll also email you a private link so you can get back in later from any device.
           </p>
 
           <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
@@ -104,10 +122,10 @@ export function AccessRequestForm() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
-                  <span>Opening playbook...</span>
+                  <span>{target.pending}</span>
                 </>
               ) : (
-                <span>Open the Playbook</span>
+                <span>{target.button}</span>
               )}
             </button>
           </form>

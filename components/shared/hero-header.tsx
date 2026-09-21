@@ -10,6 +10,8 @@ interface HeroHeaderProps {
   description: ReactNode;
   actions?: ReactNode;
   children?: ReactNode;
+  /** Shorter vertical padding for inner pages, so the content below stays above the fold. */
+  compact?: boolean;
 }
 
 export function HeroHeader({
@@ -18,6 +20,7 @@ export function HeroHeader({
   description,
   actions,
   children,
+  compact = false,
 }: HeroHeaderProps) {
   const containerRef = useRef<HTMLElement>(null);
   
@@ -55,7 +58,7 @@ export function HeroHeader({
     <header 
       ref={containerRef}
       onMouseMove={handleMouseMove}
-      className="relative overflow-hidden bg-[var(--ink)] py-24 text-[var(--cream)] sm:py-32 lg:py-18"
+      className={`relative overflow-hidden bg-[var(--ink)] text-[var(--cream)] ${compact ? "py-12 sm:py-16" : "py-24 sm:py-32 lg:py-18"}`}
     >
       <svg
         className="pointer-events-none absolute inset-y-0 -left-[10%] h-full w-[120%] opacity-40"
