@@ -1,13 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { requestPortalAccessAction } from "@/modules/portal-access/portal-access.actions";
 
 export function AccessRequestForm() {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -20,29 +22,17 @@ export function AccessRequestForm() {
     setIsSubmitting(true);
     setError(null);
 
-    try {
-      const response = await fetch("/api/contact", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          email,
-          message: "Secure access request for the Operating Playbook via portal.",
-        }),
-      });
+    const result = await requestPortalAccessAction({ name, email });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Could not send the link right now.");
-      }
-
-      setSubmitted(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not send the link right now.");
-    } finally {
+    if (!result?.data?.success) {
+      setError(result?.serverError || "Could not grant access right now. Please try again.");
       setIsSubmitting(false);
+      return;
     }
+
+    // The action already set the access cookie, so this navigation lands
+    // straight on the playbook instead of another gate.
+    router.push("/portal");
   }
 
   return (
@@ -60,88 +50,67 @@ export function AccessRequestForm() {
           </div>
 
           <h1 className="mt-4 font-serif text-[1.85rem] font-semibold tracking-tight text-[#f7f4ec]">
-            Get your secure access link
+            Get instant access
           </h1>
 
           <p className="mt-3 text-[14.5px] leading-relaxed text-[#a9b6cf]">
-            To keep our <strong>Operating Playbook</strong> private and secure, we send a direct, one-time link to your email. Enter your details below to receive it.
+            Enter your details to open the <strong>Operating Playbook</strong> right now. We&apos;ll also email you a private link so you can get back in later from any device.
           </p>
 
-          {submitted ? (
-            <div className="mt-8 rounded-lg border border-[#5a7d5a]/40 bg-[#5a7d5a]/10 p-6 text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#5a7d5a]/20 text-[#9bc79b]">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              </div>
-              <h3 className="mt-3 font-serif text-lg font-medium text-[#f7f4ec]">Email sent successfully!</h3>
-              <p className="mt-2 text-sm text-[#c7d2e6]">
-                We sent your secure access link to <strong className="text-[#e3c877]">{email}</strong>. Check your inbox (and your spam folder).
-              </p>
-              <button
-                type="button"
-                onClick={() => setSubmitted(false)}
-                className="mt-6 text-xs uppercase tracking-wider text-[#a9863a] underline hover:text-[#e3c877]"
-              >
-                Send to a different email
-              </button>
+          <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
+            <div>
+              <label htmlFor="name" className="mb-1.5 block font-mono text-[11px] uppercase tracking-wider text-[#8fa0bf]">
+                Your name
+              </label>
+              <input
+                id="name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. John Smith"
+                className="w-full rounded-md border border-[#2a3a56] bg-[#0a1220] px-4 py-2.5 text-sm text-[#f7f4ec] placeholder-[#5f6f92] outline-none transition focus:border-[#c9a03e] focus:ring-1 focus:ring-[#c9a03e]"
+              />
             </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
-              <div>
-                <label htmlFor="name" className="mb-1.5 block font-mono text-[11px] uppercase tracking-wider text-[#8fa0bf]">
-                  Your name
-                </label>
-                <input
-                  id="name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. John Smith"
-                  className="w-full rounded-md border border-[#2a3a56] bg-[#0a1220] px-4 py-2.5 text-sm text-[#f7f4ec] placeholder-[#5f6f92] outline-none transition focus:border-[#c9a03e] focus:ring-1 focus:ring-[#c9a03e]"
-                />
-              </div>
 
-              <div>
-                <label htmlFor="email" className="mb-1.5 block font-mono text-[11px] uppercase tracking-wider text-[#8fa0bf]">
-                  Your work email *
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="your.email@company.com"
-                  className="w-full rounded-md border border-[#2a3a56] bg-[#0a1220] px-4 py-2.5 text-sm text-[#f7f4ec] placeholder-[#5f6f92] outline-none transition focus:border-[#c9a03e] focus:ring-1 focus:ring-[#c9a03e]"
-                />
-              </div>
+            <div>
+              <label htmlFor="email" className="mb-1.5 block font-mono text-[11px] uppercase tracking-wider text-[#8fa0bf]">
+                Your work email *
+              </label>
+              <input
+                id="email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="your.email@company.com"
+                className="w-full rounded-md border border-[#2a3a56] bg-[#0a1220] px-4 py-2.5 text-sm text-[#f7f4ec] placeholder-[#5f6f92] outline-none transition focus:border-[#c9a03e] focus:ring-1 focus:ring-[#c9a03e]"
+              />
+            </div>
 
-              {error && (
-                <div className="rounded-md border border-[#a84b3f]/40 bg-[#a84b3f]/10 p-3 text-xs text-[#d98a7c]">
-                  {error}
-                </div>
+            {error && (
+              <div className="rounded-md border border-[#a84b3f]/40 bg-[#a84b3f]/10 p-3 text-xs text-[#d98a7c]">
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-md bg-[#c9a03e] px-5 py-3 font-mono text-xs uppercase tracking-wider font-semibold text-[#0a1220] transition hover:bg-[#e3c877] disabled:opacity-60"
+            >
+              {isSubmitting ? (
+                <>
+                  <svg className="h-4 w-4 animate-spin text-[#0a1220]" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  <span>Opening playbook...</span>
+                </>
+              ) : (
+                <span>Open the Playbook</span>
               )}
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="mt-2 flex w-full items-center justify-center gap-2 rounded-md bg-[#c9a03e] px-5 py-3 font-mono text-xs uppercase tracking-wider font-semibold text-[#0a1220] transition hover:bg-[#e3c877] disabled:opacity-60"
-              >
-                {isSubmitting ? (
-                  <>
-                    <svg className="h-4 w-4 animate-spin text-[#0a1220]" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    <span>Sending link...</span>
-                  </>
-                ) : (
-                  <span>Send Secure Access Link</span>
-                )}
-              </button>
-            </form>
-          )}
+            </button>
+          </form>
 
           <div className="mt-8 border-t border-[#2a3a56]/60 pt-6 text-center text-xs text-[#5f6f92]">
             Want to return to the main site?{" "}

@@ -7,10 +7,10 @@ const eslintConfig = defineConfig([
   ...nextTs,
   // Tenant-owned tables must be queried through `withTenant()` so Postgres
   // RLS applies — the plain `db` connects with BYPASSRLS. Only modules whose
-  // tables carry no tenant_id (tenancy, rate-limit) may import it.
+  // tables carry no tenant_id (tenancy, rate-limit, portal-access) may import it.
   {
     files: ["modules/**/*.ts"],
-    ignores: ["modules/tenancy/**", "modules/rate-limit/**"],
+    ignores: ["modules/tenancy/**", "modules/rate-limit/**", "modules/portal-access/**"],
     rules: {
       "no-restricted-imports": [
         "error",

@@ -13,6 +13,7 @@ import * as leadEngineSchema from "@/modules/lead-engine/lead-engine.schema";
 import * as emailSourcesSchema from "@/modules/email-sources/email-sources.schema";
 import * as listingSitesSchema from "@/modules/listing-sites/listing-sites.schema";
 import * as rateLimitSchema from "@/modules/rate-limit/rate-limit.schema";
+import * as portalAccessSchema from "@/modules/portal-access/portal-access.schema";
 
 const schema = {
   ...tenancySchema,
@@ -26,6 +27,7 @@ const schema = {
   ...emailSourcesSchema,
   ...listingSitesSchema,
   ...rateLimitSchema,
+  ...portalAccessSchema,
 };
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL! });

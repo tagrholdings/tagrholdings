@@ -1,6 +1,6 @@
-import { createAccessToken } from "@/lib/access";
 import { contactAccessEmail } from "@/lib/email/templates/contact-access";
 import { notifyTannerEmail } from "@/lib/email/templates/notify-tanner";
+import { portalAccessService } from "@/modules/portal-access/portal-access.service";
 import { rateLimitService } from "@/modules/rate-limit/rate-limit.service";
 import { getClientIp } from "@/utils/request";
 import { NextResponse } from "next/server";
@@ -41,7 +41,7 @@ function tooManyRequests() {
 
 export async function POST(request: Request) {
   try {
-    const ip = getClientIp(request);
+    const ip = getClientIp(request.headers);
     if (await rateLimitService.isLimited(`contact:ip:${ip}`, IP_LIMIT, IP_WINDOW_MS)) {
       return tooManyRequests();
     }
@@ -67,7 +67,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const accessToken = createAccessToken(email);
+    const accessToken = await portalAccessService.grantAccess(email, name);
     const portalUrl = `${process.env.SITE_URL || "http://localhost:3000"}/portal?token=${accessToken}`;
 
     await Promise.all([
