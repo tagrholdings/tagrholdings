@@ -13,7 +13,7 @@ export function AccessRequestForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!email || !email.includes("@")) {
-      setError("Por favor, informe um e-mail válido.");
+      setError("Please enter a valid email address.");
       return;
     }
 
@@ -27,19 +27,19 @@ export function AccessRequestForm() {
         body: JSON.stringify({
           name,
           email,
-          message: "Solicitação de acesso seguro ao Operating Playbook via portal.",
+          message: "Secure access request for the Operating Playbook via portal.",
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Não foi possível enviar o link no momento.");
+        throw new Error(data.error || "Could not send the link right now.");
       }
 
       setSubmitted(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Não foi possível enviar o link no momento.");
+      setError(err instanceof Error ? err.message : "Could not send the link right now.");
     } finally {
       setIsSubmitting(false);
     }
@@ -60,11 +60,11 @@ export function AccessRequestForm() {
           </div>
 
           <h1 className="mt-4 font-serif text-[1.85rem] font-semibold tracking-tight text-[#f7f4ec]">
-            Receba seu link seguro de acesso
+            Get your secure access link
           </h1>
 
           <p className="mt-3 text-[14.5px] leading-relaxed text-[#a9b6cf]">
-            Para garantir a privacidade e segurança do nosso <strong>Operating Playbook</strong>, enviamos um link direto e exclusivo para o seu e-mail. Digite seus dados abaixo para recebê-lo.
+            To keep our <strong>Operating Playbook</strong> private and secure, we send a direct, one-time link to your email. Enter your details below to receive it.
           </p>
 
           {submitted ? (
@@ -74,37 +74,37 @@ export function AccessRequestForm() {
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               </div>
-              <h3 className="mt-3 font-serif text-lg font-medium text-[#f7f4ec]">E-mail enviado com sucesso!</h3>
+              <h3 className="mt-3 font-serif text-lg font-medium text-[#f7f4ec]">Email sent successfully!</h3>
               <p className="mt-2 text-sm text-[#c7d2e6]">
-                Enviamos o seu link de acesso seguro para <strong className="text-[#e3c877]">{email}</strong>. Verifique sua caixa de entrada (e a pasta de spam).
+                We sent your secure access link to <strong className="text-[#e3c877]">{email}</strong>. Check your inbox (and your spam folder).
               </p>
               <button
                 type="button"
                 onClick={() => setSubmitted(false)}
                 className="mt-6 text-xs uppercase tracking-wider text-[#a9863a] underline hover:text-[#e3c877]"
               >
-                Enviar para outro e-mail
+                Send to a different email
               </button>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
               <div>
                 <label htmlFor="name" className="mb-1.5 block font-mono text-[11px] uppercase tracking-wider text-[#8fa0bf]">
-                  Seu nome
+                  Your name
                 </label>
                 <input
                   id="name"
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Ex: Carlos Silva"
+                  placeholder="e.g. John Smith"
                   className="w-full rounded-md border border-[#2a3a56] bg-[#0a1220] px-4 py-2.5 text-sm text-[#f7f4ec] placeholder-[#5f6f92] outline-none transition focus:border-[#c9a03e] focus:ring-1 focus:ring-[#c9a03e]"
                 />
               </div>
 
               <div>
                 <label htmlFor="email" className="mb-1.5 block font-mono text-[11px] uppercase tracking-wider text-[#8fa0bf]">
-                  Seu e-mail corporativo *
+                  Your work email *
                 </label>
                 <input
                   id="email"
@@ -112,7 +112,7 @@ export function AccessRequestForm() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="seu.email@empresa.com"
+                  placeholder="your.email@company.com"
                   className="w-full rounded-md border border-[#2a3a56] bg-[#0a1220] px-4 py-2.5 text-sm text-[#f7f4ec] placeholder-[#5f6f92] outline-none transition focus:border-[#c9a03e] focus:ring-1 focus:ring-[#c9a03e]"
                 />
               </div>
@@ -134,19 +134,19 @@ export function AccessRequestForm() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                     </svg>
-                    <span>Enviando link...</span>
+                    <span>Sending link...</span>
                   </>
                 ) : (
-                  <span>Enviar Link de Acesso Seguro</span>
+                  <span>Send Secure Access Link</span>
                 )}
               </button>
             </form>
           )}
 
           <div className="mt-8 border-t border-[#2a3a56]/60 pt-6 text-center text-xs text-[#5f6f92]">
-            Deseja retornar ao site principal?{" "}
+            Want to return to the main site?{" "}
             <Link href="/" className="font-semibold text-[#c7d2e6] hover:text-[#e3c877] underline">
-              Voltar para a página inicial
+              Back to homepage
             </Link>
           </div>
         </div>
