@@ -160,7 +160,9 @@ function DropdownMenuContent({
                     )}
                     {...(props as React.HTMLAttributes<HTMLDivElement>)}
                 >
-                    <div className="w-full max-w-sm mx-auto flex flex-col items-center gap-1">
+                    {/* items-stretch, not center: rows, labels and separators must span the sheet (a centered flex child
+                        with no width — a separator — collapses to nothing, and a label centers instead of aligning left). */}
+                    <div className="w-full max-w-sm mx-auto flex flex-col items-stretch gap-1">
                         {children}
                     </div>
                 </div>

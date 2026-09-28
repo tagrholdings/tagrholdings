@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Search, Settings } from "lucide-react";
+import { BookOpen, ChevronLeft, LogOut, Search, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { authClient } from "@/lib/auth-client";
 import { notify } from "@/components/ui/toaster";
@@ -75,19 +75,31 @@ function useDefaultSignOut() {
 }
 
 /** The avatar dropdown's body — shared by the mobile and desktop headers so the two can't drift apart. */
-function AccountMenuContent({ userName, onSignOut }: { userName: string; onSignOut?: () => void }) {
+function AccountMenuContent({ user, onSignOut }: { user: AppHeaderUser; onSignOut?: () => void }) {
   const router = useRouter();
   return (
-    <DropdownMenuContent align="end">
-      <DropdownMenuLabel>{userName}</DropdownMenuLabel>
+    <DropdownMenuContent align="end" className="min-w-56">
+      {/* Who's signed in: the same avatar as the trigger + the name, left-aligned like the rows below. */}
+      <DropdownMenuLabel className="flex items-center gap-3 px-3 py-2 text-foreground">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">{user.initials}</span>
+        <span className="min-w-0">
+          <span className="block truncate text-sm font-semibold">{user.name}</span>
+          <span className="block text-xs font-normal text-muted-foreground">Signed in</span>
+        </span>
+      </DropdownMenuLabel>
       <DropdownMenuSeparator />
-      <DropdownMenuItem>Profile</DropdownMenuItem>
+      {/* Every row: icon + label, same left edge. */}
       <DropdownMenuItem onSelect={() => router.push("/settings")}>
-        <Settings className="size-4" aria-hidden />
+        <Settings aria-hidden />
         Settings
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => router.push("/docs")}>
+        <BookOpen aria-hidden />
+        Documentation
       </DropdownMenuItem>
       <DropdownMenuSeparator />
       <DropdownMenuItem variant="destructive" onSelect={onSignOut}>
+        <LogOut aria-hidden />
         Sign out
       </DropdownMenuItem>
     </DropdownMenuContent>
@@ -139,7 +151,7 @@ function MobileHeader({
             {user.initials}
           </button>
         </DropdownMenuTrigger>
-        <AccountMenuContent userName={user.name} onSignOut={onSignOut} />
+        <AccountMenuContent user={user} onSignOut={onSignOut} />
       </DropdownMenu>
     </header>
   );
@@ -204,7 +216,7 @@ function DesktopHeader({
             {user.initials}
           </button>
         </DropdownMenuTrigger>
-        <AccountMenuContent userName={user.name} onSignOut={onSignOut} />
+        <AccountMenuContent user={user} onSignOut={onSignOut} />
       </DropdownMenu>
     </header>
   );
