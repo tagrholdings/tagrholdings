@@ -19,6 +19,16 @@ export const tenancyRepository = {
     });
   },
 
+  /** Links a Neon Auth user to a tenant. `userId` is unique (one user = one tenant), so a second link is a conflict. */
+  async insertMember(tenantId: string, userId: string) {
+    const inserted = await db
+      .insert(tenantMembersTable)
+      .values({ tenantId, userId })
+      .onConflictDoNothing({ target: tenantMembersTable.userId })
+      .returning({ id: tenantMembersTable.id });
+    return inserted.length > 0;
+  },
+
   async findTenantById(id: string) {
     return db.query.tenantsTable.findFirst({
       where: eq(tenantsTable.id, id),

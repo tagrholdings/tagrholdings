@@ -7,10 +7,12 @@ const eslintConfig = defineConfig([
   ...nextTs,
   // Tenant-owned tables must be queried through `withTenant()` so Postgres
   // RLS applies — the plain `db` connects with BYPASSRLS. Only modules whose
-  // tables carry no tenant_id (tenancy, rate-limit, portal-access) may import it.
+  // tables carry no tenant_id (tenancy, rate-limit, portal-access, auth-accounts — Neon Auth's own tables) may
+  // import it. `invites` is the one exception with a tenant_id: an invite link is opened by someone with no
+  // session, so its token lookup can't know the tenant yet (its repository says which queries are unscoped).
   {
     files: ["modules/**/*.ts"],
-    ignores: ["modules/tenancy/**", "modules/rate-limit/**", "modules/portal-access/**"],
+    ignores: ["modules/tenancy/**", "modules/rate-limit/**", "modules/portal-access/**", "modules/auth-accounts/**", "modules/invites/**"],
     rules: {
       "no-restricted-imports": [
         "error",

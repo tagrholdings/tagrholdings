@@ -15,6 +15,13 @@ export const tenancyService = {
     return !!(await tenancyRepository.findTenantById(tenantId));
   },
 
+  /** Gives an existing Neon Auth user access to a tenant. Throws if that user already belongs to a tenant. */
+  async addMember(tenantId: string, userId: string) {
+    if (!(await tenancyRepository.insertMember(tenantId, userId))) {
+      throw new UserFacingError("This person already has access to a workspace.");
+    }
+  },
+
   async listTenantIds() {
     return tenancyRepository.findAllTenantIds();
   },
