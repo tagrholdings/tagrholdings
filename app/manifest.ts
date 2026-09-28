@@ -52,7 +52,7 @@ export default function manifest(): MetadataRoute.Manifest {
       params: { title: "title", text: "text", url: "url" },
     },
     background_color: "#1b1d1f",
-    theme_color: "#131417",
+    theme_color: "#1b1d1f",
     icons: [
       ...[48, 72, 96, 144, 192, 512].map((size) => androidIcon(size)),
       // Maskable duplicates — Chrome/Android crop these to a circle/squircle

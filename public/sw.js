@@ -21,7 +21,9 @@ self.addEventListener("push", (event) => {
   const options = {
     body: payload.body || "",
     icon: "/pwa-icons/android/launchericon-192x192.png",
-    badge: "/pwa-icons/android/launchericon-96x96.png",
+    // The small status-bar icon. Android draws only its transparency (in white), so it must be a logo shape on a
+    // transparent background — the colored launcher icon would show up as a plain white square.
+    badge: "/pwa-icons/notification/badge-96x96.png",
     // Same tag = replaces the earlier one instead of stacking; renotify makes the replacement ring again.
     tag: payload.tag,
     renotify: Boolean(payload.tag),

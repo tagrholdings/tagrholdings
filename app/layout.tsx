@@ -56,7 +56,7 @@ export const metadata: Metadata = {
     // the actual tile image set; these two just point at it and match its
     // background so a pinned tile doesn't show a mismatched color.
     "msapplication-config": "/browserconfig.xml",
-    "msapplication-TileColor": "#1b1d1f",
+    "msapplication-TileColor": "#131417",
   },
 };
 
@@ -71,7 +71,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#1b1d1f",
+  themeColor: "#131417",
 };
 
 // Runs before hydration so the correct theme is already on <html> for first
