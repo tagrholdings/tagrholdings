@@ -147,7 +147,7 @@ export function ActivityDetailPanel({ activity, members, pipelineItems, onOpenCh
         <VaultContent aria-label={activity?.subject ?? "Activity"}>
           {activity && (
             <>
-              <VaultHeader showCloseButton={false}>
+              <VaultHeader>
                 <VaultTitle>{activity.subject}</VaultTitle>
               </VaultHeader>
               <VaultBody>

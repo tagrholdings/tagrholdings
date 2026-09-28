@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Inbox, Loader2, Undo2, X, Plus } from "lucide-react";
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
@@ -17,6 +17,7 @@ import { SOURCE_LABELS } from "@/modules/leads/leads.constants";
 import type { RawLeadStatus } from "@/modules/leads/leads.schema";
 import type { RawLeadSummary } from "@/modules/leads/leads.types";
 import { FIT_RANK } from "@/modules/search-profiles/fit";
+import { useFitPageSize } from "@/hooks/ui/use-fit-page-size";
 import { RawLeadDetailPanel } from "./RawLeadDetailPanel";
 import { QuickAddLead } from "./QuickAddLead";
 import { FitBadge } from "./FitBadge";
@@ -36,8 +37,27 @@ const EMPTY_COPY: Record<RawLeadStatus, string> = {
 
 type Sort = "newest" | "fit";
 
-// Leads per page: ~10 rows fill a screen, so reviewing the inbox never means a long scroll.
-const PAGE_SIZE = 10;
+/** When a lead was found: any time, or within a recent window (compared with the "Found" column's date). */
+type FoundRange = "any" | "today" | "7d" | "30d";
+const FOUND_OPTIONS: { value: FoundRange; label: string }[] = [
+  { value: "any", label: "All time" },
+  { value: "today", label: "Today" },
+  { value: "7d", label: "7 days" },
+  { value: "30d", label: "30 days" },
+];
+
+/** Earliest "found" time (epoch ms) a lead may have to pass the range, or null for no limit. "Today" = since local midnight. */
+function foundCutoff(range: FoundRange, now: number): number | null {
+  const day = 24 * 60 * 60 * 1000;
+  if (range === "today") return new Date(now).setHours(0, 0, 0, 0);
+  if (range === "7d") return now - 7 * day;
+  if (range === "30d") return now - 30 * day;
+  return null;
+}
+
+// Table geometry, so the page can hold exactly as many rows as fit on one screen (no page scroll on desktop).
+const ROW_HEIGHT = 68; // matches the row's md:h-[68px]
+const RESERVED_HEIGHT = 104; // table header + pagination + the gap between them
 
 export function RawLeadsView({
   leads,
@@ -53,7 +73,11 @@ export function RawLeadsView({
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<Sort>("newest");
   const [page, setPage] = useState(1);
-  const tableTop = useRef<HTMLDivElement>(null);
+  const [found, setFound] = useState<FoundRange>("any");
+  // "Now" for the Found filter — read once on mount (render must stay pure); a window of days doesn't need to tick.
+  const [mountedAt] = useState(() => Date.now());
+  // The space the table gets decides how many rows a page holds (see HubPage fitViewport).
+  const { ref: fitRef, element: fitElement, pageSize } = useFitPageSize({ rowHeight: ROW_HEIGHT, reserved: RESERVED_HEIGHT });
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
   // Leads handled in this session flip immediately, before the revalidated
   // server list arrives; `pipelineItemId` is filled in by the server list.
@@ -104,15 +128,21 @@ export function RawLeadsView({
     setSort(value);
     setPage(1);
   };
+  const changeFound = (value: FoundRange) => {
+    setFound(value);
+    setPage(1);
+  };
   const goToPage = (next: number) => {
     setPage(next);
-    // Land back at the top of the table, not wherever the Next button was.
-    tableTop.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // On a phone the page scrolls: land back at the top of the table, not wherever the Next button was.
+    fitElement?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   const query = search.trim().toLowerCase();
+  const cutoff = foundCutoff(found, mountedAt);
   const visible = leads
     .filter((lead) => statusOf(lead) === filter)
+    .filter((lead) => cutoff === null || +new Date(lead.createdAt) >= cutoff)
     .filter((lead) => {
       if (!query) return true;
       const fields = lead.extractedFields ?? {};
@@ -127,7 +157,7 @@ export function RawLeadsView({
     );
 
   // `page` is clamped, so dismissing the last lead on the last page just shows the new last page.
-  const paged = paginate(visible, page, PAGE_SIZE);
+  const paged = paginate(visible, page, pageSize);
 
   const quickAdd = (
     <QuickAddLead
@@ -165,9 +195,10 @@ export function RawLeadsView({
 
   return (
     // Flex row so the detail panel pushes the table instead of overlaying it — see side-panel.tsx.
-    <div className="flex min-w-0 flex-1 gap-4">
-      <div className="flex min-w-0 flex-1 flex-col gap-4">
-        <div className="sticky top-14 z-10 flex flex-wrap items-center gap-2 bg-background pb-4 pt-2">
+    <div className="flex min-h-0 min-w-0 flex-1 gap-4">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
+        {/* Sticky only where the page scrolls (phones); on desktop the page is one screen tall. */}
+        <div className="sticky top-14 z-10 flex shrink-0 flex-wrap items-center gap-2 bg-background pb-4 pt-2 md:static md:pb-0 md:pt-0">
           <SegmentedControl
             value={filter}
             onChange={changeFilter}
@@ -194,15 +225,19 @@ export function RawLeadsView({
               ]}
             />
           )}
+          <div className="flex items-center gap-2" role="group" aria-label="Filter by when the lead was found">
+            <span className="label-kicker">Found</span>
+            <SegmentedControl value={found} onChange={changeFound} options={FOUND_OPTIONS} />
+          </div>
         </div>
 
         {visible.length === 0 && !(filter === "new" && pending.length > 0) ? (
           <Empty>
-            <EmptyTitle className="text-sm">{query ? `No leads match “${search}”` : EMPTY_COPY[filter]}</EmptyTitle>
+            <EmptyTitle className="text-sm">{query || cutoff !== null ? "No leads match these filters" : EMPTY_COPY[filter]}</EmptyTitle>
           </Empty>
         ) : (
-          <div ref={tableTop} className="flex scroll-mt-32 flex-col gap-4">
-          <Table>
+          <div ref={fitRef} className="flex min-h-0 flex-1 scroll-mt-32 flex-col gap-4 md:overflow-hidden">
+          <Table className="md:min-h-0 md:overflow-y-auto">
             <TableHeader>
               <tr>
                 <TableHead>Business</TableHead>
@@ -219,7 +254,7 @@ export function RawLeadsView({
             <TableBody>
               {filter === "new" && paged.page === 1 &&
                 pending.map((p) => (
-                  <TableRow key={p.key} aria-busy="true">
+                  <TableRow key={p.key} aria-busy="true" className="md:h-[68px]">
                     <TableCell mobileLabel="Business" noWrapper>
                       <div className="flex min-w-0 items-center gap-2 text-right md:text-left">
                         <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" />
@@ -242,7 +277,7 @@ export function RawLeadsView({
                 const status = statusOf(lead);
                 const numbers = [text(fields.askingPrice), text(fields.estimatedRevenue)].filter(Boolean).join(" / ");
                 return (
-                  <TableRow key={lead.id} className="cursor-pointer" onClick={() => setSelectedId(lead.id)}>
+                  <TableRow key={lead.id} className="cursor-pointer md:h-[68px]" onClick={() => setSelectedId(lead.id)}>
                     <TableCell mobileLabel="Business" noWrapper>
                       <div className="min-w-0 text-right md:text-left">
                         <span className="block truncate font-medium text-foreground">{lead.businessName}</span>
@@ -298,7 +333,7 @@ export function RawLeadsView({
               })}
             </TableBody>
           </Table>
-          <Pagination slice={paged} onPageChange={goToPage} noun="leads" />
+          <Pagination slice={paged} onPageChange={goToPage} noun="leads" className="shrink-0" />
           </div>
         )}
       </div>

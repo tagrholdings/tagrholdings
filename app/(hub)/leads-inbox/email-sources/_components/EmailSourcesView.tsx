@@ -5,6 +5,9 @@ import { AlertTriangle, ExternalLink, Mail, Plus, Trash2, Wand2 } from "lucide-r
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Pagination } from "@/components/ui/pagination";
+import { useFitPageSize } from "@/hooks/ui/use-fit-page-size";
+import { paginate } from "@/utils/pagination";
 import { notify } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 import { formatDateUS } from "@/utils/date";
@@ -40,10 +43,16 @@ function handoffTone(source: EmailSourceRow, tone: keyof typeof TONE_CLASSES) {
   return TONE_CLASSES[source.handoffReason ? "bad" : tone];
 }
 
+// Table geometry for the one-screen page (see useFitPageSize): a row is up to three lines tall.
+const ROW_HEIGHT = 92;
+const RESERVED_HEIGHT = 104;
+
 export function EmailSourcesView({ sources, inboxAddress }: { sources: EmailSourceRow[]; inboxAddress: string | null }) {
   // undefined = closed, null = creating, source = editing.
   const [editing, setEditing] = useState<EmailSourceSummary | null | undefined>(undefined);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const { ref: fitRef, pageSize } = useFitPageSize({ rowHeight: ROW_HEIGHT, reserved: RESERVED_HEIGHT });
 
   async function run(id: string, fn: () => Promise<{ serverError?: string; validationErrors?: unknown; data?: unknown } | undefined>, fail: string, onOk?: (data: unknown) => void) {
     setBusyId(id);
@@ -87,7 +96,7 @@ export function EmailSourcesView({ sources, inboxAddress }: { sources: EmailSour
   const handoff = sources.filter((s) => s.handoffReason);
   const handoffBanner =
     handoff.length > 0 ? (
-      <div role="alert" className="flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm">
+      <div role="alert" className="flex shrink-0 items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm">
         <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden />
         <div className="min-w-0">
           <p className="font-medium text-destructive">
@@ -97,7 +106,7 @@ export function EmailSourcesView({ sources, inboxAddress }: { sources: EmailSour
             The engine doesn&rsquo;t solve captchas, accept NDAs or terms, or make up answers. Open each site below, sign up with the leads inbox address
             {inboxAddress ? <> ({inboxAddress})</> : null}, then click &ldquo;Mark subscribed&rdquo;.
           </p>
-          <ul className="mt-2 list-inside list-disc text-muted-foreground">
+          <ul className="mt-2 max-h-24 list-inside list-disc overflow-y-auto text-muted-foreground">
             {handoff.map((s) => (
               <li key={s.id}>
                 <span className="font-medium text-foreground">{s.siteName}</span> — {s.handoffReason}
@@ -109,7 +118,7 @@ export function EmailSourcesView({ sources, inboxAddress }: { sources: EmailSour
     ) : null;
 
   const intro = (
-    <div className="rounded-lg border border-divider bg-surface p-4 text-sm text-muted-foreground">
+    <div className="shrink-0 rounded-lg border border-divider bg-surface p-4 text-sm text-muted-foreground">
       <p>
         Some listing sites only send their listings by <strong className="text-foreground">email</strong>. List them here and point their signup at the leads inbox
         {inboxAddress ? (
@@ -147,13 +156,16 @@ export function EmailSourcesView({ sources, inboxAddress }: { sources: EmailSour
     );
   }
 
+  const paged = paginate(sources, page, pageSize);
+
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-4">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
       {handoffBanner}
       {intro}
-      <div className="flex justify-end">{addButton}</div>
+      <div className="flex shrink-0 justify-end">{addButton}</div>
 
-      <Table>
+      <div ref={fitRef} className="flex min-h-0 flex-1 flex-col gap-4 md:overflow-hidden">
+      <Table className="md:min-h-0 md:overflow-y-auto">
         <TableHeader>
           <tr>
             <TableHead>Site</TableHead>
@@ -165,13 +177,13 @@ export function EmailSourcesView({ sources, inboxAddress }: { sources: EmailSour
           </tr>
         </TableHeader>
         <TableBody>
-          {sources.map((source) => {
+          {paged.items.map((source) => {
             const state = emailSourceState(source);
             const { label, tone } = STATE_LABELS[state];
             const url = httpUrl(source.signupUrl);
             const canAttempt = state === "ready" || state === "failed" || state === "awaiting_confirmation" || state === "needs_person";
             return (
-              <TableRow key={source.id} className="cursor-pointer" onClick={() => setEditing(source)}>
+              <TableRow key={source.id} className="cursor-pointer md:h-[92px]" onClick={() => setEditing(source)}>
                 <TableCell mobileLabel="Site" noWrapper>
                   <div className="min-w-0 text-right md:text-left">
                     <span className="block truncate font-medium text-foreground">{source.siteName}</span>
@@ -239,6 +251,8 @@ export function EmailSourcesView({ sources, inboxAddress }: { sources: EmailSour
           })}
         </TableBody>
       </Table>
+      <Pagination slice={paged} onPageChange={setPage} noun="sites" className="shrink-0" />
+      </div>
       {vault}
     </div>
   );

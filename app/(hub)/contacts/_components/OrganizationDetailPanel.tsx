@@ -263,7 +263,7 @@ export function OrganizationDetailPanel({ organization, onOpenChange, ...rest }:
         <VaultContent aria-label={organization?.name ?? "Organization"}>
           {organization && (
             <>
-              <VaultHeader showCloseButton={false}>
+              <VaultHeader>
                 <VaultTitle>{organization.name}</VaultTitle>
               </VaultHeader>
               <VaultBody>

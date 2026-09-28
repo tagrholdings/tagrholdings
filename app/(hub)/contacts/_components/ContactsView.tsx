@@ -184,7 +184,7 @@ export function ContactsView({
     // of overlaying it.
     <div className="flex min-w-0 flex-1 gap-4">
       <div className="flex min-w-0 flex-1 flex-col gap-4">
-        <div className="sticky top-14 z-10 flex flex-wrap items-center gap-2 bg-background pb-4 pt-4">
+        <div className="sticky top-14 z-10 md:top-20 flex flex-wrap items-center gap-2 bg-background pb-4 pt-4">
           <SegmentedControl
             value={tab}
             onChange={setTab}

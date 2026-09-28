@@ -115,7 +115,7 @@ export function PipelineItemDetail({ item, columns, activities, lookups, onOpenC
         <VaultContent aria-label={item?.title ?? "Item"}>
           {item && (
             <>
-              <VaultHeader showCloseButton={false}>
+              <VaultHeader>
                 <VaultTitle>{item.title}</VaultTitle>
               </VaultHeader>
               <VaultBody>

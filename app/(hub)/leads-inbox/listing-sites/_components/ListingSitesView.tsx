@@ -5,6 +5,9 @@ import { AlertTriangle, Building2, EyeOff, Plus, RotateCcw } from "lucide-react"
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Pagination } from "@/components/ui/pagination";
+import { useFitPageSize } from "@/hooks/ui/use-fit-page-size";
+import { paginate } from "@/utils/pagination";
 import { notify } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 import { formatDateUS } from "@/utils/date";
@@ -29,9 +32,15 @@ const TONE_CLASSES = {
   neutral: "border-divider bg-transparent text-muted-foreground",
 } as const;
 
+// Table geometry for the one-screen page (see useFitPageSize): a row is up to three lines tall.
+const ROW_HEIGHT = 92;
+const RESERVED_HEIGHT = 104;
+
 export function ListingSitesView({ sites }: { sites: ListingSiteSummary[] }) {
   const [adding, setAdding] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const { ref: fitRef, pageSize } = useFitPageSize({ rowHeight: ROW_HEIGHT, reserved: RESERVED_HEIGHT });
 
   async function setActive(site: ListingSiteSummary, active: boolean) {
     setBusyId(site.id);
@@ -56,7 +65,7 @@ export function ListingSitesView({ sites }: { sites: ListingSiteSummary[] }) {
   const vault = <ListingSiteVault open={adding} onOpenChange={setAdding} />;
 
   const intro = (
-    <div className="rounded-lg border border-divider bg-surface p-4 text-sm text-muted-foreground">
+    <div className="shrink-0 rounded-lg border border-divider bg-surface p-4 text-sm text-muted-foreground">
       <p>
         These are the <strong className="text-foreground">business brokers</strong> the engine reads for businesses that are for sale. It finds them on its own
         (about once a week, using the industries in your search profiles and the state) and opens each one&rsquo;s &ldquo;buy a business&rdquo; pages, the way you
@@ -72,13 +81,13 @@ export function ListingSitesView({ sites }: { sites: ListingSiteSummary[] }) {
   const blocked = sites.filter(needsManualCheck);
   const banner =
     blocked.length > 0 ? (
-      <div role="alert" className="flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm">
+      <div role="alert" className="flex shrink-0 items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm">
         <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden />
         <div className="min-w-0">
           <p className="font-medium text-destructive">
             {blocked.length === 1 ? "1 site couldn’t be read by the engine — check it by hand" : `${blocked.length} sites couldn’t be read by the engine — check them by hand`}
           </p>
-          <ul className="mt-2 list-inside list-disc text-muted-foreground">
+          <ul className="mt-2 max-h-24 list-inside list-disc overflow-y-auto text-muted-foreground">
             {blocked.map((s) => (
               <li key={s.id}>
                 <span className="font-medium text-foreground">{s.siteName}</span>
@@ -111,13 +120,16 @@ export function ListingSitesView({ sites }: { sites: ListingSiteSummary[] }) {
     );
   }
 
+  const paged = paginate(sites, page, pageSize);
+
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-4">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
       {banner}
       {intro}
-      <div className="flex justify-end">{addButton}</div>
+      <div className="flex shrink-0 justify-end">{addButton}</div>
 
-      <Table>
+      <div ref={fitRef} className="flex min-h-0 flex-1 flex-col gap-4 md:overflow-hidden">
+      <Table className="md:min-h-0 md:overflow-y-auto">
         <TableHeader>
           <tr>
             <TableHead>Site</TableHead>
@@ -129,12 +141,12 @@ export function ListingSitesView({ sites }: { sites: ListingSiteSummary[] }) {
           </tr>
         </TableHeader>
         <TableBody>
-          {sites.map((site) => {
+          {paged.items.map((site) => {
             const { label, tone } = STATUS_LABELS[site.status];
             const url = httpUrl(site.listingsUrl ?? site.siteUrl);
             const flagged = needsManualCheck(site);
             return (
-              <TableRow key={site.id} className={cn(!site.active && "opacity-60")}>
+              <TableRow key={site.id} className={cn("md:h-[92px]", !site.active && "opacity-60")}>
                 <TableCell mobileLabel="Site" noWrapper>
                   <div className="min-w-0 text-right md:text-left">
                     <span className="block truncate font-medium text-foreground">{site.siteName}</span>
@@ -198,6 +210,8 @@ export function ListingSitesView({ sites }: { sites: ListingSiteSummary[] }) {
           })}
         </TableBody>
       </Table>
+      <Pagination slice={paged} onPageChange={setPage} noun="sites" className="shrink-0" />
+      </div>
       {vault}
     </div>
   );

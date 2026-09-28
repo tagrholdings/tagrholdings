@@ -215,7 +215,7 @@ export function ContactDetailPanel({ contact, onOpenChange, ...rest }: ContactDe
         <VaultContent aria-label={contact?.name ?? "Contact"}>
           {contact && (
             <>
-              <VaultHeader showCloseButton={false}>
+              <VaultHeader>
                 <VaultTitle>{contact.name}</VaultTitle>
               </VaultHeader>
               <VaultBody>

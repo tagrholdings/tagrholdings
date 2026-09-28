@@ -19,7 +19,7 @@ export function HubHeaderSkeleton() {
         </div>
         <Skeleton className="size-9 shrink-0 rounded-full" />
       </div>
-      <div className="sticky top-4 z-20 hidden h-16 shrink-0 items-center gap-4 rounded-lg px-6 md:flex">
+      <div className="sticky top-0 z-20 hidden h-20 shrink-0 items-center gap-4 border-b border-transparent px-6 pt-4 md:flex">
         <div className="min-w-0 flex-1 space-y-1.5">
           <Skeleton className="h-2.5 w-20" />
           <Skeleton className="h-5 w-32" />

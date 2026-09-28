@@ -206,7 +206,7 @@ export function RawLeadDetailPanel({ lead, status, busy, onOpenChange, ...action
         <VaultContent aria-label={lead?.businessName ?? "Lead"}>
           {lead && (
             <>
-              <VaultHeader showCloseButton={false}>
+              <VaultHeader>
                 <VaultTitle>{lead.businessName}</VaultTitle>
               </VaultHeader>
               <VaultBody>

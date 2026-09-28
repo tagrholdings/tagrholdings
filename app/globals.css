@@ -9,7 +9,7 @@
   --brass: #9c7200; /* exact color sampled from public/brand/LogoBrand-Monocolor.png */
   --brass-light: color-mix(in srgb, var(--brass) 70%, white 30%);
   --slate: #3d4a42;
-  --cream: #f5f2ec;
+  --cream: #f3e7d0;
   --ink: #1b1d1f;
 
   /* — CRM extensions, built from the same palette (not new colors) — */

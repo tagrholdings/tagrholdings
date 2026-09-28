@@ -44,6 +44,11 @@ on:
         required: false
         type: string
 
+# The run's title in the Actions tab — and in the CRM's live view (Search profiles), which reads it to tell which
+# profile a "Run now" run belongs to. Keep the shape: "Lead engine · <task> <profile id>" or "Lead engine · scheduled"
+# (modules/lead-engine/live-runs.ts parses it).
+run-name: Lead engine · ${{ github.event_name == 'workflow_dispatch' && format('{0} {1}', inputs.task, inputs.profile_id) || 'scheduled' }}
+
 # Never two engine runs at once (the engine also takes a database lock).
 concurrency:
   group: lead-engine

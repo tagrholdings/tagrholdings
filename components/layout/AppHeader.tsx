@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BookOpen, ChevronLeft, LogOut, Search, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useScrolled } from "@/hooks/ui/use-scrolled";
 import { authClient } from "@/lib/auth-client";
 import { notify } from "@/components/ui/toaster";
 import { Input } from "@/components/ui/input";
@@ -167,11 +168,15 @@ function DesktopHeader({
   className,
   backHref
 }: AppHeaderProps & { className?: string }) {
+  // Transparent at the top of the page; once content scrolls under it, it takes a frosted background so the
+  // page doesn't show through the title. `top-0` + `pt-4` (not `top-4`): the 16px above the bar must be covered
+  // too, or content slides past in that gap.
+  const scrolled = useScrolled();
   return (
-    //TODO: MAKE THIS GAIN COLOR ON SCROLL TO MAKE IT MORE VISIBLE
     <header
       className={cn(
-        "sticky top-4 z-20 h-16 shrink-0 items-center gap-4 rounded-lg px-6",
+        "sticky top-0 z-20 h-20 shrink-0 items-center gap-4 border-b border-transparent px-6 pt-4 transition-[background-color,border-color] duration-200",
+        scrolled && "rounded-b-lg border-divider bg-background/80 backdrop-blur-md",
         className
       )}
     >

@@ -1,4 +1,7 @@
+import { getRunSteps, listLeadEngineRuns, type GithubRun } from "@/lib/github-actions";
+import { searchProfilesService } from "@/modules/search-profiles/search-profiles.service";
 import { leadEngineRepository } from "./lead-engine.repository";
+import { featuredRun, parseRunTitle, type LiveRun, type LiveRunsResponse } from "./live-runs";
 import type { DailySpend, SpendByProfile, SpendReport, SpendTotals, UsageEventInput } from "./lead-engine.types";
 
 const DAILY_WINDOW_DAYS = 30;
@@ -10,8 +13,46 @@ function startOfUtcDay(date: Date) {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 }
 
+function toLiveRun(run: GithubRun): LiveRun {
+  return {
+    id: run.id,
+    number: run.runNumber,
+    title: run.title,
+    scope: parseRunTitle(run.title, run.event),
+    status: run.status,
+    conclusion: run.conclusion,
+    url: run.url,
+    createdAt: run.createdAt,
+    startedAt: run.startedAt,
+    updatedAt: run.updatedAt,
+    steps: [],
+  };
+}
+
 /** Costs are estimates at list price — round only for display, keep full precision here. */
 export const leadEngineService = {
+  /**
+   * The engine's recent GitHub Actions runs, for the live status on Search profiles. The workflow is shared by
+   * every workspace, so a run started for another workspace's profile is left out; whole-engine runs (the
+   * schedule) are shown to everyone. The steps are fetched only for the run being featured.
+   */
+  async getLiveRuns(tenantId: string, now: Date = new Date()): Promise<LiveRunsResponse> {
+    const fetchedAt = now.toISOString();
+    const listed = await listLeadEngineRuns(5);
+    if (!listed.configured) return { configured: false, unavailable: false, runs: [], fetchedAt };
+    if (!listed.ok) return { configured: true, unavailable: true, runs: [], fetchedAt };
+
+    const ownProfiles = new Set((await searchProfilesService.listForTenant(tenantId)).map((p) => p.id.toLowerCase()));
+    const runs = listed.data.map(toLiveRun).filter((run) => run.scope.kind !== "profile" || ownProfiles.has(run.scope.profileId));
+
+    const focus = featuredRun(runs, now.getTime());
+    if (focus) {
+      const steps = await getRunSteps(focus.id);
+      if (steps.configured && steps.ok) focus.steps = steps.data;
+    }
+    return { configured: true, unavailable: false, runs, fetchedAt };
+  },
+
   /** Logs one billable call made by the app itself (AI extraction of a manual/email lead, an inbound email). */
   async recordUsage(tenantId: string, event: UsageEventInput) {
     await leadEngineRepository.recordUsage(tenantId, event);

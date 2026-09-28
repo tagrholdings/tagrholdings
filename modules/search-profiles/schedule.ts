@@ -19,6 +19,12 @@ export interface ScheduleInput {
   runRequestedAt: Date | string | null;
 }
 
+/** Was this profile due (never run, "Run now" pending, or its frequency elapsed) at instant `at`? */
+export function isDueAt(profile: ScheduleInput, at: number): boolean {
+  if (profile.runRequestedAt || !profile.lastRunAt) return true;
+  return new Date(profile.lastRunAt).getTime() + profile.frequencyHours * HOUR_MS <= at;
+}
+
 /** Epoch ms of the next engine tick that will pick this profile up. Ticks fall on UTC hours divisible by ENGINE_TICK_HOURS. */
 export function nextEngineRunAt(profile: ScheduleInput, now: number): number {
   const tick = ENGINE_TICK_HOURS * HOUR_MS;

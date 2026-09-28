@@ -185,16 +185,15 @@ VaultContent.displayName = "VaultContent";
 
 const VaultHeader = React.forwardRef<
     HTMLDivElement,
-    React.HTMLAttributes<HTMLDivElement> & {
-        showCloseButton?: boolean;
-    }
->(({ className, showCloseButton = true, children, ...props }, ref) => {
+    React.HTMLAttributes<HTMLDivElement>
+>(({ className, children, ...props }, ref) => {
     return (
+        // A column, not a row: title on top, description under it. As a row (the old `justify-between`) a
+        // long description sat beside the title and squeezed both.
         <div
             ref={ref}
             className={twMerge(
-                "flex items-center justify-between pb-1",
-                !showCloseButton && "justify-center",
+                "flex flex-col items-stretch gap-1 pb-3",
                 className,
             )}
             {...props}

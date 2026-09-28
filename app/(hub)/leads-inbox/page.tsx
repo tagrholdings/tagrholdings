@@ -18,6 +18,7 @@ export default async function LeadsInboxPage({ searchParams }: { searchParams: P
 
   return (
     <HubPage
+      fitViewport
       user={{ name: user.name || user.email, initials: initialsFor(user.name || user.email) }}
       kicker="Lead engine"
       title="Leads Inbox"
