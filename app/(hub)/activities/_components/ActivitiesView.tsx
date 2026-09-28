@@ -28,6 +28,11 @@ const FILTERS: { id: DueBucket | "all" | "open" | "done"; label: string }[] = [
   { id: "all", label: "All" },
 ];
 
+// Completion animation timings (ms) — the strike-through line draws for STRIKE_MS, then the row leaves over LEAVE_MS.
+// Keep in step with the duration-* classes on the row and the title's strike line below.
+const STRIKE_MS = 600;
+const LEAVE_MS = 300;
+
 // Three mutation kinds (add, done-toggle, date move) against one list —
 // design.md's documented exception to useOptimisticAction.
 type Patch =
@@ -86,6 +91,8 @@ export function ActivitiesView({
 
   const [optimisticActivities, addPatch] = useOptimistic(initialActivities, applyPatch);
   const [, startTransition] = useTransition();
+  // Tasks mid-completion (see handleToggleDone): "striking" = title being struck out, "leaving" = row fading away.
+  const [completing, setCompleting] = useState<Record<string, "striking" | "leaving">>({});
 
   function handleSetDone(id: string, done: boolean) {
     startTransition(async () => {
@@ -93,6 +100,32 @@ export function ActivitiesView({
       const result = await setActivityDoneAction({ id, done });
       if (result?.serverError) notify.error(result.serverError);
     });
+  }
+
+  /**
+   * Completing a task from the list plays out before it's committed: the title is struck through,
+   * then — when the current filter would hide a done task — the row fades and collapses, and only
+   * then does the real "done" go through. Without it the row just vanishes and it's unclear what
+   * happened. Un-completing is instant.
+   */
+  function handleToggleDone(activity: ActivityRow) {
+    if (activity.done) return handleSetDone(activity.id, false);
+    if (completing[activity.id]) return;
+
+    const leavesList = !matchesFilter({ ...activity, done: true }, filter);
+    setCompleting((prev) => ({ ...prev, [activity.id]: "striking" }));
+    if (leavesList) setTimeout(() => setCompleting((prev) => ({ ...prev, [activity.id]: "leaving" })), STRIKE_MS);
+    setTimeout(
+      () => {
+        handleSetDone(activity.id, true);
+        setCompleting((prev) => {
+          const next = { ...prev };
+          delete next[activity.id];
+          return next;
+        });
+      },
+      leavesList ? STRIKE_MS + LEAVE_MS : STRIKE_MS
+    );
   }
 
   function handleMoveToDay(id: string, date: Date) {
@@ -278,25 +311,29 @@ export function ActivitiesView({
                   const context = [activity.contactName, activity.organizationName, assignee && `Assigned to ${assignee}`]
                     .filter(Boolean)
                     .join(" · ");
+                  const phase = completing[activity.id];
+                  const checked = activity.done || phase !== undefined;
                   return (
                     <li
                       key={activity.id}
                       className={cn(
-                        "flex items-center gap-3 px-4 py-3.5 transition-colors duration-200 hover:bg-accent/5",
-                        isOptimistic && "pointer-events-none opacity-60"
+                        "flex max-h-24 items-center gap-3 px-4 py-3.5 transition-[max-height,opacity,transform,padding,background-color] duration-300 hover:bg-accent/5",
+                        isOptimistic && "pointer-events-none opacity-60",
+                        phase && "pointer-events-none",
+                        phase === "leaving" && "max-h-0 translate-x-3 overflow-hidden py-0 opacity-0"
                       )}
                     >
                       <button
                         type="button"
                         role="checkbox"
-                        aria-checked={activity.done}
-                        onClick={() => handleSetDone(activity.id, !activity.done)}
+                        aria-checked={checked}
+                        onClick={() => handleToggleDone(activity)}
                         className={cn(
                           "flex size-5 shrink-0 items-center justify-center rounded-sm border transition-colors",
-                          activity.done ? "border-accent bg-accent text-ink" : "border-divider bg-background"
+                          checked ? "border-accent bg-accent text-ink" : "border-divider bg-background"
                         )}
                       >
-                        {activity.done && <CheckSquare className="size-3.5" />}
+                        {checked && <CheckSquare className="size-3.5" />}
                       </button>
 
                       <button
@@ -307,8 +344,18 @@ export function ActivitiesView({
                         <Icon className="size-4 shrink-0 text-muted-foreground" />
 
                         <div className="min-w-0 flex-1">
-                          <p className={cn("truncate font-medium", activity.done ? "text-muted-foreground line-through" : "text-foreground")}>
-                            {activity.subject}
+                          <p className={cn("font-medium transition-colors duration-500", checked ? "text-muted-foreground" : "text-foreground")}>
+                            {/* The strike is a line that draws left→right (text-decoration can't animate); an
+                                already-done task just shows it fully drawn. Width is the text's, so it never overshoots. */}
+                            <span
+                              className={cn(
+                                "relative block w-fit max-w-full truncate",
+                                "after:absolute after:left-0 after:top-1/2 after:h-px after:w-0 after:bg-current after:transition-[width] after:duration-500 after:content-['']",
+                                checked && "after:w-full"
+                              )}
+                            >
+                              {activity.subject}
+                            </span>
                           </p>
                           {(activity.pipelineItemTitle || context) && (
                             <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
@@ -353,7 +400,11 @@ export function ActivitiesView({
         members={lookups.members}
         pipelineItems={lookups.pipelineItems}
         onOpenChange={(open) => !open && setSelectedId(null)}
-        onSetDone={handleSetDone}
+        onSetDone={(id, done) => {
+          const activity = optimisticActivities.find((a) => a.id === id);
+          if (done && activity) handleToggleDone(activity);
+          else handleSetDone(id, done);
+        }}
       />
     </div>
   );

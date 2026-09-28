@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { Building2, User, ArrowUpRight } from "lucide-react";
 import { useIsMobile } from "@/hooks/ui/use-device";
 import { cn } from "@/lib/utils";
@@ -36,11 +37,17 @@ function DetailBody({
             already sits inside one (see design.md's "Relational pickers"). */}
         <div className="mt-1.5 flex flex-wrap gap-1.5">
           {columns.map((column) => (
-            <button
+            <motion.button
               key={column.id}
               type="button"
               aria-pressed={item.stage === column.id}
               onClick={() => item.stage !== column.id && onMoveStage(item.id, column.id)}
+              // Press: dips on touch. Confirm: the newly selected pill pops once (keyed on selection, so it
+              // plays when the stage actually changes — including when the change is applied optimistically).
+              initial={false}
+              whileTap={{ scale: 0.92 }}
+              animate={item.stage === column.id ? { scale: [1, 1.14, 1] } : { scale: 1 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
               className={cn(
                 "rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
                 item.stage === column.id
@@ -49,7 +56,7 @@ function DetailBody({
               )}
             >
               {column.label}
-            </button>
+            </motion.button>
           ))}
         </div>
       </div>

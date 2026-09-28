@@ -10,7 +10,8 @@ export function Table({ children, className = "" }: TableProps) {
   return (
     <div className={`bg-transparent md:bg-surface md:rounded-lg md:border md:border-divider overflow-hidden ${className}`}>
       <div className="overflow-x-auto">
-        <table className="block md:table w-full text-left text-sm whitespace-nowrap">
+        {/* nowrap only in the real table; in the mobile cards text must wrap, or long values push out of the card. */}
+        <table className="block md:table w-full text-left text-sm whitespace-normal break-words md:whitespace-nowrap md:break-normal">
           {children}
         </table>
       </div>
@@ -62,7 +63,7 @@ type TableRowProps = React.HTMLAttributes<HTMLTableRowElement>;
 export function TableRow({ children, className = "", ...props }: TableRowProps) {
   return (
     <tr
-      className={`block md:table-row bg-surface border border-divider md:border-0 rounded-lg p-4 md:p-0 md:hover:bg-surface-alt/70 transition-colors ${className}`}
+      className={`block md:table-row bg-surface border border-divider md:border-0 rounded-lg p-4 md:p-0 overflow-hidden md:overflow-visible md:hover:bg-surface-alt/70 transition-colors ${className}`}
       {...props}
     >
       {children}
@@ -98,7 +99,7 @@ export function TableCell({
   }
 
   return (
-    <td className={`block md:table-cell py-2.5 md:py-4 md:px-6 ${borderClass} flex justify-between md:justify-start items-center gap-2 ${className}`}>
+    <td className={`block md:table-cell py-2.5 md:py-4 md:px-6 ${borderClass} flex justify-between md:justify-start items-center gap-2 min-w-0 ${className}`}>
       {mobileLabel && (
         <span className="md:hidden text-xs font-bold text-muted-foreground uppercase tracking-wider shrink-0">
           {mobileLabel}
@@ -107,7 +108,8 @@ export function TableCell({
       {noWrapper ? (
         children
       ) : (
-        <div className="flex items-center gap-2">
+        // min-w-0 lets this shrink below its text's width so the text wraps (mobile) instead of overflowing.
+        <div className="flex min-w-0 items-center gap-2 text-right md:text-left">
           {children}
         </div>
       )}
