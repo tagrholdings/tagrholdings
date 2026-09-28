@@ -329,7 +329,7 @@ const SelectItem = React.forwardRef<
                 >)}
             >
                 {children}
-                {isSelected && <CheckIcon className="size-4 text-accent shrink-0" />}
+                {isSelected && <CheckIcon className="size-4 text-accent-text shrink-0" />}
             </button>
         );
     }
@@ -344,7 +344,7 @@ const SelectItem = React.forwardRef<
             )}
             {...props}
         >
-            <span className="absolute right-2 flex size-3.5 items-center justify-center text-accent">
+            <span className="absolute right-2 flex size-3.5 items-center justify-center text-accent-text">
                 <SelectPrimitive.ItemIndicator>
                     <CheckIcon className="size-4" />
                 </SelectPrimitive.ItemIndicator>

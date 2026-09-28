@@ -12,6 +12,7 @@ import { notify } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 import { formatDateUS } from "@/utils/date";
 import { httpUrl } from "../../_components/lead-fields";
+import { FlaggedList } from "../../_components/FlaggedList";
 import { setListingSiteActiveAction } from "@/modules/listing-sites/listing-sites.actions";
 import { needsManualCheck, type ListingSiteSummary } from "@/modules/listing-sites/listing-sites.types";
 import type { ListingSiteStatus } from "@/modules/listing-sites/listing-sites.schema";
@@ -87,14 +88,18 @@ export function ListingSitesView({ sites }: { sites: ListingSiteSummary[] }) {
           <p className="font-medium text-destructive">
             {blocked.length === 1 ? "1 site couldn’t be read by the engine — check it by hand" : `${blocked.length} sites couldn’t be read by the engine — check them by hand`}
           </p>
-          <ul className="mt-2 max-h-24 list-inside list-disc overflow-y-auto text-muted-foreground">
-            {blocked.map((s) => (
-              <li key={s.id}>
-                <span className="font-medium text-foreground">{s.siteName}</span>
-                {s.statusDetail ? ` — ${s.statusDetail}` : ""}
-              </li>
-            ))}
-          </ul>
+          <FlaggedList
+            className="mt-2"
+            items={blocked.map((s) => ({
+              key: s.id,
+              node: (
+                <>
+                  <span className="font-medium text-foreground">{s.siteName}</span>
+                  {s.statusDetail ? ` — ${s.statusDetail}` : ""}
+                </>
+              ),
+            }))}
+          />
         </div>
       </div>
     ) : null;
@@ -152,7 +157,7 @@ export function ListingSitesView({ sites }: { sites: ListingSiteSummary[] }) {
                     <span className="block truncate font-medium text-foreground">{site.siteName}</span>
                     <span className="block text-xs text-muted-foreground">{site.source === "auto_detected" ? "Found by the engine" : "Added by hand"}</span>
                     {url ? (
-                      <a href={url} target="_blank" rel="noopener noreferrer" className="block truncate text-xs text-accent hover:text-accent-hover">
+                      <a href={url} target="_blank" rel="noopener noreferrer" className="block truncate text-xs text-accent-text hover:text-accent-hover">
                         {url.replace(/^https?:\/\//, "")}
                       </a>
                     ) : null}

@@ -304,7 +304,7 @@ function DropdownMenuCheckboxItem({
                 {...(props as Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "onSelect" | "onClick">)}
             >
                 <span className="pointer-events-none absolute left-3 flex size-3.5 items-center justify-center">
-                    {checked === true && <CheckIcon className="size-4 text-accent" />}
+                    {checked === true && <CheckIcon className="size-4 text-accent-text" />}
                 </span>
                 {children}
             </button>
@@ -326,7 +326,7 @@ function DropdownMenuCheckboxItem({
         >
             <span className="pointer-events-none absolute left-2 flex size-3.5 items-center justify-center">
                 <DropdownMenuPrimitive.ItemIndicator>
-                    <CheckIcon className="size-4 text-accent" />
+                    <CheckIcon className="size-4 text-accent-text" />
                 </DropdownMenuPrimitive.ItemIndicator>
             </span>
             {children}
@@ -413,7 +413,7 @@ function DropdownMenuRadioItem({
                 {...(props as Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "onSelect" | "onClick" | "value">)}
             >
                 <span className="pointer-events-none absolute left-3 flex size-3.5 items-center justify-center">
-                    {isSelected && <CircleIcon className="size-2 fill-current text-accent" />}
+                    {isSelected && <CircleIcon className="size-2 fill-current text-accent-text" />}
                 </span>
                 {children}
             </button>
@@ -434,7 +434,7 @@ function DropdownMenuRadioItem({
         >
             <span className="pointer-events-none absolute left-2 flex size-3.5 items-center justify-center">
                 <DropdownMenuPrimitive.ItemIndicator>
-                    <CircleIcon className="size-2 fill-current text-accent" />
+                    <CircleIcon className="size-2 fill-current text-accent-text" />
                 </DropdownMenuPrimitive.ItemIndicator>
             </span>
             {children}

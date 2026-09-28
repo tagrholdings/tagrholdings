@@ -70,7 +70,7 @@ function NextRun({
   const remaining = now === null ? null : nextEngineRunAt(profile, now) - now;
 
   let dot = "bg-green-500";
-  let tone = "text-green-600 dark:text-green-400";
+  let tone = "text-green-800 dark:text-green-400";
   let ping = true;
   let label = "Active";
   let detail: string;
@@ -80,17 +80,17 @@ function NextRun({
     detail = now === null ? "…" : `For ${formatCountdown(now - new Date(liveRun.startedAt ?? liveRun.createdAt).getTime())}`;
   } else if (liveRun) {
     dot = "bg-amber-500";
-    tone = "text-amber-600 dark:text-amber-400";
+    tone = "text-amber-800 dark:text-amber-400";
     label = "Queued on GitHub";
     detail = "Waiting for a runner";
   } else if (queued && githubLive) {
     dot = "bg-amber-500";
-    tone = "text-amber-600 dark:text-amber-400";
+    tone = "text-amber-800 dark:text-amber-400";
     label = "Starting on GitHub…";
     detail = "The run should appear in a few seconds";
   } else if (queued) {
     dot = "bg-amber-500";
-    tone = "text-amber-600 dark:text-amber-400";
+    tone = "text-amber-800 dark:text-amber-400";
     ping = false;
     label = "Queued";
     detail = remaining === null ? "…" : `Waits for the scheduled run · in ${formatCountdown(remaining)}`;

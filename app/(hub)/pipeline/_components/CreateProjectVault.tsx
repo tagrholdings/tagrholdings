@@ -113,7 +113,7 @@ export function CreateProjectVault({
                 <button
                   type="button"
                   onClick={() => append({ label: "" })}
-                  className="text-sm font-medium text-accent transition-colors hover:text-accent-hover"
+                  className="text-sm font-medium text-accent-text transition-colors hover:text-accent-hover"
                 >
                   + Add stage
                 </button>

@@ -12,6 +12,7 @@ import { notify } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 import { formatDateUS } from "@/utils/date";
 import { httpUrl } from "../../_components/lead-fields";
+import { FlaggedList } from "../../_components/FlaggedList";
 import {
   attemptEmailSignupAction,
   deleteEmailSourceAction,
@@ -106,13 +107,17 @@ export function EmailSourcesView({ sources, inboxAddress }: { sources: EmailSour
             The engine doesn&rsquo;t solve captchas, accept NDAs or terms, or make up answers. Open each site below, sign up with the leads inbox address
             {inboxAddress ? <> ({inboxAddress})</> : null}, then click &ldquo;Mark subscribed&rdquo;.
           </p>
-          <ul className="mt-2 max-h-24 list-inside list-disc overflow-y-auto text-muted-foreground">
-            {handoff.map((s) => (
-              <li key={s.id}>
-                <span className="font-medium text-foreground">{s.siteName}</span> — {s.handoffReason}
-              </li>
-            ))}
-          </ul>
+          <FlaggedList
+            className="mt-2"
+            items={handoff.map((s) => ({
+              key: s.id,
+              node: (
+                <>
+                  <span className="font-medium text-foreground">{s.siteName}</span> — {s.handoffReason}
+                </>
+              ),
+            }))}
+          />
         </div>
       </div>
     ) : null;
@@ -191,7 +196,7 @@ export function EmailSourcesView({ sources, inboxAddress }: { sources: EmailSour
                       {source.source === "auto_detected" ? "Found by the engine during a search" : "Added by hand"}
                     </span>
                     {url ? (
-                      <a href={url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="block truncate text-xs text-accent hover:text-accent-hover">
+                      <a href={url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="block truncate text-xs text-accent-text hover:text-accent-hover">
                         {url.replace(/^https?:\/\//, "")}
                       </a>
                     ) : (

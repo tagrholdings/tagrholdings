@@ -15,7 +15,7 @@ import { InviteVault } from "./InviteVault";
 const STATUS: Record<InviteStatus, { label: string; className: string }> = {
   pending: { label: "Pending", className: "bg-accent/15 text-foreground" },
   expired: { label: "Expired", className: "bg-destructive/10 text-destructive" },
-  accepted: { label: "Accepted", className: "bg-green-600/10 text-green-700 dark:text-green-400" },
+  accepted: { label: "Accepted", className: "bg-green-600/10 text-green-800 dark:text-green-400" },
   revoked: { label: "Revoked", className: "bg-muted text-muted-foreground" },
 };
 

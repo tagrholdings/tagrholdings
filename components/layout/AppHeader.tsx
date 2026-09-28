@@ -192,7 +192,7 @@ function DesktopHeader({
         <div className="hidden" />
       )}
       <div className="min-w-0 flex-1">
-        {kicker && <p className="label-kicker text-foreground/50">{kicker}</p>}
+        {kicker && <p className="label-kicker text-muted-foreground">{kicker}</p>}
         <h1 className="truncate font-serif text-xl font-semibold text-foreground">{title}</h1>
       </div>
 

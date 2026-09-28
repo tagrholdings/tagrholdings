@@ -165,7 +165,7 @@ export function CommandSelect({
                   onCreate?.(trimmedQuery);
                   setOpen(false);
                 }}
-                className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm font-medium text-accent transition-colors hover:bg-muted/60"
+                className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm font-medium text-accent-text transition-colors hover:bg-muted/60"
               >
                 <Plus className="size-4 shrink-0" />
                 <span className="min-w-0 truncate">
@@ -212,7 +212,7 @@ function CommandOption({
       )}
     >
       <span className="min-w-0 truncate">{option.label}</span>
-      {active && <Check className="size-4 shrink-0 text-accent" />}
+      {active && <Check className="size-4 shrink-0 text-accent-text" />}
     </button>
   );
 }

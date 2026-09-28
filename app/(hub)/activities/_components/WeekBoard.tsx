@@ -65,7 +65,7 @@ function DayColumn({
   return (
     <div className="flex w-[220px] shrink-0 flex-col bg-surface/50 rounded-lg p-2">
       <div className="mb-3 flex items-center gap-2 px-1">
-        <h3 className={cn("font-serif text-xs font-semibold uppercase tracking-wide", day.isToday ? "text-accent" : "text-foreground")}>
+        <h3 className={cn("font-serif text-xs font-semibold uppercase tracking-wide", day.isToday ? "text-accent-text" : "text-foreground")}>
           {day.label} {day.dayNumber}
         </h3>
         <span className="text-xs text-muted-foreground">{activities.length}</span>

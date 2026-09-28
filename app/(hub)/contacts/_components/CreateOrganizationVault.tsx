@@ -82,7 +82,7 @@ export function CreateOrganizationVault({ variant = "button", onCreated }: Creat
         ) : (
           <button
             type="button"
-            className="flex items-center gap-1 text-xs font-medium text-accent transition-colors hover:text-accent-hover"
+            className="flex items-center gap-1 text-xs font-medium text-accent-text transition-colors hover:text-accent-hover"
           >
             <Plus className="size-3.5" />
             New organization

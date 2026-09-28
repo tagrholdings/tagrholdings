@@ -36,7 +36,7 @@ export function ApplicationPanel() {
         <span
           className={cn(
             "flex size-10 shrink-0 items-center justify-center rounded-full",
-            updateAvailable ? "bg-accent text-ink" : "bg-muted text-green-600 dark:text-green-400"
+            updateAvailable ? "bg-accent text-ink" : "bg-muted text-green-800 dark:text-green-400"
           )}
         >
           {updateAvailable ? <Download className="size-5" aria-hidden /> : <CheckCircle2 className="size-5" aria-hidden />}

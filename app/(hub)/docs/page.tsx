@@ -292,11 +292,11 @@ export default async function DocsPage() {
             <section key={section.id} id={section.id} className="scroll-mt-24 rounded-lg border border-divider bg-surface p-6">
               <div className="flex items-start justify-between gap-3">
                 <h2 className="flex items-center gap-2 font-serif text-xl font-semibold text-foreground">
-                  <section.icon className="size-5 text-accent" />
+                  <section.icon className="size-5 text-accent-text" />
                   {section.title}
                 </h2>
                 {section.href && (
-                  <Link href={section.href} className="flex shrink-0 items-center gap-1 text-sm font-medium text-accent hover:text-accent-hover">
+                  <Link href={section.href} className="flex shrink-0 items-center gap-1 text-sm font-medium text-accent-text hover:text-accent-hover">
                     Open
                     <ArrowUpRight className="size-3.5" />
                   </Link>

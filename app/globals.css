@@ -9,16 +9,20 @@
   --brass: #9c7200; /* exact color sampled from public/brand/LogoBrand-Monocolor.png */
   --brass-light: color-mix(in srgb, var(--brass) 70%, white 30%);
   --slate: #3d4a42;
-  --cream: #f3e7d0;
+  --cream: #f5f2ec;
   --ink: #1b1d1f;
 
   /* — CRM extensions, built from the same palette (not new colors) — */
-  --surface: var(--cream);              /* cards, inputs — lighter than the page background */
+  --surface: #faf8f4;                   /* cards, inputs — lighter than the page background so they lift off it */
   --surface-alt: var(--paper-2);        /* secondary surface, e.g. hovered rows, muted panels */
-  --divider: color-mix(in srgb, var(--ink) 14%, transparent);
-  --accent: var(--brass);
-  --accent-hover: var(--brass-light);
-  --accent-active: color-mix(in srgb, var(--brass) 80%, var(--ink) 20%);
+  --divider: color-mix(in srgb, var(--ink) 22%, transparent);
+  /* Contrast (WCAG AA = 4.5:1 for text). The logo's exact brass (--brass, 3.9:1 with ink or cream text) can't carry
+     text in either color, so UI fills use a slightly lighter gold that gives ink text 4.7:1, and text set IN the accent
+     color on the light page uses the darker --accent-text (5–6:1). --brass itself stays the logo/brand constant. */
+  --accent: #ad7f00;
+  --accent-text: #7a5800;
+  --accent-hover: color-mix(in srgb, var(--accent) 70%, white 30%);
+  --accent-active: color-mix(in srgb, var(--accent) 80%, var(--ink) 20%);
 
   /* Sidebar — always dark, independent of the page's light background */
   --sidebar-bg: var(--ink);
@@ -61,13 +65,13 @@
   --secondary: var(--surface-alt);
   --secondary-foreground: var(--ink);
   --muted: var(--paper-2);
-  --muted-foreground: color-mix(in srgb, var(--ink) 60%, transparent);
+  --muted-foreground: color-mix(in srgb, var(--ink) 70%, transparent);
   --border: var(--divider);
   --input: var(--divider);
   --ring: var(--accent);
   --popover: var(--surface);
   --popover-foreground: var(--ink);
-  --destructive: #a3432f; /* muted brick red, kept in the earthy family */
+  --destructive: #983a28; /* muted brick red, kept in the earthy family; 5:1 even on its own 10% tint */
   --destructive-foreground: #ede8df;
   --success: var(--slate);
   --success-foreground: var(--cream);
@@ -97,6 +101,8 @@
     --sidebar-bg: #1a1b1f;
     --sidebar-hover: color-mix(in srgb, var(--paper) 8%, transparent);
     --sidebar-border: color-mix(in srgb, var(--paper) 10%, transparent);
+    --accent-text: var(--accent);
+    --destructive: #c4634f;
   }
 }
 
@@ -115,6 +121,8 @@
   --sidebar-bg: #1a1b1f;
   --sidebar-hover: color-mix(in srgb, var(--paper) 8%, transparent);
   --sidebar-border: color-mix(in srgb, var(--paper) 10%, transparent);
+  --accent-text: var(--accent);
+  --destructive: #c4634f;
 }
 
 @theme inline {
@@ -134,6 +142,7 @@
   --color-surface-alt: var(--surface-alt);
   --color-divider: var(--divider);
   --color-accent: var(--accent);
+  --color-accent-text: var(--accent-text);
   --color-accent-hover: var(--accent-hover);
   --color-accent-active: var(--accent-active);
   --color-accent-foreground: var(--accent-foreground);

@@ -20,9 +20,9 @@ const STEP_LABELS: Record<string, string> = {
 const isNoise = (step: LiveRunStep) => /^Post /.test(step.name) || step.name === "Complete job";
 
 function StepIcon({ step }: { step: LiveRunStep }) {
-  if (step.status === "in_progress") return <Loader2 className="size-4 animate-spin text-accent" aria-label="Running" />;
+  if (step.status === "in_progress") return <Loader2 className="size-4 animate-spin text-accent-text" aria-label="Running" />;
   if (step.status === "queued") return <Circle className="size-4 text-muted-foreground/50" aria-label="Waiting" />;
-  if (step.conclusion === "success") return <CheckCircle2 className="size-4 text-green-600 dark:text-green-400" aria-label="Done" />;
+  if (step.conclusion === "success") return <CheckCircle2 className="size-4 text-green-800 dark:text-green-400" aria-label="Done" />;
   if (step.conclusion === "skipped") return <MinusCircle className="size-4 text-muted-foreground/60" aria-label="Skipped" />;
   return <XCircle className="size-4 text-destructive" aria-label="Failed" />;
 }
@@ -62,11 +62,11 @@ function RunCard({ run, profileName, now }: { run: LiveRun; profileName: string 
   } else if (run.status === "in_progress") {
     heading = "Running on GitHub";
     detail = `Running for ${formatCountdown(now - began)}`;
-    icon = <Loader2 className="size-5 animate-spin text-accent" aria-hidden />;
+    icon = <Loader2 className="size-5 animate-spin text-accent-text" aria-hidden />;
   } else if (run.conclusion === "success") {
     heading = "Finished";
     detail = `Took ${formatCountdown(ended - began)} · new leads are in the inbox`;
-    icon = <CheckCircle2 className="size-5 text-green-600 dark:text-green-400" aria-hidden />;
+    icon = <CheckCircle2 className="size-5 text-green-800 dark:text-green-400" aria-hidden />;
   } else if (run.conclusion === "cancelled") {
     heading = "Cancelled";
     detail = "The run was stopped before it finished.";
@@ -108,7 +108,7 @@ function RunCard({ run, profileName, now }: { run: LiveRun; profileName: string 
             href={url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex shrink-0 items-center gap-1 text-xs font-medium text-accent hover:text-accent-hover"
+            className="flex shrink-0 items-center gap-1 text-xs font-medium text-accent-text hover:text-accent-hover"
           >
             View on GitHub
             <ExternalLink className="size-3.5" aria-hidden />

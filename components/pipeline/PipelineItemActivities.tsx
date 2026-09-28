@@ -180,7 +180,7 @@ export function PipelineItemActivities({
         <button
           type="button"
           onClick={() => (isMobile ? setSheetOpen(true) : setShowInlineForm((v) => !v))}
-          className="flex items-center gap-1 text-xs font-medium text-accent transition-colors hover:text-accent-hover"
+          className="flex items-center gap-1 text-xs font-medium text-accent-text transition-colors hover:text-accent-hover"
         >
           <Plus className="size-3.5" />
           Add activity

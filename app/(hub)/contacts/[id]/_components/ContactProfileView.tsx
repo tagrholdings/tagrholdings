@@ -266,7 +266,7 @@ export function ContactProfileView({
             contact.organizationId && (
               <Link
                 href={`/contacts?org=${contact.organizationId}`}
-                className="ml-auto flex items-center gap-1 text-xs font-medium text-accent hover:text-accent-hover"
+                className="ml-auto flex items-center gap-1 text-xs font-medium text-accent-text hover:text-accent-hover"
               >
                 View organization
                 <ArrowUpRight className="size-3" />

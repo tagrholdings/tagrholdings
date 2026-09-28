@@ -142,13 +142,13 @@ const EmptyResults: React.FC<EmptyResultsProps> = ({
       animate="visible"
       className={className}
     >
-      <Empty className="border-none py-8 text-accent/85">
+      <Empty className="border-none py-8 text-accent-text/85">
         <EmptyHeader>
           <motion.div variants={iconVariants}>
             <EmptyMedia className="w-24 h-24 mb-2">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="h-full w-full text-accent/50"
+                className="h-full w-full text-accent-text/50"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"

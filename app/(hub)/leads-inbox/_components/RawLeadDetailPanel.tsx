@@ -184,7 +184,7 @@ function DetailBody({ lead }: { lead: RawLeadSummary }) {
             href={sourceUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 font-medium text-accent hover:text-accent-hover"
+            className="inline-flex items-center gap-1 font-medium text-accent-text hover:text-accent-hover"
           >
             View original listing
             <ArrowUpRight className="size-3" />

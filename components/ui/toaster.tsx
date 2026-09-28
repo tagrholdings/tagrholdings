@@ -84,7 +84,7 @@ const VARIANT_STYLES: Record<ToastVariant, { wrapper: string; icon: typeof Check
   info: {
     wrapper: "bg-surface border-divider",
     icon: Info,
-    iconColor: "text-accent",
+    iconColor: "text-accent-text",
   },
 };
 
