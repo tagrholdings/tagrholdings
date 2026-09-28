@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { ChevronLeft, ChevronRight, Settings } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS, isNavItemActive } from "@/lib/navigation";
 import { AnimatedWaves } from "@/components/shared/animated-waves";
@@ -148,17 +148,6 @@ export function Sidebar({
             </div>
             {!collapsed && <span className="flex-1 truncate text-sm">{user.name}</span>}
           </div>
-          <Link
-            href="/settings"
-            title={collapsed ? "Settings" : undefined}
-            className={cn(
-              "mt-1 flex items-center rounded-md py-2 text-sm text-sidebar-foreground-muted transition-colors hover:bg-sidebar-hover hover:text-sidebar-foreground",
-              collapsed ? "justify-center px-0" : "gap-3 px-2"
-            )}
-          >
-            <Settings className="size-4 shrink-0" aria-hidden />
-            {!collapsed && "Settings"}
-          </Link>
         </div>
       </div>
     </aside>

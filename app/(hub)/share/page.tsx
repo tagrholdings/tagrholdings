@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 /**
  * Web Share Target landing (app/manifest.ts → share_target, method GET): what the phone's "Share…" sheet sends
  * when someone picks the installed CRM. It ingests nothing itself — it only turns the shared title/text/url into
- * the value to pre-fill in the Leads Inbox quick-add box (the ONE ingestion flow) and sends the person there to
+ * the value to pre-fill in the Leads Inbox "Add lead" Vault (the ONE ingestion flow) and sends the person there to
  * confirm with "Add".
  *
  * A signed-out visitor is sent to sign-in first (getCurrentUser redirects), which drops the shared data — the

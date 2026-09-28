@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 import { formatDateUS } from "@/utils/date";
 import { runSearchProfileNowAction, updateSearchProfileAction } from "@/modules/search-profiles/search-profiles.actions";
 import { formatUsdCompact } from "@/modules/search-profiles/fit";
+import { formatCountdown, nextEngineRunAt } from "@/modules/search-profiles/schedule";
+import { useNow } from "@/hooks/ui/use-now";
 import type { ProfileSources, QualificationCriteria } from "@/modules/search-profiles/search-profiles.schema";
 import type { SearchProfileSummary } from "@/modules/search-profiles/search-profiles.types";
 import { SearchProfileVault } from "./SearchProfileVault";
@@ -36,6 +38,30 @@ function criteriaSummary(c: QualificationCriteria | null): string | null {
     c.signalKeywords?.length ? `signals: ${c.signalKeywords.join(", ")}` : null,
   ].filter(Boolean);
   return parts.length ? parts.join(" · ") : null;
+}
+
+/**
+ * Green live dot + countdown to the engine tick that will run this profile (see schedule.ts).
+ * "Active" means scheduled, not mid-run: the engine is a job that starts on a cron, so the
+ * profile is only actually running for a few minutes around each tick.
+ */
+function NextRun({ profile, queued }: { profile: SearchProfileSummary; queued: boolean }) {
+  const now = useNow();
+  const remaining = now === null ? null : nextEngineRunAt(profile, now) - now;
+  return (
+    <div className="min-w-0 text-right md:text-left">
+      <span className="flex items-center justify-end gap-1.5 text-sm font-medium text-green-600 md:justify-start dark:text-green-400">
+        <span className="relative flex size-2 shrink-0" aria-hidden>
+          <span className="absolute inline-flex size-full animate-ping rounded-full bg-green-500 opacity-60" />
+          <span className="relative inline-flex size-2 rounded-full bg-green-500" />
+        </span>
+        Active
+      </span>
+      <span className="block text-xs tabular-nums text-muted-foreground">
+        {remaining === null ? "…" : `${queued ? "Queued · starts" : "Next run"} in ${formatCountdown(remaining)}`}
+      </span>
+    </div>
+  );
 }
 
 export function ProfilesView({ profiles }: { profiles: SearchProfileSummary[] }) {
@@ -129,6 +155,7 @@ export function ProfilesView({ profiles }: { profiles: SearchProfileSummary[] })
             <TableHead>Sources</TableHead>
             <TableHead>Cap / frequency</TableHead>
             <TableHead>Last run</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead>
               <span className="sr-only">Actions</span>
             </TableHead>
@@ -167,6 +194,9 @@ export function ProfilesView({ profiles }: { profiles: SearchProfileSummary[] })
                 </TableCell>
                 <TableCell mobileLabel="Last run" className="text-muted-foreground">
                   {profile.lastRunAt ? formatDateUS(profile.lastRunAt, { month: "short", day: "numeric" }) : "Never"}
+                </TableCell>
+                <TableCell mobileLabel="Status" noWrapper={active} className="text-muted-foreground">
+                  {active ? <NextRun profile={profile} queued={queued} /> : "Paused"}
                 </TableCell>
                 <TableCell hideBorderMobile className="md:justify-end">
                   <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>

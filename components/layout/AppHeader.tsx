@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Search } from "lucide-react";
+import { ChevronLeft, Search, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { authClient } from "@/lib/auth-client";
 import { notify } from "@/components/ui/toaster";
@@ -74,6 +74,26 @@ function useDefaultSignOut() {
   };
 }
 
+/** The avatar dropdown's body — shared by the mobile and desktop headers so the two can't drift apart. */
+function AccountMenuContent({ userName, onSignOut }: { userName: string; onSignOut?: () => void }) {
+  const router = useRouter();
+  return (
+    <DropdownMenuContent align="end">
+      <DropdownMenuLabel>{userName}</DropdownMenuLabel>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem>Profile</DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => router.push("/settings")}>
+        <Settings className="size-4" aria-hidden />
+        Settings
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem variant="destructive" onSelect={onSignOut}>
+        Sign out
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  );
+}
+
 function MobileHeader({
   title,
   backHref,
@@ -119,14 +139,7 @@ function MobileHeader({
             {user.initials}
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuLabel>{user.name}</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem>Profile</DropdownMenuItem>
-          <DropdownMenuItem variant="destructive" onSelect={onSignOut}>
-            Sign out
-          </DropdownMenuItem>
-        </DropdownMenuContent>
+        <AccountMenuContent userName={user.name} onSignOut={onSignOut} />
       </DropdownMenu>
     </header>
   );
@@ -191,14 +204,7 @@ function DesktopHeader({
             {user.initials}
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuLabel>{user.name}</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem>Profile</DropdownMenuItem>
-          <DropdownMenuItem variant="destructive" onSelect={onSignOut}>
-            Sign out
-          </DropdownMenuItem>
-        </DropdownMenuContent>
+        <AccountMenuContent userName={user.name} onSignOut={onSignOut} />
       </DropdownMenu>
     </header>
   );

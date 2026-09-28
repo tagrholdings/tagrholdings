@@ -6,7 +6,6 @@ const TABS = [
   { id: "profiles", label: "Search profiles", href: "/leads-inbox/profiles" },
   { id: "listing-sites", label: "Listing sites", href: "/leads-inbox/listing-sites" },
   { id: "email-sources", label: "Email sources", href: "/leads-inbox/email-sources" },
-  { id: "spend", label: "Engine spend", href: "/leads-inbox/spend" },
 ] as const;
 
 export type LeadsInboxTab = (typeof TABS)[number]["id"];

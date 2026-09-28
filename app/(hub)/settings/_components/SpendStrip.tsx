@@ -14,7 +14,7 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
 /**
  * Headline spend numbers. Amounts are the engine's estimates at list price
  * (see lead-engine.schema.ts); the `hint` under the total keeps that visible.
- * Shown at the top of the "Engine spend" tab only — the Inbox stays a clean queue.
+ * Shown at the top of the Engine spend report in Settings only — the Inbox stays a clean queue.
  */
 export function SpendStrip({ totals }: { totals: SpendTotals }) {
   return (

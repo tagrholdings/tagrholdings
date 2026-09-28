@@ -46,7 +46,7 @@ export function RawLeadsView({
 }: {
   leads: RawLeadSummary[];
   initialSelectedId: string | null;
-  /** Text pre-filled into the quick-add box (from the PWA share target: /leads-inbox?add=…). */
+  /** Text pre-filled into the Add lead Vault, which opens with it (from the PWA share target: /leads-inbox?add=…). */
   initialAdd: string;
 }) {
   const [filter, setFilter] = useState<RawLeadStatus>("new");
@@ -143,7 +143,7 @@ export function RawLeadsView({
   if (leads.length === 0 && pending.length === 0) {
     return (
       <div className="flex min-w-0 flex-1 flex-col gap-4">
-        {quickAdd}
+        <div className="flex">{quickAdd}</div>
         <Empty>
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -151,7 +151,7 @@ export function RawLeadsView({
             </EmptyMedia>
             <EmptyTitle>No discovered leads yet</EmptyTitle>
             <EmptyDescription>
-              The lead engine searches on a schedule using your search profiles and drops what it finds here for review. You can also add one by hand above.
+              The lead engine searches on a schedule using your search profiles and drops what it finds here for review. You can also add one by hand with “Add lead”.
             </EmptyDescription>
           </EmptyHeader>
           <Button render={<Link href="/leads-inbox/profiles" />}>
@@ -167,13 +167,13 @@ export function RawLeadsView({
     // Flex row so the detail panel pushes the table instead of overlaying it — see side-panel.tsx.
     <div className="flex min-w-0 flex-1 gap-4">
       <div className="flex min-w-0 flex-1 flex-col gap-4">
-        {quickAdd}
         <div className="sticky top-14 z-10 flex flex-wrap items-center gap-2 bg-background pb-4 pt-2">
           <SegmentedControl
             value={filter}
             onChange={changeFilter}
             options={FILTERS.map((f) => ({ value: f.value, label: `${f.label} ${counts[f.value] + (f.value === "new" ? pending.length : 0)}` }))}
           />
+          {quickAdd}
           <SearchInput
             placeholder="Filter by name, industry or city"
             value={search}

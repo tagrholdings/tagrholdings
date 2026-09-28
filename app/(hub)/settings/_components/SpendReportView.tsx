@@ -6,7 +6,7 @@ import { formatCount, formatUsd } from "@/utils/money";
 import { OPERATION_LABELS, PROVIDER_LABELS } from "@/modules/lead-engine/lead-engine.constants";
 import type { UsageProvider } from "@/modules/lead-engine/lead-engine.schema";
 import type { RunRow, SpendReport } from "@/modules/lead-engine/lead-engine.types";
-import { SpendStrip } from "../../_components/SpendStrip";
+import { SpendStrip } from "./SpendStrip";
 
 const RUN_STATUS_LABELS: Record<RunRow["status"], string> = {
   running: "Running",

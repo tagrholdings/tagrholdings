@@ -41,7 +41,7 @@ const SECTIONS: DocSection[] = [
     summary:
       "The review queue for everything the lead engine discovered. Nothing here is a real lead yet — it's a candidate waiting for your decision. The number on the sidebar item is how many are still unreviewed.",
     controls: [
-      ["Paste a link or text (top)", "Adds a lead by hand: paste a link (the CRM opens the page and reads it) or paste the text of a listing, then press Add (or Enter). The new lead shows up immediately as “Reading and extracting details…” and fills in when the AI step finishes. If a site blocks the CRM from reading the page, the link is still saved and you're told to paste the page's text instead."],
+      ["Add lead (next to New / Added / Dismissed)", "Opens a window to add a lead by hand: paste a link (the CRM opens the page and reads it) or paste the text of a listing, then press Add (or Enter). The new lead shows up immediately as “Reading and extracting details…” and fills in when the AI step finishes. If a site blocks the CRM from reading the page, the link is still saved and you're told to paste the page's text instead."],
       ["New / Added / Dismissed", "Filters the queue. New = not reviewed yet. Added = you sent it to the pipeline. Dismissed = you archived it. The number on each is how many are in it."],
       ["Search", "Filters by business name, industry or city."],
       ["Fit / Best fit", "When a search profile has qualification criteria, each lead it found gets a badge: Match, Partial, Miss or Unknown, and “Best fit” sorts the best first. Nothing is ever hidden or deleted for missing a criterion — a figure the source didn't state counts as Unknown, not a miss."],
@@ -52,10 +52,10 @@ const SECTIONS: DocSection[] = [
       ["View original listing", "Opens the page (Google Maps, the search result or the marketplace listing) the engine found it on."],
     ],
     tips: [
-      "What the engine has cost so far is on the Engine spend tab, not on this page — that tab has the totals and the full breakdown.",
+      "What the engine has cost so far is under Settings → Engine spend, not on this page — that has the totals and the full breakdown.",
       "The list shows 10 leads per page; use Previous / Next under the table. Changing the tab, the search or the sort takes you back to page 1.",
       "A candidate can show fewer details than another — the engine only fills in what the source actually said. Empty means unknown, never a guess.",
-      "Leads reach the inbox three ways: the engine's scheduled searches, you adding one by hand (the box at the top, the phone's Share button, or the ingest API), and listing emails sent to the leads inbox. The Source column says which.",
+      "Leads reach the inbox three ways: the engine's scheduled searches, you adding one by hand (the Add lead button, the phone's Share button, or the ingest API), and listing emails sent to the leads inbox. The Source column says which.",
       "On an Android phone with the CRM installed, Share → TAGR CRM from any page opens the inbox with that link already in the box. (iPhones don't support this.)",
     ],
   },
@@ -159,7 +159,7 @@ const SECTIONS: DocSection[] = [
   {
     id: "engine-spend",
     title: "Engine spend",
-    href: "/leads-inbox/spend",
+    href: "/settings",
     icon: Coins,
     summary:
       "What the lead engine has cost, in US dollars, itemized: which service (Google Places, Brave Search, Google Geocoding, OpenAI, Resend for inbound email), for what kind of call, how many calls, how many AI tokens, and which search profile and run caused it. Leads you add by hand and listing emails don't belong to a profile, so they appear as their own line, “Manual & email leads”.",
@@ -204,7 +204,7 @@ const SECTIONS: DocSection[] = [
       ["Extraction", "The AI step that reads messy text and fills the structured fields. It reports; it does not score or rank."],
     ],
     tips: [
-      "Not everything comes from the scheduled searches: you can add a lead by hand (the box at the top of the Leads Inbox, or a link/text shared from your phone), and emails sent to the leads inbox become leads automatically. All of them go through the same AI extraction and are tracked on the same spend page.",
+      "Not everything comes from the scheduled searches: you can add a lead by hand (the Add lead button in the Leads Inbox, or a link/text shared from your phone), and emails sent to the leads inbox become leads automatically. All of them go through the same AI extraction and are tracked on the same spend page.",
       "Subscribing to a listing site is a separate step from receiving its emails — see Email sources. The engine can fill in a signup form (your name, phone and company where it asks) only where there's no captcha and nothing to accept but marketing emails; every other site is flagged on the Email sources screen for you to do by hand. It never marks a site subscribed itself: the site's confirmation email does that.",
       "What is deliberately not built yet: scoring or ranking leads with AI, merging the same business found by two different sources, splitting a multi-listing email into one lead per listing, and drafting outreach. The qualification criteria on a search profile (revenue, profit, size, signal keywords) already flag each lead Match / Partial / Miss / Unknown, but nothing is ever discarded for missing them.",
       "Nothing shows up? Check, in order: the profile is Active; it has at least one source that finds businesses; “Last run” isn't recent (the profile may simply not be due — its “run every” time hasn't passed); the latest run on Engine spend isn't Failed; and, for the Brave Search source, that a Brave API key is configured for the engine (a run whose only source is unconfigured shows it as a note and finds nothing).",
