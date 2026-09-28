@@ -159,7 +159,7 @@ const SECTIONS: DocSection[] = [
   {
     id: "engine-spend",
     title: "Engine spend",
-    href: "/settings",
+    href: "/settings/engine-spend",
     icon: Coins,
     summary:
       "What the lead engine has cost, in US dollars, itemized: which service (Google Places, Brave Search, Google Geocoding, OpenAI, Resend for inbound email), for what kind of call, how many calls, how many AI tokens, and which search profile and run caused it. Leads you add by hand and listing emails don't belong to a profile, so they appear as their own line, “Manual & email leads”.",

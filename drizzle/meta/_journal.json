@@ -127,6 +127,13 @@
       "when": 1790004936167,
       "tag": "0017_portal_access_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790604785100,
+      "tag": "0018_push_notifications",
+      "breakpoints": true
     }
   ]
 }

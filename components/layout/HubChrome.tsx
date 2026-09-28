@@ -10,6 +10,7 @@ import {
   SIDEBAR_GAP,
 } from "./Sidebar";
 import { BottomNav } from "./BottomNav";
+import { PushSoundListener } from "@/components/notifications/PushSoundListener";
 import { useSidebarCollapsed } from "@/hooks/ui/use-sidebar-collapsed";
 
 const CONTENT_OFFSET_EXPANDED = SIDEBAR_WIDTH_EXPANDED + SIDEBAR_INSET + SIDEBAR_GAP;
@@ -54,6 +55,7 @@ export function HubChrome({ user, activeHref, badges, children }: HubChromeProps
       </div>
 
       <BottomNav activeHref={activeHref} badges={badges} />
+      <PushSoundListener />
     </div>
   );
 }

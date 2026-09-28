@@ -1,0 +1,45 @@
+name: Task reminders
+
+# Sends the push reminders for tasks that just came due ("Enable notification" on a task).
+#
+# The CRM can't wake itself up, so this pings its cron endpoint every 5 minutes. The endpoint is idempotent —
+# each reminder is claimed atomically and sent once — so overlapping or repeated runs are harmless.
+#
+# GitHub's scheduler is best-effort: a tick can start several minutes late, so a reminder may arrive a little
+# after the due time. For minute-accurate delivery use Vercel Cron (Pro plan) instead — it can call the same URL
+# with the same `Authorization: Bearer <CRON_SECRET>` header — and delete this workflow.
+#
+# Required repository secrets (Settings → Secrets and variables → Actions):
+#   CRON_SECRET   the same value as the CRM's CRON_SECRET env var (Vercel → Production)
+#   APP_URL       the CRM's origin, e.g. https://crm.tagrholdings.com (no trailing slash)
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: task-reminders
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Call the reminders endpoint
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ secrets.APP_URL }}
+        run: |
+          if [ -z "$CRON_SECRET" ] || [ -z "$APP_URL" ]; then
+            echo "CRON_SECRET and APP_URL must be set as repository secrets." >&2
+            exit 1
+          fi
+          curl --fail-with-body --silent --show-error --max-time 60 \
+            --request POST \
+            --header "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/cron/task-reminders"
+          echo

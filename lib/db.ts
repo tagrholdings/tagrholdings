@@ -14,6 +14,7 @@ import * as emailSourcesSchema from "@/modules/email-sources/email-sources.schem
 import * as listingSitesSchema from "@/modules/listing-sites/listing-sites.schema";
 import * as rateLimitSchema from "@/modules/rate-limit/rate-limit.schema";
 import * as portalAccessSchema from "@/modules/portal-access/portal-access.schema";
+import * as notificationsSchema from "@/modules/notifications/notifications.schema";
 
 const schema = {
   ...tenancySchema,
@@ -28,6 +29,7 @@ const schema = {
   ...listingSitesSchema,
   ...rateLimitSchema,
   ...portalAccessSchema,
+  ...notificationsSchema,
 };
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL! });

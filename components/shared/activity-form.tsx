@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { Controller, type UseFormReturn } from "react-hook-form";
 import { z } from "zod";
-import { Phone, Users, CheckSquare, Mail, Repeat, ChevronDown } from "lucide-react";
+import { Phone, Users, CheckSquare, Mail, Repeat, ChevronDown, Bell } from "lucide-react";
 import { VaultField, VaultInput } from "@/components/ui/vault";
 import type { PipelineItemSummary } from "@/components/pipeline/types";
 import { CommandSelect } from "@/components/shared/command-select";
@@ -18,6 +18,17 @@ import {
   type ActivityRow,
   type NewActivity,
 } from "@/modules/activities/activities.types";
+
+const noopSubscribe = () => () => {};
+
+/** The browser's notification permission, or null while rendering on the server (so hydration never mismatches). */
+function useNotificationPermission(): NotificationPermission | "unsupported" | null {
+  return useSyncExternalStore(
+    noopSubscribe,
+    () => (typeof Notification === "undefined" ? "unsupported" : Notification.permission),
+    () => null
+  );
+}
 
 export const ACTIVITY_TYPE_ICONS: Record<string, typeof Phone> = {
   call: Phone,
@@ -47,6 +58,8 @@ export const activityFormSchema = z.object({
   contactId: z.string().optional(),
   organizationId: z.string().optional(),
   pipelineItemId: z.string().optional(),
+  /** "Enable notification" — a push reminder at the due time. Only meaningful with a due date AND time. */
+  notify: z.boolean().optional(),
 });
 
 export type ActivityFormValues = z.infer<typeof activityFormSchema>;
@@ -64,6 +77,7 @@ export function activityFormDefaults(overrides: Partial<ActivityFormValues> = {}
     contactId: undefined,
     organizationId: undefined,
     pipelineItemId: undefined,
+    notify: false,
     ...overrides,
   };
 }
@@ -81,6 +95,8 @@ export function toNewActivity(values: ActivityFormValues): NewActivity {
     pipelineItemId: values.pipelineItemId || undefined,
     assignedToUserId: assignedKind === "user" ? assignedId : undefined,
     assignedToContactId: assignedKind === "contact" ? assignedId : undefined,
+    // A reminder needs an exact moment: if the time was cleared after ticking the box, it's dropped rather than sent at midnight.
+    notify: values.notify && values.dueDate && values.dueTime ? true : undefined,
   };
 }
 
@@ -112,6 +128,7 @@ export function buildOptimisticActivity(input: NewActivity, lookups: ActivityLoo
     assignedToUserId: input.assignedToUserId ?? null,
     assignedToContactId: input.assignedToContactId ?? null,
     assignedToContactName: nameOf(lookups.contacts, input.assignedToContactId),
+    notify: input.notify ?? false,
   };
 }
 
@@ -174,6 +191,9 @@ export function ActivityFormFields({ form, lookups, showPipelineItem = true, col
   const { register, control, watch, formState: { errors } } = form;
   const [showExtras, setShowExtras] = useState(!collapsibleExtras);
   const selectedType = watch("type");
+  const [dueDate, dueTime, notifyChecked] = watch(["dueDate", "dueTime", "notify"]);
+  const canNotify = !!dueDate && !!dueTime;
+  const permission = useNotificationPermission();
 
   return (
     <div className="space-y-4">
@@ -203,6 +223,23 @@ export function ActivityFormFields({ form, lookups, showPipelineItem = true, col
           <VaultInput type="time" {...register("dueTime")} />
         </VaultField>
       </div>
+
+      <label className={cn("flex items-start gap-3 text-sm", canNotify ? "cursor-pointer" : "cursor-not-allowed opacity-60")}>
+        <input type="checkbox" disabled={!canNotify} className="mt-0.5 size-4 shrink-0 accent-[var(--accent)]" {...register("notify")} />
+        <span>
+          <span className="flex items-center gap-1.5 font-medium text-foreground">
+            <Bell className="size-3.5" aria-hidden />
+            Enable notification
+          </span>
+          <span className="block text-xs text-muted-foreground">
+            {!canNotify
+              ? "Set a due date and time to get a reminder."
+              : notifyChecked && permission !== null && permission !== "granted"
+                ? "Push is off on this device — turn it on in Settings → Notifications to receive it."
+                : "Get a push notification with a sound when it's due."}
+          </span>
+        </span>
+      </label>
 
       <VaultField label="Priority">
         <Controller

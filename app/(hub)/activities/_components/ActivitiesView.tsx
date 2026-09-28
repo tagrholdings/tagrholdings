@@ -1,7 +1,7 @@
 "use client";
 
 import { useOptimistic, useState, useTransition } from "react";
-import { CheckSquare, ChevronLeft, ChevronRight, LayoutGrid, Link2, List, ListChecks } from "lucide-react";
+import { Bell, CheckSquare, ChevronLeft, ChevronRight, LayoutGrid, Link2, List, ListChecks } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { dueBucket, formatDateUS, getCurrentWeekDays, type DueBucket } from "@/utils/date";
 import { useIsMobile } from "@/hooks/ui/use-device";
@@ -382,7 +382,8 @@ export function ActivitiesView({
                           </span>
                         )}
 
-                        <span className={cn("label-kicker shrink-0", overdue ? "text-destructive" : "text-muted-foreground")}>
+                        <span className={cn("label-kicker flex shrink-0 items-center gap-1", overdue ? "text-destructive" : "text-muted-foreground")}>
+                          {activity.notify && !activity.done && <Bell className="size-3" aria-label="Notification on" />}
                           {activity.dueDate ? formatDateUS(activity.dueDate, { month: "short", day: "numeric" }) : "No date"}
                         </span>
                       </button>

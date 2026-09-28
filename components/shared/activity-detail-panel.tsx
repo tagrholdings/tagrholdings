@@ -52,6 +52,12 @@ function DetailBody({
             <span>{formatDateTimeUS(activity.dueDate)}</span>
           </div>
         )}
+        {activity.notify && (
+          <div className="flex items-center justify-between text-foreground">
+            <span className="text-muted-foreground">Notification</span>
+            <span>Push reminder at the due time</span>
+          </div>
+        )}
         <div className="flex items-center justify-between text-foreground">
           <span className="text-muted-foreground">Created</span>
           <span>{formatDateTimeUS(activity.createdAt)}</span>

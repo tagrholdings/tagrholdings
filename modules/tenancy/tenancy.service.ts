@@ -15,6 +15,10 @@ export const tenancyService = {
     return !!(await tenancyRepository.findTenantById(tenantId));
   },
 
+  async listTenantIds() {
+    return tenancyRepository.findAllTenantIds();
+  },
+
   async isMember(tenantId: string, userId: string) {
     return !!(await tenancyRepository.findMember(tenantId, userId));
   },

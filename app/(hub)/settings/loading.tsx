@@ -1,7 +1,8 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { HubLoading } from "@/components/layout/HubLoading";
 
-export default function EngineSpendLoading() {
+/** Fallback for the Settings tabs that don't have their own (Engine spend); Notifications has its own. */
+export default function SettingsLoading() {
   return (
     <HubLoading>
       <Skeleton className="h-9 w-72" />

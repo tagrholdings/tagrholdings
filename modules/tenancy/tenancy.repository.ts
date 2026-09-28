@@ -25,6 +25,12 @@ export const tenancyRepository = {
     });
   },
 
+  /** Every tenant — for background jobs that sweep all workspaces (there is no session/tenant to start from). */
+  async findAllTenantIds() {
+    const rows = await db.select({ id: tenantsTable.id }).from(tenantsTable);
+    return rows.map((row) => row.id);
+  },
+
   async findTenantBySlug(slug: string) {
     return db.query.tenantsTable.findFirst({
       where: eq(tenantsTable.slug, slug),

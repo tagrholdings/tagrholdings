@@ -72,6 +72,6 @@ export default function proxy(request: NextRequest) {
 // redirect target. Add any new top-level public/ entry here.
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|pwa-icons/|brand/|browserconfig.xml).*)",
+    "/((?!_next/static|_next/image|favicon.ico|sw.js|pwa-icons/|brand/|browserconfig.xml).*)",
   ],
 };

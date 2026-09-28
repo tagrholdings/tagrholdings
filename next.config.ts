@@ -29,10 +29,26 @@ const securityHeaders = [
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), browsing-topics=()" },
 ];
 
+// Identifies this deployment. The installed app compares the id it loaded with the one /api/version reports
+// from the live server to tell "a newer version is out" (Settings → Application). Vercel supplies the commit
+// on every deploy; locally there is no such thing as a newer deployment, so it stays a constant.
+const buildId = process.env.VERCEL_GIT_COMMIT_SHA?.trim().slice(0, 12) || "development";
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  env: { NEXT_PUBLIC_BUILD_ID: buildId },
   async headers() {
-    return [{ source: "/(.*)", headers: securityHeaders }];
+    return [
+      { source: "/(.*)", headers: securityHeaders },
+      {
+        // The push service worker: never cached, so an update reaches every browser on its next visit.
+        source: "/sw.js",
+        headers: [
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+        ],
+      },
+    ];
   },
 };
 

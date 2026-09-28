@@ -1,5 +1,5 @@
 import { withTenant } from "@/lib/db";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull, lte } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { activitiesTable } from "./activities.schema";
 import { contactsTable } from "@/modules/contacts/contacts.schema";
@@ -29,6 +29,7 @@ const withRelationsSelection = {
   assignedToUserId: activitiesTable.assignedToUserId,
   assignedToContactId: activitiesTable.assignedToContactId,
   assignedToContactName: assignedContactsTable.name,
+  notify: activitiesTable.notify,
   createdAt: activitiesTable.createdAt,
 };
 
@@ -83,10 +84,41 @@ export const activitiesRepository = {
     const [row] = await withTenant(tenantId, (tx) =>
       tx
         .update(activitiesTable)
-        .set({ [field]: date, updatedAt: new Date() })
+        // A moved due date is a new deadline: its reminder may fire again.
+        .set({ [field]: date, ...(field === "dueDate" ? { notifiedAt: null } : {}), updatedAt: new Date() })
         .where(and(eq(activitiesTable.tenantId, tenantId), eq(activitiesTable.id, id)))
         .returning()
     );
     return row;
+  },
+
+  /**
+   * Atomically takes the reminders that are due — open, `notify` on, not yet sent, due between `since` and `now` —
+   * and stamps them as sent, so two overlapping job runs can never both send the same one. Reminders older than
+   * `since` are skipped for good (a job that was down for days shouldn't fire a burst of stale alerts).
+   */
+  async claimDueReminders(tenantId: string, now: Date, since: Date) {
+    return withTenant(tenantId, (tx) =>
+      tx
+        .update(activitiesTable)
+        .set({ notifiedAt: now })
+        .where(
+          and(
+            eq(activitiesTable.tenantId, tenantId),
+            eq(activitiesTable.notify, true),
+            eq(activitiesTable.done, false),
+            isNull(activitiesTable.notifiedAt),
+            lte(activitiesTable.dueDate, now),
+            gt(activitiesTable.dueDate, since)
+          )
+        )
+        .returning({
+          id: activitiesTable.id,
+          type: activitiesTable.type,
+          subject: activitiesTable.subject,
+          dueDate: activitiesTable.dueDate,
+          assignedToUserId: activitiesTable.assignedToUserId,
+        })
+    );
   },
 };

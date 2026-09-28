@@ -28,6 +28,7 @@ export const createActivitySchema = insertActivitySchema
     pipelineItemId: true,
     assignedToUserId: true,
     assignedToContactId: true,
+    notify: true,
   })
   .extend({
     type: z.enum(ACTIVITY_TYPES),
@@ -36,6 +37,10 @@ export const createActivitySchema = insertActivitySchema
   .refine((data) => !(data.assignedToUserId && data.assignedToContactId), {
     message: "Assign to either a team member or a contact, not both.",
     path: ["assignedToUserId"],
+  })
+  .refine((data) => !data.notify || !!data.dueDate, {
+    message: "A notification needs a due date and time.",
+    path: ["notify"],
   });
 
 export type NewActivity = z.infer<typeof createActivitySchema>;
@@ -73,4 +78,6 @@ export interface ActivityRow {
   assignedToUserId: string | null;
   assignedToContactId: string | null;
   assignedToContactName: string | null;
+  /** A push reminder is set for the due date/time. */
+  notify: boolean;
 }

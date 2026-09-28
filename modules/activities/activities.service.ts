@@ -3,6 +3,8 @@ import { tenancyService } from "@/modules/tenancy/tenancy.service";
 import { activitiesRepository } from "./activities.repository";
 import type { NewActivity } from "./activities.types";
 
+const REMINDER_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
 export const activitiesService = {
   async listForTenant(tenantId: string) {
     return activitiesRepository.findAllWithRelations(tenantId);
@@ -24,6 +26,11 @@ export const activitiesService = {
       throw new UserFacingError("Activity not found.");
     }
     return updated;
+  },
+
+  /** Reminders due now, marked as sent. Anything more than a day overdue is dropped rather than sent late. */
+  async claimDueReminders(tenantId: string, now: Date = new Date()) {
+    return activitiesRepository.claimDueReminders(tenantId, now, new Date(now.getTime() - REMINDER_MAX_AGE_MS));
   },
 
   async unlinkPipelineItems(tenantId: string, pipelineItemIds: string[]) {

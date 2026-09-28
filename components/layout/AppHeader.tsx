@@ -81,7 +81,7 @@ function AccountMenuContent({ user, onSignOut }: { user: AppHeaderUser; onSignOu
     <DropdownMenuContent align="end" className="min-w-56">
       {/* Who's signed in: the same avatar as the trigger + the name, left-aligned like the rows below. */}
       <DropdownMenuLabel className="flex items-center gap-3 px-3 py-2 text-foreground">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">{user.initials}</span>
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-background/50 text-xs font-semibold">{user.initials}</span>
         <span className="min-w-0">
           <span className="block truncate text-sm font-semibold">{user.name}</span>
           <span className="block text-xs font-normal text-muted-foreground">Signed in</span>
