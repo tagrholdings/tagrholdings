@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Mono, Public_Sans, Source_Serif_4 } from "next/font/google";
 import { Toaster } from "@/components/ui/toaster";
+import { THEME_COLORS } from "@/lib/theme-colors";
 import "./globals.css";
 
 const publicSans = Public_Sans({
@@ -63,27 +64,33 @@ export const metadata: Metadata = {
 // `viewportFit: "cover"` is what makes `env(safe-area-inset-*)` resolve to a
 // real value instead of 0 — BottomNav's bottom offset and Vault's mobile
 // sheet padding both rely on it once installed on a device with a
-// notch/home-indicator (iPhone) or gesture bar (Android). `themeColor`
-// matches Sidebar/BottomNav's `--ink` background (see design.md — it's a
-// brand constant, not theme-flipped) so the OS status bar/task-switcher
-// chrome blends with the app's own dark nav instead of showing a seam.
+// notch/home-indicator (iPhone) or gesture bar (Android).
+//
+// No `themeColor` here on purpose: it would render a fixed meta tag, but the
+// chrome color has to follow the active theme (which the user can flip at any
+// time). The <meta name="theme-color"> is rendered by hand in <head> below and
+// kept in sync by the script + use-theme.ts — see lib/theme-colors.ts.
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#131417",
 };
 
 // Runs before hydration so the correct theme is already on <html> for first
 // paint — without this, the page would flash light before use-theme.ts's
 // effect runs. Kept inline (not an external script) specifically so it
-// blocks rendering instead of loading async.
+// blocks rendering instead of loading async. It also points the theme-color
+// meta at the resolved theme's color (the colors are injected from the one
+// shared constant, so the script can never drift from use-theme.ts).
 const THEME_INIT_SCRIPT = `
 (function () {
   try {
+    var colors = ${JSON.stringify(THEME_COLORS)};
     var stored = localStorage.getItem("tagr-theme");
     var theme = stored || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
     document.documentElement.setAttribute("data-theme", theme);
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta && colors[theme]) meta.setAttribute("content", colors[theme]);
   } catch (e) {}
 })();
 `;
@@ -101,6 +108,8 @@ export default function RootLayout({
       className={`${publicSans.variable} ${sourceSerif.variable} ${ibmPlexMono.variable} h-full antialiased`}
     >
       <head>
+        {/* The prop stays constant, so React never rewrites it — the script and the theme hook own the live value. */}
+        <meta name="theme-color" content={THEME_COLORS.dark} />
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className="min-h-full flex flex-col">

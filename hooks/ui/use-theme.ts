@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useSyncExternalStore } from "react";
+import { applyThemeColor } from "@/lib/theme-colors";
 
 const STORAGE_KEY = "tagr-theme";
 export type Theme = "light" | "dark";
@@ -38,6 +39,7 @@ export function useTheme() {
 
   const setTheme = useCallback((value: Theme) => {
     document.documentElement.setAttribute("data-theme", value);
+    applyThemeColor(value);
     try {
       window.localStorage.setItem(STORAGE_KEY, value);
     } catch {
