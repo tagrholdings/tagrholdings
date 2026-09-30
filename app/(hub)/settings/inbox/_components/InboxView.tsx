@@ -20,25 +20,9 @@ export function InboxView({ emails, inboxAddress }: { emails: ReceivedEmail[]; i
   const [openId, setOpenId] = useState<string | null>(null);
   const opened = emails.find((e) => e.emailId === openId) ?? null;
 
-  const address = inboxAddress ? (
-    <strong className="break-all text-foreground">{inboxAddress}</strong>
-  ) : (
-    "the leads inbox address (set INBOUND_LEADS_ADDRESS)"
-  );
-
-  const intro = (
-    <div className="rounded-lg border border-divider bg-surface p-4 text-sm text-muted-foreground">
-      <p>
-        Every email sent to {address} shows up here. The AI reads each one and pulls out the businesses for sale it lists; each business also becomes a lead in the
-        Leads Inbox. Emails from a site you signed up to (see Email sources) arrive on their own — you can also forward a listing email yourself.
-      </p>
-    </div>
-  );
-
   if (emails.length === 0) {
     return (
       <div className="flex min-w-0 flex-1 flex-col gap-4">
-        {intro}
         <Empty>
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -57,7 +41,6 @@ export function InboxView({ emails, inboxAddress }: { emails: ReceivedEmail[]; i
 
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-4">
-      {intro}
       <Table>
         <TableHeader>
           <tr>

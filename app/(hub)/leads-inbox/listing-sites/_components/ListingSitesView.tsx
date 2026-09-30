@@ -75,21 +75,6 @@ export function ListingSitesView({ sites }: { sites: ListingSiteSummary[] }) {
     />
   );
 
-  const intro = (
-    <div className="shrink-0 rounded-lg border border-divider bg-surface p-4 text-sm text-muted-foreground">
-      <p>
-        These are the <strong className="text-foreground">business brokers</strong> the engine reads for businesses that are for sale. It finds them on its own
-        (about once a week, using the industries in your search profiles and the state) and opens each one&rsquo;s &ldquo;buy a business&rdquo; pages, the way you
-        would by hand. You can add one yourself, or ignore one you don&rsquo;t want.
-      </p>
-      <p className="mt-2">
-        Some sites turn away automatic visitors (they show an &ldquo;are you human?&rdquo; check, or ask robots to stay out). The engine never tries to get around
-        that: the site is flagged here so you can open it yourself — and if it has an email list for new listings, add it under Email sources so those emails reach
-        the inbox. Click a status to see what happened and what you can do.
-      </p>
-    </div>
-  );
-
   const blocked = sites.filter(needsManualCheck);
   const banner =
     blocked.length > 0 ? (
@@ -118,7 +103,6 @@ export function ListingSitesView({ sites }: { sites: ListingSiteSummary[] }) {
   if (sites.length === 0) {
     return (
       <div className="flex min-w-0 flex-1 flex-col gap-4">
-        {intro}
         <Empty>
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -141,7 +125,6 @@ export function ListingSitesView({ sites }: { sites: ListingSiteSummary[] }) {
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
       {banner}
-      {intro}
       <div className="flex shrink-0 justify-end">{addButton}</div>
 
       <div ref={fitRef} className="flex min-h-0 flex-1 flex-col gap-4 md:overflow-hidden">

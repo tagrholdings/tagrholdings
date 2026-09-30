@@ -122,30 +122,9 @@ export function EmailSourcesView({ sources, inboxAddress }: { sources: EmailSour
       </div>
     ) : null;
 
-  const intro = (
-    <div className="shrink-0 rounded-lg border border-divider bg-surface p-4 text-sm text-muted-foreground">
-      <p>
-        Some listing sites only send their listings by <strong className="text-foreground">email</strong>. List them here and point their signup at the leads inbox
-        {inboxAddress ? (
-          <>
-            {" "}
-            (<span className="font-medium text-foreground">{inboxAddress}</span>)
-          </>
-        ) : null}
-        : every email that arrives there is read automatically and becomes a lead in the Inbox.
-      </p>
-      <p className="mt-2">
-        Signing up is a separate step from receiving. Where a site&rsquo;s form has no captcha, the engine can fill it in for you (give it the two selectors) —
-        including your name, phone and company when the form asks. Sites with a captcha, or that want an NDA, terms or an account, are flagged here for you to do by hand. When the site sends its &ldquo;confirm your subscription&rdquo; email, the CRM clicks the link for you and marks the site
-        subscribed.
-      </p>
-    </div>
-  );
-
   if (sources.length === 0) {
     return (
       <div className="flex min-w-0 flex-1 flex-col gap-4">
-        {intro}
         <Empty>
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -166,7 +145,6 @@ export function EmailSourcesView({ sources, inboxAddress }: { sources: EmailSour
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
       {handoffBanner}
-      {intro}
       <div className="flex shrink-0 justify-end">{addButton}</div>
 
       <div ref={fitRef} className="flex min-h-0 flex-1 flex-col gap-4 md:overflow-hidden">

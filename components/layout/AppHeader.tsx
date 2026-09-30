@@ -10,6 +10,7 @@ import { notify } from "@/components/ui/toaster";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { PageHelp } from "./PageHelp";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -39,6 +40,8 @@ interface AppHeaderProps {
   primaryAction?: AppHeaderAction;
   user: AppHeaderUser;
   onSignOut?: () => void;
+  /** The leads inbox address, shown in the help text of the pages that mention it. */
+  inboxAddress?: string | null;
   /**
    * Forces a single rendering regardless of viewport — only meant for
    * previews/demos embedded in a fixed-size frame. Leave unset in real
@@ -113,6 +116,7 @@ function MobileHeader({
   primaryAction,
   user,
   onSignOut,
+  inboxAddress,
   className,
 }: AppHeaderProps & { className?: string }) {
   return (
@@ -141,6 +145,7 @@ function MobileHeader({
           {primaryAction.label}
         </Button>
       )}
+      <PageHelp inboxAddress={inboxAddress ?? null} />
       <ThemeToggle />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -165,6 +170,7 @@ function DesktopHeader({
   primaryAction,
   user,
   onSignOut,
+  inboxAddress,
   className,
   backHref
 }: AppHeaderProps & { className?: string }) {
@@ -209,6 +215,7 @@ function DesktopHeader({
         </Button>
       )}
 
+      <PageHelp inboxAddress={inboxAddress ?? null} />
       <ThemeToggle className="hover:bg-muted" />
 
       <DropdownMenu>
