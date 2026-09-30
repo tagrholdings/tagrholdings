@@ -26,6 +26,7 @@ Project: internal CRM for Tagr Holdings (Phoenix, AZ), with a planned future mul
 10. **NEVER** `fetch("/api/auth/...")` directly from the frontend. Use Server Actions via `authClient`.
 11. **NEVER** manage complex form state manually with `useState`. Use **React Hook Form** + **Zod** for validation and consistency. (Tip: use `z.input<typeof schema>` to export form types and avoid errors with `.default()` fields.)
 12. **NEVER** run a Repository or Service query without filtering by `tenantId`. This is the multi-tenant isolation rule — a query missing this filter is a data-leak bug between companies (Tagr vs. future Menlo Group units). Tenant tables are also protected by Postgres RLS + composite `(tenant_id, x_id)` foreign keys, which only apply when the query runs inside `withTenant()` — see `.agents/docs/TENANCY.md`.
+13. **NEVER** add or change a page under `app/(hub)` without updating `components/layout/page-help.ts` in the same change. Every page MUST have an entry there (what it is, what it's for) AND a guided tour of at least one step; every tour step's `target` MUST exist as a `data-tour="…"` attribute (or a `tourId` prop) on the element it points at, and no `data-tour` may be left orphaned. `components/layout/page-help.test.ts` enforces all three and fails `npm test` otherwise. Renaming or removing a control that a tour points at is the same change as updating its step.
 
 ---
 

@@ -143,7 +143,7 @@ export function ProjectsView({
             archived toggle and "New project"), wrapping pushed the board
             itself below the fold on mobile. "Manage" stays outside the
             scroller so it's always reachable without scrolling past the tabs. */}
-        <div className="no-scrollbar flex min-w-0 flex-1 items-center gap-2 overflow-x-auto pb-0.5">
+        <div data-tour="projects-board" className="no-scrollbar flex min-w-0 flex-1 items-center gap-2 overflow-x-auto pb-0.5">
           {visibleBoards.map((board) => (
             <button
               key={board.id}

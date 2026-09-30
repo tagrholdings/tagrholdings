@@ -41,7 +41,7 @@ export function InboxView({ emails, inboxAddress }: { emails: ReceivedEmail[]; i
 
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-4">
-      <Table>
+      <Table data-tour="inbox-table">
         <TableHeader>
           <tr>
             <TableHead>Email</TableHead>

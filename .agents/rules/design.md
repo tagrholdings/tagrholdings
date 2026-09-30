@@ -255,6 +255,17 @@ Every mutation (moving a kanban card, marking an activity done, editing a contac
 
 Every list/table/board needs a designed empty state (dashed border, muted centered text, e.g. "+ Add", or a short explanatory line for a completely empty section like a brand-new tenant's pipeline) — never a bare "no items found" or, worse, nothing at all. This applies equally to the mobile List view and bottom-sheet Vaults.
 
+## Page help and guided tours
+
+Every page under `app/(hub)` carries its own explanation and a guided tour, both declared in `components/layout/page-help.ts` — pages never hand-roll their own help panel or "intro card" (the three that used to exist were removed when this landed). Enforced by `components/layout/page-help.test.ts`; see anti-pattern 13 in AGENTS.md.
+
+- **The (?) button** (`components/layout/PageHelp.tsx`) sits in `AppHeader` next to the theme toggle, on both the mobile and desktop headers. It opens a Vault with the page's `summary` and `sections`, plus a **"Show me around this page"** button.
+- **The tour** (`components/layout/tour/`) dims the screen, cuts a hole around one element at a time (SVG mask, brass `--accent` outline — the one place an overlay outlines content) and explains it. The engine is ours, not a library: ~2 files, no new dependency, and the geometry is pure and unit-tested (`tour-geometry.ts`).
+- **Anchors are `data-tour="kebab-name"` attributes** on the element itself. A shared component that several pages point at takes a `tourId` prop instead of hard-coding one (`LinkTabs`, `SegmentedControl`, `CreateActivityVault`, `CreateContactVault`) so each usage names itself. Never anchor a tour to a CSS class or a DOM position — those move.
+- **Steps degrade, never break**: a step whose element isn't on the page right now (an empty table, a banner that isn't showing) is skipped at runtime, so a tour still works on an empty page. `only: "desktop" | "mobile"` limits a step to one viewport — used for `nav-sidebar` vs `nav-bottom`.
+- **Desktop vs mobile**: on desktop the card floats beside the highlighted element (below → above → right → left, first side that fits, always clamped on screen). On mobile there is no room to float, so it is a full-width card pinned to the bottom — moving to the top when the highlighted element is in the lower half. Both follow the element through scrolling, including inside a panel that scrolls on its own.
+- Every tour ends on the `header-help` step, so the user learns where to find this again.
+
 ## PWA / mobile installability
 
 - `app/manifest.ts` (Next.js's typed manifest route) declares the app name ("Tagr CRM"), short name, `display: "standalone"`, theme/background colors matching `--ink`/`--background`, and icons (including a maskable icon) — this is what makes "Add to Home Screen" produce an app-like standalone window instead of opening a browser tab.

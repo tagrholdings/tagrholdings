@@ -140,7 +140,7 @@ export function ContactsView({
     return counts;
   }, [optimisticState, pipelineItems]);
 
-  const createContactVault = <CreateContactVault organizations={organizations} onCreateOrganization={createOrganization} />;
+  const createContactVault = <CreateContactVault tourId="contacts-create" organizations={organizations} onCreateOrganization={createOrganization} />;
   // A separate standalone entry point, not nested inside CreateContactVault's own
   // Vault — CreateOrganizationVault is itself a Vault, and nesting one Drawer
   // inside another breaks (see design.md's "Relational pickers" section; the
@@ -186,6 +186,7 @@ export function ContactsView({
       <div className="flex min-w-0 flex-1 flex-col gap-4">
         <div className="sticky top-14 z-10 md:top-20 flex flex-wrap items-center gap-2 bg-background pb-4 pt-4">
           <SegmentedControl
+            tourId="contacts-tabs"
             value={tab}
             onChange={setTab}
             options={[
@@ -216,6 +217,7 @@ export function ContactsView({
           </div>
         </div>
 
+        <div data-tour="contacts-table" className="flex min-h-0 flex-1 flex-col">
         {tab === "people" ? (
           filteredContacts.length === 0 ? (
             <Empty>
@@ -305,6 +307,7 @@ export function ContactsView({
             </TableBody>
           </Table>
         )}
+        </div>
       </div>
 
       <ContactDetailPanel

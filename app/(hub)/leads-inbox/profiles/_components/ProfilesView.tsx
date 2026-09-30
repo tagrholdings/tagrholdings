@@ -183,7 +183,7 @@ export function ProfilesView({ profiles }: { profiles: SearchProfileSummary[] })
   const paged = paginate(profiles, page, pageSize);
 
   const createButton = (
-    <Button onClick={() => setEditing(null)}>
+    <Button data-tour="profiles-create" onClick={() => setEditing(null)}>
       <Plus />
       New profile
     </Button>
@@ -224,7 +224,7 @@ export function ProfilesView({ profiles }: { profiles: SearchProfileSummary[] })
       <LiveRunSection runs={runs} profileNames={profileNames} />
 
       <div ref={fitRef} className="flex min-h-0 flex-1 flex-col gap-4 md:overflow-hidden">
-      <Table className="md:min-h-0 md:overflow-y-auto">
+      <Table data-tour="profiles-table" className="md:min-h-0 md:overflow-y-auto">
         <TableHeader>
           <tr>
             <TableHead>Profile</TableHead>

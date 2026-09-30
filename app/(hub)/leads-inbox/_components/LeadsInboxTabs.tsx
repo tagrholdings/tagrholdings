@@ -11,5 +11,5 @@ export type LeadsInboxTab = (typeof TABS)[number]["id"];
 
 /** Sub-navigation for the lead engine's screens — see LinkTabs. */
 export function LeadsInboxTabs({ active }: { active: LeadsInboxTab }) {
-  return <LinkTabs label="Lead engine" tabs={TABS} active={active} />;
+  return <LinkTabs label="Lead engine" tabs={TABS} active={active} tourId="leads-inbox-tabs" />;
 }

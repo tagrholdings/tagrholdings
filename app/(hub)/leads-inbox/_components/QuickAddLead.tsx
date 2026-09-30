@@ -85,7 +85,7 @@ export function QuickAddLead({
 
   return (
     <>
-      <Button onClick={() => setOpen(true)}>
+      <Button data-tour="leads-inbox-add" onClick={() => setOpen(true)}>
         <Plus />
         Add lead
       </Button>

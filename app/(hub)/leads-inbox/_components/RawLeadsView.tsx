@@ -199,7 +199,7 @@ export function RawLeadsView({
     <div className="flex min-h-0 min-w-0 flex-1 gap-4">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
         {/* Sticky only where the page scrolls (phones); on desktop the page is one screen tall. */}
-        <div className="sticky top-14 z-10 flex shrink-0 flex-wrap items-center gap-2 bg-background pb-4 pt-2 md:static md:pb-0 md:pt-0">
+        <div data-tour="leads-inbox-filters" className="sticky top-14 z-10 flex shrink-0 flex-wrap items-center gap-2 bg-background pb-4 pt-2 md:static md:pb-0 md:pt-0">
           <SegmentedControl
             value={filter}
             onChange={changeFilter}
@@ -237,7 +237,7 @@ export function RawLeadsView({
             <EmptyTitle className="text-sm">{query || cutoff !== null ? "No leads match these filters" : EMPTY_COPY[filter]}</EmptyTitle>
           </Empty>
         ) : (
-          <div ref={fitRef} className="flex min-h-0 flex-1 scroll-mt-32 flex-col gap-4 md:overflow-hidden">
+          <div ref={fitRef} data-tour="leads-inbox-table" className="flex min-h-0 flex-1 scroll-mt-32 flex-col gap-4 md:overflow-hidden">
           <Table className="md:min-h-0 md:overflow-y-auto">
             <TableHeader>
               <tr>

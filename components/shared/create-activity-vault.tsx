@@ -45,7 +45,11 @@ export function CreateActivityVault({
   pipelineItems = [],
   members = [],
   onCreate,
-}: CreateActivityVaultProps) {
+  tourId,
+}: CreateActivityVaultProps & {
+  /** `data-tour` name for the trigger button (see components/layout/page-help.ts). */
+  tourId?: string;
+}) {
   const [open, setOpen] = useState(false);
   const form = useForm<ActivityFormValues>({
     resolver: zodResolver(activityFormSchema),
@@ -74,7 +78,7 @@ export function CreateActivityVault({
   return (
     <Vault open={open} onOpenChange={setOpen}>
       <VaultTrigger asChild>
-        <Button>
+        <Button data-tour={tourId}>
           <Plus />
           New
         </Button>

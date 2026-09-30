@@ -35,7 +35,7 @@ export function InvitesView({ invites }: { invites: InviteSummary[] }) {
   }
 
   const inviteButton = (
-    <Button onClick={() => setInviting(true)}>
+    <Button data-tour="invites-create" onClick={() => setInviting(true)}>
       <MailPlus />
       Invite someone
     </Button>
@@ -66,7 +66,7 @@ export function InvitesView({ invites }: { invites: InviteSummary[] }) {
     <div className="flex min-w-0 flex-1 flex-col gap-4">
       <div className="flex justify-end">{inviteButton}</div>
 
-      <Table>
+      <Table data-tour="invites-table">
         <TableHeader>
           <tr>
             <TableHead>Email</TableHead>

@@ -22,14 +22,17 @@ export function SegmentedControl<T extends string>({
   onChange,
   options,
   className,
+  tourId,
 }: {
   value: T;
   onChange: (value: T) => void;
   options: SegmentedControlOption<T>[];
   className?: string;
+  /** `data-tour` name, so a guided tour can point at this control (see components/layout/page-help.ts). */
+  tourId?: string;
 }) {
   return (
-    <div className={cn("inline-flex h-9 shrink-0 items-center rounded-md border border-divider bg-surface p-0.5", className)}>
+    <div data-tour={tourId} className={cn("inline-flex h-9 shrink-0 items-center rounded-md border border-divider bg-surface p-0.5", className)}>
       {options.map((option) => {
         const Icon = option.icon;
         const active = option.value === value;

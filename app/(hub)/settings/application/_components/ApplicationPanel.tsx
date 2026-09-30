@@ -16,7 +16,7 @@ export function ApplicationPanel() {
 
   if (!standalone) {
     return (
-      <section className="flex max-w-2xl items-start gap-4 rounded-lg border border-divider bg-surface p-5">
+      <section data-tour="application-install" className="flex max-w-2xl items-start gap-4 rounded-lg border border-divider bg-surface p-5">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-foreground">
           <Smartphone className="size-5" aria-hidden />
         </span>
@@ -31,7 +31,7 @@ export function ApplicationPanel() {
   }
 
   return (
-    <section className="max-w-2xl rounded-lg border border-divider bg-surface p-5">
+    <section data-tour="application-version" className="max-w-2xl rounded-lg border border-divider bg-surface p-5">
       <div className="flex items-start gap-4">
         <span
           className={cn(

@@ -35,10 +35,13 @@ type FormValues = z.infer<typeof formSchema>;
 export function CreateContactVault({
   organizations,
   onCreateOrganization,
+  tourId,
 }: {
   organizations: { id: string; name: string }[];
   /** Creates an organization from the picker's "Create …" row and resolves with its id. */
   onCreateOrganization: (name: string) => Promise<string | null>;
+  /** `data-tour` name for the trigger button (see components/layout/page-help.ts). */
+  tourId?: string;
 }) {
   const [open, setOpen] = useState(false);
   const { register, control, trigger, getValues, setValue, reset, formState: { errors } } = useForm<FormValues>({
@@ -67,7 +70,7 @@ export function CreateContactVault({
   return (
     <Vault open={open} onOpenChange={setOpen}>
       <VaultTrigger asChild>
-        <Button>
+        <Button data-tour={tourId}>
           <Plus />
           New
         </Button>

@@ -138,6 +138,7 @@ export function PipelineView({
           />
 
           <SegmentedControl
+            tourId="pipeline-view"
             value={resolvedView}
             onChange={setView}
             options={[
@@ -155,6 +156,7 @@ export function PipelineView({
           />
         </div>
 
+        <div data-tour="pipeline-board" className="flex min-h-0 flex-1 flex-col">
         {optimisticItems.length === 0 ? (
           <Empty className="border border-dashed border-divider">
             <EmptyHeader>
@@ -176,6 +178,7 @@ export function PipelineView({
         ) : (
           <PipelineListView columns={board.columns} items={filteredItems} progressByItem={progressByItem} onSelect={setSelectedId} />
         )}
+        </div>
       </div>
 
       <PipelineItemDetail

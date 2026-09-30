@@ -12,9 +12,20 @@ export interface LinkTab<Id extends string = string> {
  * SegmentedControl — so it stays a Server Component. Labels never wrap: when the tabs don't fit the
  * screen the strip scrolls sideways instead of squeezing them into two-line pills.
  */
-export function LinkTabs<Id extends string>({ label, tabs, active }: { label: string; tabs: readonly LinkTab<Id>[]; active: Id }) {
+export function LinkTabs<Id extends string>({
+  label,
+  tabs,
+  active,
+  tourId,
+}: {
+  label: string;
+  tabs: readonly LinkTab<Id>[];
+  active: Id;
+  /** `data-tour` name, so a guided tour can point at this particular tab strip (see components/layout/page-help.ts). */
+  tourId?: string;
+}) {
   return (
-    <nav aria-label={label} className="no-scrollbar -mb-2 flex max-w-full overflow-x-auto">
+    <nav aria-label={label} data-tour={tourId} className="no-scrollbar -mb-2 flex max-w-full overflow-x-auto">
       <div className="inline-flex h-9 shrink-0 items-center rounded-md border border-divider bg-surface p-0.5">
         {tabs.map((tab) => (
           <Link

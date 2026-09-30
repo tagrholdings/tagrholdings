@@ -15,9 +15,9 @@ const RUN_STATUS_LABELS: Record<RunRow["status"], string> = {
   failed: "Failed",
 };
 
-function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
+function Section({ title, description, children, tourId }: { title: string; description?: string; children: React.ReactNode; tourId?: string }) {
   return (
-    <section className="rounded-lg border border-divider bg-surface p-5">
+    <section data-tour={tourId} className="rounded-lg border border-divider bg-surface p-5">
       <h2 className="font-serif text-lg font-semibold text-foreground">{title}</h2>
       {description && <p className="mt-1 max-w-prose text-sm text-muted-foreground">{description}</p>}
       <div className="mt-4">{children}</div>
@@ -111,7 +111,7 @@ export function SpendReportView({ report }: { report: SpendReport }) {
         allowances or credits, so your actual invoice can be lower — check Google Cloud Billing, the Brave Search API dashboard, the OpenAI usage page and your Resend plan (received emails count toward its monthly quota; there is no separate per-email price) for the real figures.
       </p>
 
-      <Section title="By service" description="Which provider the money went to.">
+      <Section tourId="spend-summary" title="By service" description="Which provider the money went to.">
         <ul className="space-y-3">
           {providers.map(([provider, value]) => (
             <li key={provider} className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1.5 sm:grid-cols-[14rem_1fr_auto]">
@@ -204,7 +204,7 @@ export function SpendReportView({ report }: { report: SpendReport }) {
       )}
 
       {runs.length > 0 && (
-        <Section title="Recent runs" description="The last runs of the engine and what each one cost.">
+        <Section tourId="spend-runs" title="Recent runs" description="The last runs of the engine and what each one cost.">
           <ScrollTable>
             <table className="w-full min-w-[48rem]">
               <thead className="border-b border-divider">

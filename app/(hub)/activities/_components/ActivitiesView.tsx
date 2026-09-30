@@ -192,7 +192,7 @@ export function ActivitiesView({
     // an activity's detail panel push/shrink the content instead of overlaying it.
     <div className="flex min-w-0 flex-1 gap-4">
       <div className="flex min-w-0 flex-1 flex-col gap-4">
-        <div className="flex flex-wrap items-center gap-2">
+        <div data-tour="activities-filters" className="flex flex-wrap items-center gap-2">
           <SearchInput
             placeholder="Filter by title, contact, lead or project"
             value={search}
@@ -251,6 +251,7 @@ export function ActivitiesView({
           />
 
           <CreateActivityVault
+            tourId="activities-create"
             contacts={lookups.contacts}
             organizations={lookups.organizations}
             pipelineItems={lookups.pipelineItems}
@@ -259,6 +260,7 @@ export function ActivitiesView({
           />
         </div>
 
+        <div data-tour="activities-list" className="flex min-h-0 flex-1 flex-col gap-4">
         {optimisticActivities.length === 0 ? (
           <Empty className="border border-dashed border-divider">
             <EmptyHeader>
@@ -394,6 +396,7 @@ export function ActivitiesView({
             )}
           </>
         )}
+        </div>
       </div>
 
       <ActivityDetailPanel

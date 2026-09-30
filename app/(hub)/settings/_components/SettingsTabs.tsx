@@ -11,5 +11,5 @@ const TABS = [
 export type SettingsTab = (typeof TABS)[number]["id"];
 
 export function SettingsTabs({ active }: { active: SettingsTab }) {
-  return <LinkTabs label="Settings" tabs={TABS} active={active} />;
+  return <LinkTabs label="Settings" tabs={TABS} active={active} tourId="settings-tabs" />;
 }

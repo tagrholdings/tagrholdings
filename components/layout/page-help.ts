@@ -1,7 +1,14 @@
 /**
- * The text behind the (?) button in the header: one entry per page, in plain words for someone new to the CRM.
- * Matching is by the longest route prefix, so /contacts/123 uses the /contacts entry and a page without an entry
- * simply shows no help button. Kept as data (not JSX) so it is cheap to edit and to test.
+ * The text behind the (?) button in the header: one entry per page, in plain words for someone new to the CRM,
+ * plus the guided tour ("Show me") that walks through that page's important parts.
+ *
+ * EVERY page under `app/(hub)` must have an entry here, with at least one tour step — `page-help.test.ts` fails the
+ * build otherwise, and also checks that every `target` below exists as a `data-tour="…"` attribute in the code (and
+ * that no `data-tour` is orphaned). When you add, rename or remove a page or one of its main controls, update this
+ * file in the same change.
+ *
+ * Matching is by the longest route prefix, so /contacts/123 uses the /contacts entry. Kept as data (not JSX) so it
+ * is cheap to edit and to test.
  */
 export interface PageHelpSection {
   heading: string;
@@ -9,11 +16,25 @@ export interface PageHelpSection {
   body: string | string[];
 }
 
+export interface TourStep {
+  /**
+   * The `data-tour` attribute of the element to highlight. Empty/omitted = a centred card with no spotlight.
+   * A step whose element isn't on the page right now (an empty table, a banner that isn't showing) is skipped at
+   * runtime, so a tour still works on an empty page.
+   */
+  target?: string;
+  title: string;
+  text: string;
+  /** Limits the step to one viewport — for controls that only exist there (the sidebar, the bottom nav). */
+  only?: "desktop" | "mobile";
+}
+
 export interface PageHelp {
   title: string;
   /** One sentence: what this page is. */
   summary: string;
   sections: PageHelpSection[];
+  tour: TourStep[];
 }
 
 interface HelpContext {
@@ -25,6 +46,13 @@ interface Entry {
   path: string;
   build: (ctx: HelpContext) => PageHelp;
 }
+
+/** Closing step, shared by every tour: how to get back to this help. */
+const HELP_AGAIN: TourStep = {
+  target: "header-help",
+  title: "Need this again?",
+  text: "This button explains whatever page you are on, and starts this tour again. Nothing here changes your data.",
+};
 
 const ENTRIES: Entry[] = [
   {
@@ -54,6 +82,41 @@ const ENTRIES: Entry[] = [
           ],
         },
       ],
+      tour: [
+        {
+          target: "nav-sidebar",
+          only: "desktop",
+          title: "Getting around",
+          text: "Everything starts here: the Leads Inbox for new finds, Leads for deals you are working, and Settings at the bottom.",
+        },
+        {
+          target: "nav-bottom",
+          only: "mobile",
+          title: "Getting around",
+          text: "These icons switch between the main parts of the CRM: the inbox of new finds, the leads you are working, and more.",
+        },
+        {
+          target: "leads-inbox-tabs",
+          title: "The lead engine's pages",
+          text: "Inbox is this list. Search profiles says what to look for and where; Listing sites and Email sources are where the businesses for sale come from.",
+        },
+        {
+          target: "leads-inbox-table",
+          title: "What the engine found",
+          text: "One row per business. The badges tell you how well it matches your requirements and whether it is really in your area — neither ever hides a lead.",
+        },
+        {
+          target: "leads-inbox-filters",
+          title: "Narrowing the list",
+          text: "Show only what is new, search by name or city, and sort the best matches first.",
+        },
+        {
+          target: "leads-inbox-add",
+          title: "Something you found yourself",
+          text: "Paste a link or some text and it is added as a lead, read by the AI like any other. On your phone you can also share a page straight into the CRM.",
+        },
+        HELP_AGAIN,
+      ],
     }),
   },
   {
@@ -80,6 +143,24 @@ const ENTRIES: Entry[] = [
           body: "Each run has a cap on new leads, and every paid call is logged under Settings → Engine spend.",
         },
       ],
+      tour: [
+        {
+          target: "profiles-create",
+          title: "Start with a profile",
+          text: "A profile is a saved search: the industries you want to buy, the city and radius, and how often to look. This is where you tell the engine what to do.",
+        },
+        {
+          target: "profiles-table",
+          title: "Your profiles",
+          text: "Each row shows the area, the sources it uses and when it last ran. Turn one off and the engine skips it without losing anything.",
+        },
+        {
+          target: "profiles-table",
+          title: "Run now",
+          text: "Each row has a Run now button that starts a search immediately instead of waiting for the schedule — handy right after you change a profile.",
+        },
+        HELP_AGAIN,
+      ],
     }),
   },
   {
@@ -105,6 +186,29 @@ const ENTRIES: Entry[] = [
           body: "Some sites turn away automatic visitors (they show an “are you human?” check, or ask robots to stay out). The engine never tries to get around that. The site is flagged so you can open it yourself — and if it has an email list for new listings, add it under Email sources so those emails reach the inbox.",
         },
       ],
+      tour: [
+        {
+          target: "listing-sites-table",
+          title: "The brokers the engine reads",
+          text: "The engine finds these on its own, then opens each one's “buy a business” page the way you would by hand.",
+        },
+        {
+          target: "listing-sites-table",
+          title: "What happened with each site",
+          text: "The status says how the last visit went. Click it and a window explains, in plain words, what happened and what you can do about it.",
+        },
+        {
+          target: "listing-sites-flagged",
+          title: "Sites that need you",
+          text: "These turn away automatic visitors. The engine never forces its way in, so open them yourself — or sign up for their listing emails under Email sources.",
+        },
+        {
+          target: "listing-sites-add",
+          title: "Add a broker yourself",
+          text: "Know a broker the engine missed? Add its address here. If you already know the page that lists the businesses, paste that too.",
+        },
+        HELP_AGAIN,
+      ],
     }),
   },
   {
@@ -128,6 +232,24 @@ const ENTRIES: Entry[] = [
           body: "When the site sends its “confirm your subscription” email, the CRM clicks the link for you and marks the site as subscribed. If you signed up by hand, use Mark subscribed.",
         },
       ],
+      tour: [
+        {
+          target: "email-sources-add",
+          title: "Sites that deliver by email",
+          text: "Some brokers never let a program read their site, but will happily email you new listings. Add those sites here.",
+        },
+        {
+          target: "email-sources-table",
+          title: "Who is subscribed",
+          text: "Each row shows whether the inbox is signed up yet. Where the form is simple, the engine can fill it in for you; otherwise it asks you to do it by hand.",
+        },
+        {
+          target: "email-sources-flagged",
+          title: "Sign-ups that need you",
+          text: "A form with a captcha, an NDA or an account can't be filled in automatically. Open the page, sign up with the inbox address, then use Mark subscribed.",
+        },
+        HELP_AGAIN,
+      ],
     }),
   },
   {
@@ -149,6 +271,19 @@ const ENTRIES: Entry[] = [
           ],
         },
       ],
+      tour: [
+        {
+          target: "pipeline-board",
+          title: "Your deals, stage by stage",
+          text: "Every lead you promoted from the inbox lands here. Drag a card to the next column as the conversation with the seller moves forward.",
+        },
+        {
+          target: "pipeline-view",
+          title: "Board or list",
+          text: "The board is good for seeing where everything stands; the list is better for sorting and scanning a lot of leads at once.",
+        },
+        HELP_AGAIN,
+      ],
     }),
   },
   {
@@ -166,6 +301,19 @@ const ENTRIES: Entry[] = [
           body: ["Create a board and choose its stages.", "Drag cards between stages.", "Attach contacts, organizations and activities to a card."],
         },
       ],
+      tour: [
+        {
+          target: "projects-board",
+          title: "Boards for everything else",
+          text: "Leads has its own board. Use these for anything different — a due-diligence checklist, an acquisition you closed, an internal task list.",
+        },
+        {
+          target: "projects-create",
+          title: "Make a board",
+          text: "Create a board and name its stages yourself. Cards work the same as on the Leads board.",
+        },
+        HELP_AGAIN,
+      ],
     }),
   },
   {
@@ -180,6 +328,24 @@ const ENTRIES: Entry[] = [
         },
         { heading: "What you can do", body: ["Create an activity and set who does it and when.", "Filter by Overdue, Today, Next 7 days or Done.", "Open one to see or edit what it is linked to."] },
       ],
+      tour: [
+        {
+          target: "activities-filters",
+          title: "Finding what needs doing",
+          text: "Search by title, contact or lead, and switch between the week board and a list you can filter by Overdue, Today or Next 7 days.",
+        },
+        {
+          target: "activities-list",
+          title: "The list",
+          text: "Tick one off when it's done. Open it to change the date, who does it, or the lead and contact it belongs to.",
+        },
+        {
+          target: "activities-create",
+          title: "Add one",
+          text: "Log a call you just had, or plan the next step. An activity can be attached to a lead, a contact or an organization.",
+        },
+        HELP_AGAIN,
+      ],
     }),
   },
   {
@@ -193,6 +359,24 @@ const ENTRIES: Entry[] = [
           body: "Sellers, brokers and advisors live here, with the companies they belong to. Open a contact to see their history: the leads and activities linked to them.",
         },
         { heading: "What you can do", body: ["Switch between People and Organizations.", "Add or edit a contact or organization.", "Open one to see what is linked to it."] },
+      ],
+      tour: [
+        {
+          target: "contacts-tabs",
+          title: "People and companies",
+          text: "People are the sellers, brokers and advisors you talk to. Organizations are the companies they belong to.",
+        },
+        {
+          target: "contacts-table",
+          title: "The list",
+          text: "Open anyone to see their history in one place: the leads they are attached to and every call, meeting and email logged with them.",
+        },
+        {
+          target: "contacts-create",
+          title: "Add someone",
+          text: "Add a person or a company by hand. Promoting a lead from the inbox also creates these for you automatically.",
+        },
+        HELP_AGAIN,
       ],
     }),
   },
@@ -218,6 +402,19 @@ const ENTRIES: Entry[] = [
         },
         { heading: "If nothing arrives", body: "Check that the Resend webhook is registered and that the address above is the one you signed up with." },
       ],
+      tour: [
+        {
+          target: "settings-tabs",
+          title: "Where this sits",
+          text: "Inbox is one of the settings pages. It is the record of what arrived by email — the leads themselves live in the Leads Inbox.",
+        },
+        {
+          target: "inbox-table",
+          title: "Every email that arrived",
+          text: "One row per message, with what the AI found in it. Use View to see the businesses it read out and open each one as a lead.",
+        },
+        HELP_AGAIN,
+      ],
     }),
   },
   {
@@ -231,6 +428,14 @@ const ENTRIES: Entry[] = [
           body: "Turn on push notifications so the CRM can warn you on this device — for example when a new lead arrives — even when the app is closed.",
         },
         { heading: "Good to know", body: "The setting is per device and browser. If you blocked notifications in the browser, you have to allow them there first." },
+      ],
+      tour: [
+        {
+          target: "notifications-toggle",
+          title: "Alerts on this device",
+          text: "Turn this on and the CRM can reach you even when it is closed. The setting belongs to this device and browser, not to your account.",
+        },
+        HELP_AGAIN,
       ],
     }),
   },
@@ -249,6 +454,19 @@ const ENTRIES: Entry[] = [
           body: ["The link works once and expires after a few days.", "You can resend an expired invite or revoke one you no longer want."],
         },
       ],
+      tour: [
+        {
+          target: "invites-create",
+          title: "Invite a teammate",
+          text: "Enter their email and they get a link to choose a password. There is no public sign-up — this is the only way in.",
+        },
+        {
+          target: "invites-table",
+          title: "Who has been invited",
+          text: "See which invites are still open, resend one that expired, or revoke one you no longer want.",
+        },
+        HELP_AGAIN,
+      ],
     }),
   },
   {
@@ -261,6 +479,19 @@ const ENTRIES: Entry[] = [
           heading: "What it's for",
           body: "Install the CRM on your phone or computer so it opens like a normal app, and update it when a new version is available.",
         },
+      ],
+      tour: [
+        {
+          target: "application-install",
+          title: "Install it as an app",
+          text: "Add the CRM to your phone or computer and it opens in its own window, like any other app — with the same data.",
+        },
+        {
+          target: "application-version",
+          title: "Staying up to date",
+          text: "This tells you whether you are on the latest version, and updates it when you are not.",
+        },
+        HELP_AGAIN,
       ],
     }),
   },
@@ -279,6 +510,19 @@ const ENTRIES: Entry[] = [
           body: "The figures are estimates from public list prices, not invoiced amounts. Use them to compare profiles and to decide how many leads per run are worth it.",
         },
       ],
+      tour: [
+        {
+          target: "spend-summary",
+          title: "What the engine costs",
+          text: "Every paid call is logged and added up here. The figures are estimates from public prices, not invoices, so use them to compare rather than to reconcile.",
+        },
+        {
+          target: "spend-runs",
+          title: "Run by run",
+          text: "Each search run shows what it cost and what it brought back. If a profile costs more than it is worth, lower its cap or how often it runs.",
+        },
+        HELP_AGAIN,
+      ],
     }),
   },
   {
@@ -286,7 +530,20 @@ const ENTRIES: Entry[] = [
     build: () => ({
       title: "How to use the CRM",
       summary: "The guide to the CRM, section by section.",
-      sections: [{ heading: "What it's for", body: "Use the list on this page to jump to a topic. The (?) button on every other page explains that page in a few lines." }],
+      sections: [
+        {
+          heading: "What it's for",
+          body: "Use the list on this page to jump to a topic. The (?) button on every other page explains that page in a few lines.",
+        },
+      ],
+      tour: [
+        {
+          target: "docs-nav",
+          title: "Jump to a topic",
+          text: "This is the long-form guide. For a quick reminder about the page you are on, use the (?) button in the header instead.",
+        },
+        HELP_AGAIN,
+      ],
     }),
   },
 ];
@@ -297,4 +554,20 @@ export function getPageHelp(pathname: string | null, ctx: HelpContext): PageHelp
   const path = pathname.replace(/\/+$/, "") || "/";
   const entry = ENTRIES.filter((e) => path === e.path || path.startsWith(`${e.path}/`)).sort((a, b) => b.path.length - a.path.length)[0];
   return entry ? entry.build(ctx) : null;
+}
+
+/** Every route that has help — used by the test that keeps this file in step with the pages in `app/(hub)`. */
+export function helpRoutes(): string[] {
+  return ENTRIES.map((e) => e.path);
+}
+
+/** Every `data-tour` name the tours point at — used by the test that keeps them in step with the components. */
+export function tourTargets(): string[] {
+  const targets = new Set<string>();
+  for (const entry of ENTRIES) {
+    for (const step of entry.build({ inboxAddress: null }).tour) {
+      if (step.target) targets.add(step.target);
+    }
+  }
+  return [...targets];
 }

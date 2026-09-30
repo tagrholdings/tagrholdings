@@ -273,7 +273,7 @@ export default async function DocsPage() {
       title="How to use the CRM"
     >
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-        <nav aria-label="On this page" className="rounded-lg border border-divider bg-surface p-4 lg:sticky lg:top-24 lg:w-56 lg:shrink-0">
+        <nav aria-label="On this page" data-tour="docs-nav" className="rounded-lg border border-divider bg-surface p-4 lg:sticky lg:top-24 lg:w-56 lg:shrink-0">
           <p className="label-kicker mb-2">On this page</p>
           <ul className="space-y-1 text-sm">
             {SECTIONS.map((section) => (
