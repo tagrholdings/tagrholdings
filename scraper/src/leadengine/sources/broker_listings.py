@@ -39,6 +39,7 @@ from ..util.pages import (
     industry_pattern,
     page_text_with_links,
 )
+from ..util.geo import Geo, keeps
 from ..util.urls import clean_listing_url, is_aggregator, listing_key, normalize_url, registrable_domain
 from .base import SourceContext, SourceError, SourceNotConfigured
 from .brave_search import web_search
@@ -48,7 +49,7 @@ log = logging.getLogger(__name__)
 # -- budgets -------------------------------------------------------------------------------------------------------
 DISCOVERY_EVERY = timedelta(days=7)
 MAX_NEW_SITES_PER_DISCOVERY = 20
-MAX_INDUSTRY_TERMS_IN_DISCOVERY = 4
+MAX_INDUSTRY_TERMS_IN_DISCOVERY = 3
 MAX_FETCHES_PER_SITE = 14  # every page opened on one site: listing pages + category pages + site-search results + next pages
 MAX_LISTING_PAGES = 3  # how many "listings" links from the homepage to start from
 MIN_PAGE_TEXT_CHARS = 300  # less than this is an empty shell (probably rendered with JavaScript)
@@ -117,9 +118,10 @@ class BrokerListingsSource:
         self._discover(profile, ctx)
 
         pattern = industry_pattern(profile.terms)
+        geo = Geo(ctx, profile.city, profile.state, profile.radius_miles)
         for site in self._due_sites(store.listing_sites_for_crawl(profile.tenant_id)):
             result = self._crawl(site, profile, ctx, pattern)
-            candidates = self._candidates(result, site, profile)
+            candidates = self._candidates(result, site, profile, geo)
             if candidates:
                 # Recorded only AFTER the runner has fully handled these candidates (a generator resumes only then):
                 # if the run stops mid-way (lead cap, time limit) the site is crawled again next time instead of
@@ -148,6 +150,8 @@ class BrokerListingsSource:
         area = profile.state.strip()
         queries = [f"business brokers {area}", f"business broker {profile.city} {area}"]
         for term in profile.terms[:MAX_INDUSTRY_TERMS_IN_DISCOVERY]:
+            # City first: brokers who list the local market come up before national marketplaces.
+            queries.append(f"{term} business for sale {profile.city} {area}")
             queries.append(f"{term} business for sale broker {area}")
         return queries
 
@@ -213,7 +217,7 @@ class BrokerListingsSource:
         if not start_pages and re.search(r"listing|for-sale|buy", urlsplit(entry).path, re.IGNORECASE):
             start_pages = [entry]
         if not start_pages:
-            return CrawlResult("no_listings", "No page listing businesses for sale was found from the homepage.")
+            return CrawlResult("no_listings", "no_listings_page")
 
         # (url, industry_scoped): a page reached through a link NAMED after an industry (a category page) keeps ALL its
         # listings — the site already filtered them. Site-search results don't: a search that silently ignored our
@@ -278,18 +282,27 @@ class BrokerListingsSource:
         if result.listings or result.unchanged_pages:
             result.status = "ok"
         elif empty_shells and empty_shells == len(visited):
-            result.detail = "The listings page has no readable text — it may only render with JavaScript."
+            result.detail = "js_only"
         else:
-            result.detail = f"Read {len(visited)} page(s); no business for sale in {', '.join(wanted_terms) or 'any industry'} was found."
+            result.detail = f"none_in_industries:{len(visited)}"
         return result
 
     # -- results -> candidates ---------------------------------------------------------------------------------------------
 
-    def _candidates(self, result: CrawlResult, site: ListingSite, profile: SearchProfile) -> list[Candidate]:
+    def _candidates(self, result: CrawlResult, site: ListingSite, profile: SearchProfile, geo: Geo | None = None) -> list[Candidate]:
         candidates: list[Candidate] = []
         seen: set[str] = set()
+        out_of_area = 0
         for listing, page_url in result.listings:
             fields = dict(listing.fields)
+            if geo is not None:
+                # Where is it, relative to the profile's city + radius? Annotated on the lead; what is kept follows the
+                # profile's location scope (radius | state | anywhere) - see util/geo.py.
+                tier = geo.classify(fields.get("location"))
+                if not keeps(profile.location_scope, tier):
+                    out_of_area += 1
+                    continue
+                fields["locationMatch"] = tier
             link = clean_listing_url(listing.listing_url) if listing.listing_url else None
             if _no_longer_for_sale(fields.get("businessName"), link):
                 continue
@@ -318,4 +331,6 @@ class BrokerListingsSource:
                     fields=fields,
                 )
             )
+        if out_of_area:
+            log.info("%s: %d listing(s) outside %s, %s (scope %s) were skipped.", site.domain, out_of_area, profile.city, profile.state, profile.location_scope)
         return candidates

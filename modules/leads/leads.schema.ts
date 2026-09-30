@@ -42,6 +42,8 @@ export interface ExtractedFields {
   askingPriceUsd?: number | null;
   employeesCount?: number | null;
   yearsInBusinessCount?: number | null;
+  /** Where a broker listing sits relative to the profile's city + radius (set by the job): local | region | state | unknown | outside. */
+  locationMatch?: "local" | "region" | "state" | "unknown" | "outside" | null;
   /** Which of the profile's signal keywords the lead's text contains (set by the job). */
   matchedSignals?: string[] | null;
   /** Free text from whoever added the lead by hand (manual_assist). */

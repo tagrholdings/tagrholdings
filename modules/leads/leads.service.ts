@@ -6,6 +6,7 @@ import { contactsService } from "@/modules/contacts/contacts.service";
 import { evaluateFit } from "@/modules/search-profiles/fit";
 import type { ExtractedFields } from "./leads.schema";
 import type { RawLeadSummary } from "./leads.types";
+import { groupReceivedEmails, type ReceivedEmail } from "./received-emails";
 
 /** Scraped values are untrusted — only http(s) URLs may reach an <a href> (see createOrganizationSchema). */
 function safeWebsite(value: string | null | undefined) {
@@ -49,6 +50,11 @@ export const leadsService = {
   async listForTenant(tenantId: string): Promise<RawLeadSummary[]> {
     const rows = await leadsRepository.findAllForTenant(tenantId);
     return rows.map(({ searchProfileCriteria, ...row }) => ({ ...row, fit: evaluateFit(searchProfileCriteria, row.extractedFields) }));
+  },
+
+  /** The emails the inbox received, each with the listings read from it (Settings → Inbox). */
+  async listReceivedEmails(tenantId: string): Promise<ReceivedEmail[]> {
+    return groupReceivedEmails(await leadsRepository.findEmailDigests(tenantId));
   },
 
   async getById(tenantId: string, id: string) {

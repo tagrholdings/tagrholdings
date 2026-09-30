@@ -70,7 +70,7 @@ describe("criteria handling", () => {
   it("create stores normalized criteria", async () => {
     vi.mocked(searchProfilesRepository.create).mockResolvedValue(profile as never);
     await searchProfilesService.create("t1", {
-      name: "n", category: "c", keywords: [], city: "Phoenix", state: "AZ", radiusMiles: 25, sources, maxLeadsPerRun: 10, frequencyHours: 24, active: true,
+      name: "n", category: "c", keywords: [], city: "Phoenix", state: "AZ", radiusMiles: 25, locationScope: "radius", sources, maxLeadsPerRun: 10, frequencyHours: 24, active: true,
       criteria: { minProfit: 100_000, signalKeywords: ["retiring", "retiring"] },
     });
     expect(vi.mocked(searchProfilesRepository.create).mock.calls[0][1].criteria).toEqual({ minProfit: 100_000, signalKeywords: ["retiring"] });

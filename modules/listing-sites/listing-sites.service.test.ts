@@ -79,7 +79,7 @@ describe("setActive", () => {
 describe("needsManualCheck", () => {
   it.each([
     [{ active: true, status: "blocked" }, true],
-    [{ active: true, status: "error" }, true],
+    [{ active: true, status: "error" }, false], // a read error retries by itself
     [{ active: true, status: "no_listings" }, false],
     [{ active: true, status: "ok" }, false],
     [{ active: true, status: "pending" }, false],

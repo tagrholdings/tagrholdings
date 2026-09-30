@@ -53,7 +53,8 @@ class Database:
         rows = self._conn.execute(
             """
             select id::text, tenant_id::text, name, category, keywords, city, state, radius_miles,
-                   sources, max_leads_per_run, frequency_hours, run_state, last_run_at, criteria, run_requested_at
+                   sources, max_leads_per_run, frequency_hours, run_state, last_run_at, criteria, run_requested_at,
+                   location_scope
             from search_profiles
             where active
               and (%(force)s
@@ -83,6 +84,7 @@ class Database:
                 last_run_at=r["last_run_at"],
                 criteria=dict(r["criteria"]) if r["criteria"] else None,
                 run_requested_at=r["run_requested_at"],
+                location_scope=r["location_scope"],
             )
             for r in rows
         ]

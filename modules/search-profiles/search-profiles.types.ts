@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { insertSearchProfileSchema, type ProfileSources, type QualificationCriteria } from "./search-profiles.schema";
+import { insertSearchProfileSchema, type LocationScope, type ProfileSources, type QualificationCriteria } from "./search-profiles.schema";
 
 export const createSearchProfileSchema = insertSearchProfileSchema.pick({
   name: true,
@@ -8,6 +8,7 @@ export const createSearchProfileSchema = insertSearchProfileSchema.pick({
   city: true,
   state: true,
   radiusMiles: true,
+  locationScope: true,
   sources: true,
   maxLeadsPerRun: true,
   frequencyHours: true,
@@ -32,6 +33,7 @@ export interface SearchProfileSummary {
   city: string;
   state: string;
   radiusMiles: number;
+  locationScope: LocationScope;
   sources: ProfileSources;
   maxLeadsPerRun: number;
   frequencyHours: number;

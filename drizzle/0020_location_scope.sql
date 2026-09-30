@@ -1,0 +1,1 @@
+ALTER TABLE "search_profiles" ADD COLUMN "location_scope" text DEFAULT 'radius' NOT NULL;

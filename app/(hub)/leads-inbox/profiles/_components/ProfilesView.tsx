@@ -264,7 +264,7 @@ export function ProfilesView({ profiles }: { profiles: SearchProfileSummary[] })
                   </div>
                 </TableCell>
                 <TableCell mobileLabel="Area" className="text-muted-foreground">
-                  {profile.city}, {profile.state} · {profile.radiusMiles} mi
+                  {profile.city}, {profile.state} · {profile.radiusMiles} mi · {profile.locationScope === "radius" ? "in radius" : profile.locationScope === "state" ? "statewide" : "anywhere"}
                 </TableCell>
                 <TableCell mobileLabel="Sources" className="text-muted-foreground">
                   {enabledSources.map((k) => SOURCE_SHORT_LABELS[k]).join(", ") || "—"}

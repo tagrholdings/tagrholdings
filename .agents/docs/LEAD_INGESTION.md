@@ -64,7 +64,7 @@ Values are strings as the source wrote them ("$1.2M", "12 employees") — the ex
 
 ### `search_profiles` (`modules/search-profiles/search-profiles.schema.ts`)
 
-`name`, `category`, `keywords[]`, `city`, `state`, `radiusMiles`, `sources` (`google_places`, `brave_search`, `company_site_scrape`, `marketplace_scrape` → bool), `maxLeadsPerRun` (spend guard), `frequencyHours`, `active`. Job-owned: `lastRunAt`, `runState` (checkpoint: `cursor {source, term}`, `resume`, cached `geocode`) — the app never reads or writes them. `criteria` (jsonb, optional — see *Qualification criteria and fit* below) and `runRequestedAt` ("Run now", app-set / job-cleared).
+`name`, `category`, `keywords[]`, `city`, `state`, `radiusMiles`, `locationScope` (`radius`|`state`|`anywhere` — how strictly *broker listings* must be near the city; the job tags each with `locationMatch` = local/region/state/unknown/outside and drops what the scope excludes, see `scraper/src/leadengine/util/geo.py`), `sources` (`google_places`, `brave_search`, `company_site_scrape`, `marketplace_scrape` → bool), `maxLeadsPerRun` (spend guard), `frequencyHours`, `active`. Job-owned: `lastRunAt`, `runState` (checkpoint: `cursor {source, term}`, `resume`, cached `geocode`) — the app never reads or writes them. `criteria` (jsonb, optional — see *Qualification criteria and fit* below) and `runRequestedAt` ("Run now", app-set / job-cleared).
 
 ### `lead_runs` / `lead_api_usage` (`modules/lead-engine/lead-engine.schema.ts`)
 

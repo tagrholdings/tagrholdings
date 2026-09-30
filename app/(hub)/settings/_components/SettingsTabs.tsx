@@ -2,6 +2,7 @@ import { LinkTabs } from "@/components/shared/link-tabs";
 
 const TABS = [
   { id: "notifications", label: "Notifications", href: "/settings/notifications" },
+  { id: "inbox", label: "Inbox", href: "/settings/inbox" },
   { id: "invites", label: "Invites", href: "/settings/invites" },
   { id: "application", label: "Application", href: "/settings/application" },
   { id: "engine-spend", label: "Engine spend", href: "/settings/engine-spend" },

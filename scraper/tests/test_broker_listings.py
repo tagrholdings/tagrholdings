@@ -346,7 +346,7 @@ def test_crawl_marks_a_site_that_refuses_us_as_blocked_and_never_retries_around_
         return httpx.Response(code) if request.url.path != "/robots.txt" else httpx.Response(404)
 
     result, _ = crawl(BrokerListingsSource(FakeExtractor()), broker_site(), profile, make_ctx(settings, handler))
-    assert result.status == "blocked" and str(code) in (result.detail or "")
+    assert result.status == "blocked" and result.detail == ("rate_limited" if code == 429 else "refused")
     assert seen.count("/") == 1
 
 
@@ -357,7 +357,7 @@ def test_crawl_blocked_by_robots_txt(settings, profile):
         return httpx.Response(200, headers={"content-type": "text/html"}, text=HOME_PAGE)
 
     result, _ = crawl(BrokerListingsSource(FakeExtractor()), broker_site(), profile, make_ctx(settings, handler))
-    assert result.status == "blocked" and "robots" in (result.detail or "")
+    assert result.status == "blocked" and result.detail == "robots"
 
 
 def test_crawl_marks_unreachable_sites_as_error(settings, profile):
@@ -500,3 +500,30 @@ def test_discovery_without_a_brave_key_does_nothing(settings, profile):
     store = FakeStore([])
     BrokerListingsSource(None)._discover(profile, _ctx_with_store(settings, site_handler({}), store))
     assert store.added == []
+
+
+def test_a_cloudflare_challenge_is_reported_as_a_bot_check_not_a_plain_refusal(settings, profile):
+    def handler(request):
+        if request.url.path == "/robots.txt":
+            return httpx.Response(404)
+        return httpx.Response(403, headers={"cf-mitigated": "challenge", "content-type": "text/html"}, text="<title>Just a moment...</title>")
+
+    result, _ = crawl(BrokerListingsSource(FakeExtractor()), broker_site(), profile, make_ctx(settings, handler))
+    assert (result.status, result.detail) == ("blocked", "bot_check")
+
+
+def test_connection_problems_are_errors_with_a_plain_code(settings, profile):
+    def handler(request):
+        if request.url.path == "/robots.txt":
+            return httpx.Response(404)
+        raise httpx.ReadError("connection dropped")
+
+    result, _ = crawl(BrokerListingsSource(FakeExtractor()), broker_site(), profile, make_ctx(settings, handler))
+    assert (result.status, result.detail) == ("error", "connection")
+
+
+def test_a_readable_site_with_nothing_in_the_industries_reports_how_many_pages_were_read(settings, profile):
+    pages = {"/": HOME_PAGE, "/businesses-for-sale": LISTING_PAGE}
+    ctx = make_ctx(settings, site_handler(pages))
+    result, _ = crawl(BrokerListingsSource(FakeExtractor([L("Pizza place", industry="Restaurants")])), broker_site(), profile, ctx)
+    assert (result.status, result.detail) == ("no_listings", "none_in_industries:1")

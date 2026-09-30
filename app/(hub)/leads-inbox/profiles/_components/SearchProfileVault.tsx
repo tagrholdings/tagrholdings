@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/vault";
 import { notify } from "@/components/ui/toaster";
 import { createSearchProfileAction, updateSearchProfileAction } from "@/modules/search-profiles/search-profiles.actions";
-import { DEFAULT_PROFILE_SOURCES, type ProfileSources } from "@/modules/search-profiles/search-profiles.schema";
+import { DEFAULT_PROFILE_SOURCES, LOCATION_SCOPES, type LocationScope, type ProfileSources } from "@/modules/search-profiles/search-profiles.schema";
 import type { SearchProfileSummary } from "@/modules/search-profiles/search-profiles.types";
 
 const money = z.number({ error: "Enter a number." }).min(0, "Can't be negative.").max(1_000_000_000_000).optional();
@@ -35,6 +35,7 @@ const formSchema = z.object({
   city: z.string().trim().min(1, "City is required.").max(100),
   state: z.string().trim().min(2, "State is required.").max(50),
   radiusMiles: z.number({ error: "Enter a number." }).int().min(1, "At least 1 mile.").max(500, "Up to 500 miles."),
+  locationScope: z.enum(LOCATION_SCOPES),
   maxLeadsPerRun: z.number({ error: "Enter a number." }).int().min(1, "At least 1.").max(200, "Up to 200."),
   frequencyHours: z.number({ error: "Enter a number." }).int().min(1, "At least 1 hour.").max(720, "Up to 720 hours."),
   // Qualification criteria: every box optional; blank -> undefined (see optionalNumber below).
@@ -71,6 +72,12 @@ const formSchema = z.object({
 
 type FormValues = z.input<typeof formSchema>;
 
+const SCOPE_OPTIONS: { key: LocationScope; label: string; hint: string }[] = [
+  { key: "radius", label: "Within the radius", hint: "Cities inside the radius, plus listings that only say the metro area or state. Other cities and states are skipped." },
+  { key: "state", label: "Anywhere in the state", hint: "Also keeps other cities of the same state. Other states are skipped." },
+  { key: "anywhere", label: "Anywhere", hint: "Keeps every listing wherever it is (each is still tagged with where it sits)." },
+];
+
 const SOURCE_OPTIONS: { key: keyof ProfileSources; label: string; hint: string }[] = [
   { key: "google_places", label: "Google Places", hint: "Finds local businesses by category and area." },
   { key: "brave_search", label: "Brave Search", hint: "Finds company websites by keyword (Brave Search API)." },
@@ -105,6 +112,7 @@ function ProfileForm({ profile, onClose }: { profile: SearchProfileSummary | nul
       city: profile?.city ?? "",
       state: profile?.state ?? "",
       radiusMiles: profile?.radiusMiles ?? 25,
+      locationScope: profile?.locationScope ?? "radius",
       maxLeadsPerRun: profile?.maxLeadsPerRun ?? 25,
       frequencyHours: profile?.frequencyHours ?? 24,
       minRevenue: profile?.criteria?.minRevenue,
@@ -133,6 +141,7 @@ function ProfileForm({ profile, onClose }: { profile: SearchProfileSummary | nul
       city: values.city.trim(),
       state: values.state.trim(),
       radiusMiles: values.radiusMiles,
+      locationScope: values.locationScope,
       maxLeadsPerRun: values.maxLeadsPerRun,
       frequencyHours: values.frequencyHours,
       sources: values.sources,
@@ -188,6 +197,19 @@ function ProfileForm({ profile, onClose }: { profile: SearchProfileSummary | nul
         <VaultInput type="number" min={1} max={500} {...register("radiusMiles", { valueAsNumber: true })} />
         <p className="text-xs text-muted-foreground">Google Places caps the search area at about 31 miles.</p>
       </VaultField>
+
+      <fieldset className="space-y-2">
+        <legend className="mb-2 block text-sm font-medium text-foreground">Broker listings: how close to the city?</legend>
+        {SCOPE_OPTIONS.map((option) => (
+          <label key={option.key} className="flex cursor-pointer items-start gap-3 rounded-md border border-divider bg-surface px-3 py-2.5">
+            <input type="radio" value={option.key} className="mt-0.5 size-4 shrink-0 accent-[var(--accent)]" {...register("locationScope")} />
+            <span className="min-w-0">
+              <span className="block text-sm font-medium text-foreground">{option.label}</span>
+              <span className="block text-xs text-muted-foreground">{option.hint}</span>
+            </span>
+          </label>
+        ))}
+      </fieldset>
 
       <fieldset className="space-y-2">
         <legend className="mb-2 block text-sm font-medium text-foreground">Sources</legend>

@@ -21,6 +21,7 @@ import { useFitPageSize } from "@/hooks/ui/use-fit-page-size";
 import { RawLeadDetailPanel } from "./RawLeadDetailPanel";
 import { QuickAddLead } from "./QuickAddLead";
 import { FitBadge } from "./FitBadge";
+import { LocationBadge } from "./LocationBadge";
 import { locationLine, text } from "./lead-fields";
 
 const FILTERS: { value: RawLeadStatus; label: string }[] = [
@@ -287,7 +288,10 @@ export function RawLeadsView({
                       </div>
                     </TableCell>
                     <TableCell mobileLabel="Location" className="text-muted-foreground">
-                      {locationLine(fields) ?? "—"}
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span>{locationLine(fields) ?? "—"}</span>
+                        <LocationBadge match={fields.locationMatch} />
+                      </div>
                     </TableCell>
                     <TableCell mobileLabel="Source" className="text-muted-foreground">
                       {SOURCE_LABELS[lead.sourceType] ?? lead.sourceType}

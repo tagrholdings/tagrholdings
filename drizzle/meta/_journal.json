@@ -141,6 +141,13 @@
       "when": 1790607095772,
       "tag": "0019_invites",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790731859569,
+      "tag": "0020_location_scope",
+      "breakpoints": true
     }
   ]
 }

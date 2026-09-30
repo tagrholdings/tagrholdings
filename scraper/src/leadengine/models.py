@@ -38,6 +38,8 @@ class SearchProfile:
     criteria: dict[str, Any] | None = None
     # Set by the CRM's "Run now"; cleared when this run starts.
     run_requested_at: datetime | None = None
+    # How strictly broker listings must be near the profile's city: radius | state | anywhere (see util/geo.py).
+    location_scope: str = "radius"
 
     @property
     def terms(self) -> list[str]:

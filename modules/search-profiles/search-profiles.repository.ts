@@ -12,6 +12,7 @@ const summaryColumns = {
   city: searchProfilesTable.city,
   state: searchProfilesTable.state,
   radiusMiles: searchProfilesTable.radiusMiles,
+  locationScope: searchProfilesTable.locationScope,
   sources: searchProfilesTable.sources,
   maxLeadsPerRun: searchProfilesTable.maxLeadsPerRun,
   frequencyHours: searchProfilesTable.frequencyHours,

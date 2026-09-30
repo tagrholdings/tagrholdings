@@ -15,16 +15,9 @@ import { httpUrl } from "../../_components/lead-fields";
 import { FlaggedList } from "../../_components/FlaggedList";
 import { setListingSiteActiveAction } from "@/modules/listing-sites/listing-sites.actions";
 import { needsManualCheck, type ListingSiteSummary } from "@/modules/listing-sites/listing-sites.types";
-import type { ListingSiteStatus } from "@/modules/listing-sites/listing-sites.schema";
+import { explainSiteStatus } from "@/modules/listing-sites/site-status";
 import { ListingSiteVault } from "./ListingSiteVault";
-
-const STATUS_LABELS: Record<ListingSiteStatus, { label: string; tone: "good" | "warn" | "bad" | "neutral" }> = {
-  pending: { label: "Not read yet", tone: "neutral" },
-  ok: { label: "Read", tone: "good" },
-  no_listings: { label: "No matching listings", tone: "neutral" },
-  blocked: { label: "Blocked — check by hand", tone: "bad" },
-  error: { label: "Couldn't read — check by hand", tone: "bad" },
-};
+import { SiteStatusVault } from "./SiteStatusVault";
 
 const TONE_CLASSES = {
   good: "border-accent bg-accent/15 text-foreground",
@@ -39,6 +32,7 @@ const RESERVED_HEIGHT = 104;
 
 export function ListingSitesView({ sites }: { sites: ListingSiteSummary[] }) {
   const [adding, setAdding] = useState(false);
+  const [detailId, setDetailId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const { ref: fitRef, pageSize } = useFitPageSize({ rowHeight: ROW_HEIGHT, reserved: RESERVED_HEIGHT });
@@ -64,6 +58,22 @@ export function ListingSitesView({ sites }: { sites: ListingSiteSummary[] }) {
     </Button>
   );
   const vault = <ListingSiteVault open={adding} onOpenChange={setAdding} />;
+  const detailSite = sites.find((s) => s.id === detailId) ?? null;
+  const detailVault = (
+    <SiteStatusVault
+      site={detailSite}
+      busy={busyId === detailId}
+      onOpenChange={(open) => !open && setDetailId(null)}
+      onAddSite={() => {
+        setDetailId(null);
+        setAdding(true);
+      }}
+      onIgnore={async (site) => {
+        await setActive(site, false);
+        setDetailId(null);
+      }}
+    />
+  );
 
   const intro = (
     <div className="shrink-0 rounded-lg border border-divider bg-surface p-4 text-sm text-muted-foreground">
@@ -73,8 +83,9 @@ export function ListingSitesView({ sites }: { sites: ListingSiteSummary[] }) {
         would by hand. You can add one yourself, or ignore one you don&rsquo;t want.
       </p>
       <p className="mt-2">
-        A site that refuses automated visits is never forced open: it is flagged here so you can check it by hand — and if it has an email list for new listings,
-        add it under Email sources so those emails reach the inbox.
+        Some sites turn away automatic visitors (they show an &ldquo;are you human?&rdquo; check, or ask robots to stay out). The engine never tries to get around
+        that: the site is flagged here so you can open it yourself — and if it has an email list for new listings, add it under Email sources so those emails reach
+        the inbox. Click a status to see what happened and what you can do.
       </p>
     </div>
   );
@@ -86,7 +97,7 @@ export function ListingSitesView({ sites }: { sites: ListingSiteSummary[] }) {
         <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden />
         <div className="min-w-0">
           <p className="font-medium text-destructive">
-            {blocked.length === 1 ? "1 site couldn’t be read by the engine — check it by hand" : `${blocked.length} sites couldn’t be read by the engine — check them by hand`}
+            {blocked.length === 1 ? "1 site doesn’t let the engine in — open it yourself" : `${blocked.length} sites don’t let the engine in — open them yourself`}
           </p>
           <FlaggedList
             className="mt-2"
@@ -95,7 +106,7 @@ export function ListingSitesView({ sites }: { sites: ListingSiteSummary[] }) {
               node: (
                 <>
                   <span className="font-medium text-foreground">{s.siteName}</span>
-                  {s.statusDetail ? ` — ${s.statusDetail}` : ""}
+                  {` — ${explainSiteStatus(s.status, s.statusDetail).short}`}
                 </>
               ),
             }))}
@@ -147,7 +158,7 @@ export function ListingSitesView({ sites }: { sites: ListingSiteSummary[] }) {
         </TableHeader>
         <TableBody>
           {paged.items.map((site) => {
-            const { label, tone } = STATUS_LABELS[site.status];
+            const { label, tone, short } = explainSiteStatus(site.status, site.statusDetail);
             const url = httpUrl(site.listingsUrl ?? site.siteUrl);
             const flagged = needsManualCheck(site);
             return (
@@ -178,10 +189,19 @@ export function ListingSitesView({ sites }: { sites: ListingSiteSummary[] }) {
                         {site.lastListingCount} listing{site.lastListingCount === 1 ? "" : "s"} for your industries
                       </span>
                     )}
-                    {site.statusDetail && site.active && site.status !== "ok" && (
-                      <span className={cn("mt-1 block max-w-xs text-xs md:truncate", flagged ? "text-destructive" : "text-muted-foreground")} title={site.statusDetail}>
-                        {site.statusDetail}
-                      </span>
+                    {short && site.active && site.status !== "ok" && (
+                      <button
+                        type="button"
+                        onClick={() => setDetailId(site.id)}
+                        aria-label={`What happened with ${site.siteName}?`}
+                        className={cn(
+                          "mt-1 block max-w-sm text-left text-xs underline-offset-2 hover:underline",
+                          flagged ? "text-destructive" : "text-muted-foreground"
+                        )}
+                      >
+                        <span className="line-clamp-2">{short}</span>
+                        <span className="font-medium">See details →</span>
+                      </button>
                     )}
                   </div>
                 </TableCell>
@@ -218,6 +238,7 @@ export function ListingSitesView({ sites }: { sites: ListingSiteSummary[] }) {
       <Pagination slice={paged} onPageChange={setPage} noun="sites" className="shrink-0" />
       </div>
       {vault}
+      {detailVault}
     </div>
   );
 }

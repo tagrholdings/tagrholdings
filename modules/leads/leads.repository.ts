@@ -20,6 +20,7 @@ const summaryColumns = {
 };
 
 const LIST_LIMIT = 500;
+const EMAIL_LIMIT = 600;
 
 export interface NewRawLead {
   sourceType: LeadSourceType;
@@ -104,6 +105,30 @@ export const leadsRepository = {
         .where(eq(rawLeadsTable.tenantId, tenantId))
         .orderBy(desc(rawLeadsTable.createdAt))
         .limit(LIST_LIMIT)
+    );
+  },
+
+  /**
+   * Leads that arrived by email (one per listing in each email), newest first. Only the first 600 characters of
+   * `rawText` are read — that is the "From: / Subject:" header every one of these rows starts with.
+   */
+  async findEmailDigests(tenantId: string) {
+    return withTenant(tenantId, (tx) =>
+      tx
+        .select({
+          id: rawLeadsTable.id,
+          dedupeKey: rawLeadsTable.dedupeKey,
+          businessName: rawLeadsTable.businessName,
+          sourceUrl: rawLeadsTable.sourceUrl,
+          extractedFields: rawLeadsTable.extractedFields,
+          status: rawLeadsTable.status,
+          createdAt: rawLeadsTable.createdAt,
+          head: sql<string>`left(${rawLeadsTable.rawText}, 600)`,
+        })
+        .from(rawLeadsTable)
+        .where(and(eq(rawLeadsTable.tenantId, tenantId), eq(rawLeadsTable.sourceType, "email_digest")))
+        .orderBy(desc(rawLeadsTable.createdAt))
+        .limit(EMAIL_LIMIT)
     );
   },
 

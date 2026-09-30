@@ -28,7 +28,10 @@ export interface ListingSiteSummary {
   createdAt: Date;
 }
 
-/** Statuses that need a person: the crawler couldn't read the site, so nobody is looking at its listings. */
+/**
+ * Sites the engine is SHUT OUT of (security check, robots.txt, refusal): nobody is looking at their listings until a
+ * person does. A plain read error retries by itself the next day, so it isn't flagged.
+ */
 export function needsManualCheck(site: Pick<ListingSiteSummary, "active" | "status">): boolean {
-  return site.active && (site.status === "blocked" || site.status === "error");
+  return site.active && site.status === "blocked";
 }

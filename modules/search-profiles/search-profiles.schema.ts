@@ -28,6 +28,15 @@ export const DEFAULT_PROFILE_SOURCES: ProfileSources = {
   marketplace_scrape: false,
 };
 
+/**
+ * How strictly broker listings must be near the profile's city (scraper/src/leadengine/util/geo.py):
+ * `radius` keeps listings inside the radius plus those that only say "Phoenix Metro"/the state or nothing;
+ * `state` also keeps other cities of the same state; `anywhere` keeps everything. Other states are dropped
+ * except under `anywhere`. Listings are always tagged with where they sit (`locationMatch`).
+ */
+export const LOCATION_SCOPES = ["radius", "state", "anywhere"] as const;
+export type LocationScope = (typeof LOCATION_SCOPES)[number];
+
 const usd = z.number().min(0).max(1_000_000_000_000);
 const headcount = z.number().int().min(0).max(1_000_000);
 
@@ -103,6 +112,7 @@ export const searchProfilesTable = pgTable(
     city: text("city").notNull(),
     state: text("state").notNull(),
     radiusMiles: integer("radius_miles").notNull().default(25),
+    locationScope: text("location_scope").$type<LocationScope>().notNull().default("radius"),
     sources: jsonb("sources").$type<ProfileSources>().notNull(),
     /** Hard cap on NEW leads one run may add for this profile — the main spend guard. */
     maxLeadsPerRun: integer("max_leads_per_run").notNull().default(25),
@@ -151,6 +161,7 @@ export const insertSearchProfileSchema = createInsertSchema(searchProfilesTable,
   city: (s) => s.min(1, "City is required.").max(100),
   state: (s) => s.min(2, "State is required.").max(50),
   radiusMiles: (s) => s.min(1).max(500),
+  locationScope: z.enum(LOCATION_SCOPES),
   sources: profileSourcesSchema,
   maxLeadsPerRun: (s) => s.min(1, "At least 1.").max(200, "Up to 200 per run."),
   frequencyHours: (s) => s.min(1).max(24 * 30),

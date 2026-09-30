@@ -15,7 +15,9 @@ AGGREGATOR_DOMAINS = frozenset(
         "yellowpages.com", "bbb.org", "mapquest.com", "angi.com", "angieslist.com", "thumbtack.com",
         "homeadvisor.com", "manta.com", "zoominfo.com", "dnb.com", "bizapedia.com", "opencorporates.com",
         "chamberofcommerce.com", "indeed.com", "glassdoor.com", "google.com", "maps.google.com",
-        "bizbuysell.com", "bizquest.com", "businessbroker.net", "tripadvisor.com", "expertise.com",
+        "bizbuysell.com", "bizquest.com", "businessbroker.net",
+        # National / worldwide listing marketplaces: they wall off robots and list businesses everywhere, not one broker's local book.
+        "dealstream.com", "businessesforsale.com", "loopnet.com", "axial.net", "smergers.com", "globalbx.com", "businessmart.com", "tripadvisor.com", "expertise.com",
     }
 )
 
