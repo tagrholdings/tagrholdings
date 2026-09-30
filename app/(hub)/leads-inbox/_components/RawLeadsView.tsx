@@ -6,6 +6,7 @@ import { Inbox, Loader2, Undo2, X, Plus } from "lucide-react";
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
 import { SearchInput } from "@/components/ui/search-input";
+import { useHeaderSearch } from "@/components/layout/header-search";
 import { SegmentedControl } from "@/components/shared/segmented-control";
 import { Button } from "@/components/ui/button";
 import { Pagination } from "@/components/ui/pagination";
@@ -139,6 +140,18 @@ export function RawLeadsView({
     fitElement?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
+  // On phones this same filter lives in the header (see header-search.tsx).
+  useHeaderSearch({
+    placeholder: "Filter by name, industry or city",
+    value: search,
+    onChange: (value) => {
+      setSearch(value);
+      setPage(1);
+    },
+    // There's an empty-state return below this hook — no leads, nothing to filter.
+    enabled: leads.length > 0 || pending.length > 0,
+  });
+
   const query = search.trim().toLowerCase();
   const cutoff = foundCutoff(found, mountedAt);
   const visible = leads
@@ -214,7 +227,7 @@ export function RawLeadsView({
               setPage(1);
             }}
             className="h-9"
-            containerClassName="w-full min-w-0 sm:w-auto sm:flex-1 sm:max-w-xs"
+            containerClassName="hidden min-w-0 md:block md:w-auto md:flex-1 md:max-w-xs"
           />
           {hasFit && (
             <SegmentedControl

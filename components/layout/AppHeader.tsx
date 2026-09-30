@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { PageHelp } from "./PageHelp";
+import { HeaderSearchBar, HeaderSearchButton } from "./header-search";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -122,6 +123,8 @@ function MobileHeader({
   return (
     <header
       className={cn(
+        // `sticky` already positions this row, so the expanded search bar can
+        // cover it with `absolute inset-0` without an extra `relative`.
         "sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 border-b border-divider bg-background px-4",
         className
       )}
@@ -147,6 +150,7 @@ function MobileHeader({
       )}
       <PageHelp inboxAddress={inboxAddress ?? null} />
       <ThemeToggle />
+      <HeaderSearchButton />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
@@ -159,6 +163,11 @@ function MobileHeader({
         </DropdownMenuTrigger>
         <AccountMenuContent user={user} onSignOut={onSignOut} />
       </DropdownMenu>
+
+      {/* Collapsed, the page's filter is just the icon above; tapping it
+          expands the input over this whole row so a phone spends no vertical
+          space on a search box. */}
+      <HeaderSearchBar />
     </header>
   );
 }

@@ -5,6 +5,7 @@ import { LayoutGrid, List } from "lucide-react";
 import { useIsMobile } from "@/hooks/ui/use-device";
 import { notify } from "@/components/ui/toaster";
 import { SearchInput } from "@/components/ui/search-input";
+import { useHeaderSearch } from "@/components/layout/header-search";
 import { SegmentedControl } from "@/components/shared/segmented-control";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
 import type { ActivityLookups } from "@/components/shared/activity-form";
@@ -108,6 +109,9 @@ export function PipelineView({
     return map;
   }, [activities]);
 
+  // On phones this same filter lives in the header (see header-search.tsx).
+  useHeaderSearch({ placeholder: "Filter by title, organization or contact", value: search, onChange: setSearch });
+
   const query = search.trim().toLowerCase();
   const filteredItems = query
     ? optimisticItems.filter(
@@ -134,7 +138,7 @@ export function PipelineView({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="h-9"
-            containerClassName="w-full min-w-0 sm:w-auto sm:flex-1 sm:max-w-xs"
+            containerClassName="hidden min-w-0 md:block md:w-auto md:flex-1 md:max-w-xs"
           />
 
           <SegmentedControl

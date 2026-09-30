@@ -6,6 +6,7 @@ import { useOptimisticAction } from "next-safe-action/hooks";
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
 import { SearchInput } from "@/components/ui/search-input";
+import { useHeaderSearch } from "@/components/layout/header-search";
 import { SegmentedControl } from "@/components/shared/segmented-control";
 import { notify } from "@/components/ui/toaster";
 import { initialsFor } from "@/lib/utils";
@@ -140,6 +141,16 @@ export function ContactsView({
     return counts;
   }, [optimisticState, pipelineItems]);
 
+  // On phones both filters live in the header (see header-search.tsx) — only the
+  // active tab's is published, same as only its input renders on desktop.
+  // Declared above the empty-state return below, which is why it carries its
+  // own `enabled` instead of just not being called.
+  const headerSearch =
+    tab === "people"
+      ? { placeholder: "Filter by name, email, or organization", value: peopleSearch, onChange: setPeopleSearch }
+      : { placeholder: "Filter by organization name", value: orgSearch, onChange: setOrgSearch };
+  useHeaderSearch({ ...headerSearch, enabled: contacts.length > 0 || organizations.length > 0 });
+
   const createContactVault = <CreateContactVault tourId="contacts-create" organizations={organizations} onCreateOrganization={createOrganization} />;
   // A separate standalone entry point, not nested inside CreateContactVault's own
   // Vault — CreateOrganizationVault is itself a Vault, and nesting one Drawer
@@ -200,7 +211,7 @@ export function ContactsView({
               value={peopleSearch}
               onChange={(e) => setPeopleSearch(e.target.value)}
               className="h-9"
-              containerClassName="w-full min-w-0 sm:w-auto sm:flex-1 sm:max-w-xs"
+              containerClassName="hidden min-w-0 md:block md:w-auto md:flex-1 md:max-w-xs"
             />
           ) : (
             <SearchInput
@@ -208,7 +219,7 @@ export function ContactsView({
               value={orgSearch}
               onChange={(e) => setOrgSearch(e.target.value)}
               className="h-9"
-              containerClassName="w-full min-w-0 sm:w-auto sm:flex-1 sm:max-w-xs"
+              containerClassName="hidden min-w-0 md:block md:w-auto md:flex-1 md:max-w-xs"
             />
           )}
           <div className="flex items-center gap-2">

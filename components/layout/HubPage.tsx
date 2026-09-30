@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { AppHeader, type AppHeaderAction, type AppHeaderUser } from "./AppHeader";
+import { HeaderSearchProvider } from "./header-search";
 
 interface HubPageProps {
   user: AppHeaderUser;
@@ -27,7 +28,7 @@ interface HubPageProps {
  */
 export function HubPage({ user, kicker, title, backHref, showSearch, primaryAction, onSignOut, fitViewport, children }: HubPageProps) {
   return (
-    <>
+    <HeaderSearchProvider>
       <AppHeader
         kicker={kicker}
         title={title}
@@ -47,6 +48,6 @@ export function HubPage({ user, kicker, title, backHref, showSearch, primaryActi
       >
         {children}
       </main>
-    </>
+    </HeaderSearchProvider>
   );
 }
