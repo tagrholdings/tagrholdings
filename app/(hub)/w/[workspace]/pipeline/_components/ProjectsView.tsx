@@ -9,12 +9,13 @@ import { PipelineView } from "@/components/pipeline/PipelineView";
 import type { ActivityLookups } from "@/components/shared/activity-form";
 import type { PipelineBoardRow, PipelineItemRow } from "@/components/pipeline/types";
 import type { ActivityRow } from "@/modules/activities/activities.types";
-import type { NewBoard } from "@/modules/pipeline/pipeline.types";
+import type { NewBoard, UpdateBoardColumns } from "@/modules/pipeline/pipeline.types";
 import {
   createBoardAction,
   deleteBoardAction,
   renameBoardAction,
   setBoardArchivedAction,
+  updateBoardColumnsAction,
 } from "@/modules/pipeline/pipeline.actions";
 import { CreateProjectVault } from "./CreateProjectVault";
 import { ManageProjectsVault } from "./ManageProjectsVault";
@@ -105,10 +106,38 @@ export function ProjectsView({
     });
   }
 
+  /**
+   * Editing stages is NOT optimistic: it can move cards, and showing the new stages before the cards moved would hide
+   * the ones in a removed stage for a moment. The editor stays open and busy until the server answers.
+   */
+  function handleSaveStages(id: string, input: Pick<UpdateBoardColumns, "columns" | "moveRemovedTo">) {
+    return new Promise<void>((resolve, reject) => {
+      startTransition(async () => {
+        const result = await updateBoardColumnsAction({ id, ...input });
+        if (result?.serverError || result?.validationErrors || !result?.data) {
+          notify.error(result?.serverError ?? "Couldn't save the stages. Please try again.");
+          reject(new Error("updateBoardColumnsAction failed"));
+          return;
+        }
+        notify.success("Stages saved.");
+        resolve();
+      });
+    });
+  }
+
+  const stageCounts = Object.fromEntries(
+    boards.map((b) => [
+      b.id,
+      (itemsByBoard[b.id] ?? []).reduce<Record<string, number>>((counts, item) => ({ ...counts, [item.stage]: (counts[item.stage] ?? 0) + 1 }), {}),
+    ])
+  );
+
   const manageVault = (
     <ManageProjectsVault
       boards={boards}
       itemCounts={Object.fromEntries(boards.map((b) => [b.id, itemsByBoard[b.id]?.length ?? 0]))}
+      stageCounts={stageCounts}
+      onSaveStages={handleSaveStages}
       onRename={(id, name) =>
         run({ kind: "rename", id, name }, () => renameBoardAction({ id, name }), "Couldn't rename that project.")
       }

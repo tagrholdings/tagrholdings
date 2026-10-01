@@ -2,7 +2,7 @@ import { UserFacingError } from "@/lib/errors";
 import { pipelineRepository, pipelineBoardsRepository } from "./pipeline.repository";
 import { activitiesService } from "@/modules/activities/activities.service";
 import { DEFAULT_BOARD_NAME, DEFAULT_BOARD_COLUMNS } from "./pipeline.constants";
-import type { NewPipelineItem, NewBoard } from "./pipeline.types";
+import type { NewPipelineItem, NewBoard, UpdateBoardColumns } from "./pipeline.types";
 import type { BoardColumn } from "./pipeline.schema";
 
 function slugifyColumnId(label: string, index: number, taken: Set<string>) {
@@ -13,7 +13,9 @@ function slugifyColumnId(label: string, index: number, taken: Set<string>) {
     .replace(/^_+|_+$/g, "");
   const id = base || `column_${index}`;
   if (!taken.has(id)) return id;
-  return `${id}_${index}`;
+  let candidate = `${id}_${index}`;
+  for (let n = 2; taken.has(candidate); n++) candidate = `${id}_${index}_${n}`;
+  return candidate;
 }
 
 export const pipelineService = {
@@ -42,6 +44,45 @@ export const pipelineService = {
   async renameBoard(tenantId: string, id: string, name: string) {
     await this.getEditableBoard(tenantId, id);
     return pipelineBoardsRepository.update(tenantId, id, { name: name.trim() });
+  },
+
+  /**
+   * Edits a project's stages: rename, reorder, add and remove. A kept stage keeps its id, so its cards stay in it however it
+   * is renamed or moved. Removing a stage that still holds cards needs somewhere for them to go (`moveRemovedTo`, an existing
+   * stage that is kept) — they are moved in the same transaction as the board update, so none is ever left on a stage the
+   * board no longer has. The Leads board is off-limits like for every other change.
+   */
+  async updateBoardColumns(tenantId: string, input: UpdateBoardColumns) {
+    const board = await this.getEditableBoard(tenantId, input.id);
+    const existing = new Set(board.columns.map((c) => c.id));
+
+    const kept = new Set<string>();
+    const taken = new Set(existing);
+    const columns: BoardColumn[] = input.columns.map((c, index) => {
+      if (c.id) {
+        if (!existing.has(c.id) || kept.has(c.id)) throw new UserFacingError("That stage doesn't belong to this project. Reload the page and try again.");
+        kept.add(c.id);
+        return { id: c.id, label: c.label };
+      }
+      const id = slugifyColumnId(c.label, index, taken);
+      taken.add(id);
+      return { id, label: c.label };
+    });
+
+    const removed = board.columns.filter((c) => !kept.has(c.id)).map((c) => c.id);
+    let move: { from: string[]; to: string } | undefined;
+    if (removed.length > 0) {
+      const counts = await pipelineRepository.countByStage(tenantId, input.id);
+      const affected = removed.reduce((sum, stage) => sum + (counts[stage] ?? 0), 0);
+      if (affected > 0) {
+        if (!input.moveRemovedTo || !kept.has(input.moveRemovedTo)) {
+          throw new UserFacingError(`Choose which stage the ${affected} card${affected === 1 ? "" : "s"} in the removed stage${removed.length === 1 ? "" : "s"} should move to.`);
+        }
+        move = { from: removed, to: input.moveRemovedTo };
+      }
+    }
+
+    return pipelineBoardsRepository.updateColumns(tenantId, input.id, columns, move);
   },
 
   async setBoardArchived(tenantId: string, id: string, archived: boolean) {

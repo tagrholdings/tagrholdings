@@ -1,5 +1,5 @@
 import { withTenant } from "@/lib/db";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { pipelineItemsTable, pipelineBoardsTable, type BoardColumn } from "./pipeline.schema";
 import { contactsTable } from "@/modules/contacts/contacts.schema";
 import { organizationsTable } from "@/modules/organizations/organizations.schema";
@@ -86,6 +86,18 @@ export const pipelineRepository = {
     return row;
   },
 
+  /** How many cards sit in each stage of a board (`{ stageId: count }`) — stages with none are absent. */
+  async countByStage(tenantId: string, boardId: string) {
+    const rows = await withTenant(tenantId, (tx) =>
+      tx
+        .select({ stage: pipelineItemsTable.stage, count: sql<number>`count(*)::int` })
+        .from(pipelineItemsTable)
+        .where(and(eq(pipelineItemsTable.tenantId, tenantId), eq(pipelineItemsTable.boardId, boardId)))
+        .groupBy(pipelineItemsTable.stage)
+    );
+    return Object.fromEntries(rows.map((r) => [r.stage, r.count])) as Record<string, number>;
+  },
+
   async findIdsForBoard(tenantId: string, boardId: string) {
     const rows = await withTenant(tenantId, (tx) =>
       tx
@@ -163,6 +175,29 @@ export const pipelineBoardsRepository = {
         .returning()
     );
     return row;
+  },
+
+  /**
+   * Replaces a board's stages and, in the SAME transaction, moves the cards of removed stages to another one — so a card is
+   * never left pointing at a stage the board no longer has.
+   */
+  async updateColumns(tenantId: string, id: string, columns: BoardColumn[], move?: { from: string[]; to: string }) {
+    return withTenant(tenantId, async (tx) => {
+      if (move && move.from.length > 0) {
+        await tx
+          .update(pipelineItemsTable)
+          .set({ stage: move.to, updatedAt: new Date() })
+          .where(
+            and(eq(pipelineItemsTable.tenantId, tenantId), eq(pipelineItemsTable.boardId, id), inArray(pipelineItemsTable.stage, move.from))
+          );
+      }
+      const [row] = await tx
+        .update(pipelineBoardsTable)
+        .set({ columns })
+        .where(and(eq(pipelineBoardsTable.tenantId, tenantId), eq(pipelineBoardsTable.id, id)))
+        .returning();
+      return row;
+    });
   },
 
   async delete(tenantId: string, id: string) {

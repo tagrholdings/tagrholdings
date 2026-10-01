@@ -137,7 +137,7 @@ export function AccountMenuContent({
   const defaultSignOut = useDefaultSignOut();
 
   return (
-    <DropdownMenuContent align={align} side={side} className="min-w-64">
+    <DropdownMenuContent align={align} side={side} className="min-w-[90vw]">
       {/* Who's signed in and where: same avatar as the trigger, then name and "Workspace · role". */}
       <DropdownMenuLabel className="flex items-center gap-3 px-3 py-3 text-left text-foreground">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-semibold text-ink">{user.initials}</span>

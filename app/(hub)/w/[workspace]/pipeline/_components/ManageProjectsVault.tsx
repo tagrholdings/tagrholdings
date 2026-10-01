@@ -1,15 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { Archive, ArchiveRestore, Check, Pencil, Settings2, Trash2, X } from "lucide-react";
+import { Archive, ArchiveRestore, Check, Columns3, Pencil, Settings2, Trash2, X } from "lucide-react";
 import { Vault, VaultTrigger, VaultContent, VaultHeader, VaultTitle, VaultDescription, VaultInput } from "@/components/ui/vault";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { PipelineBoardRow } from "@/components/pipeline/types";
+import type { UpdateBoardColumns } from "@/modules/pipeline/pipeline.types";
+import { EditStagesForm } from "./EditStagesForm";
 
 interface ManageProjectsVaultProps {
   boards: PipelineBoardRow[];
   itemCounts: Record<string, number>;
+  /** Cards per stage, per board: `{ [boardId]: { [stageId]: count } }`. */
+  stageCounts: Record<string, Record<string, number>>;
+  /** Resolves when the stages were saved, rejects when saving failed (the parent shows the reason). */
+  onSaveStages: (id: string, input: Pick<UpdateBoardColumns, "columns" | "moveRemovedTo">) => Promise<void>;
   onRename: (id: string, name: string) => void;
   onSetArchived: (id: string, archived: boolean) => void;
   onDelete: (id: string) => void;
@@ -45,14 +51,17 @@ function IconButton({
 function ProjectRow({
   board,
   itemCount,
+  stageCounts,
+  onSaveStages,
   onRename,
   onSetArchived,
   onDelete,
 }: {
   board: PipelineBoardRow;
   itemCount: number;
-} & Omit<ManageProjectsVaultProps, "boards" | "itemCounts">) {
-  const [mode, setMode] = useState<"view" | "rename" | "confirm-delete">("view");
+  stageCounts: Record<string, number>;
+} & Omit<ManageProjectsVaultProps, "boards" | "itemCounts" | "stageCounts">) {
+  const [mode, setMode] = useState<"view" | "rename" | "stages" | "confirm-delete">("view");
   const [draft, setDraft] = useState(board.name);
   const archived = !!board.archivedAt;
   const pending = board.id.startsWith("optimistic-");
@@ -80,6 +89,22 @@ function ProjectRow({
             Delete project
           </Button>
         </div>
+      </li>
+    );
+  }
+
+  if (mode === "stages") {
+    return (
+      <li className="rounded-lg border border-divider bg-background p-3">
+        <EditStagesForm
+          board={board}
+          stageCounts={stageCounts}
+          onCancel={() => setMode("view")}
+          onSave={async (input) => {
+            await onSaveStages(board.id, input);
+            setMode("view");
+          }}
+        />
       </li>
     );
   }
@@ -130,6 +155,9 @@ function ProjectRow({
               >
                 <Pencil className="size-4" />
               </IconButton>
+              <IconButton label="Edit stages" onClick={() => setMode("stages")}>
+                <Columns3 className="size-4" />
+              </IconButton>
               <IconButton label={archived ? "Restore" : "Archive"} onClick={() => onSetArchived(board.id, !archived)}>
                 {archived ? <ArchiveRestore className="size-4" /> : <Archive className="size-4" />}
               </IconButton>
@@ -144,8 +172,8 @@ function ProjectRow({
   );
 }
 
-/** Rename, archive/restore and delete projects — every change applies optimistically. */
-export function ManageProjectsVault({ boards, itemCounts, onRename, onSetArchived, onDelete }: ManageProjectsVaultProps) {
+/** Rename, edit the stages of, archive/restore and delete projects. Renames/archives apply optimistically; stage edits wait for the server (they can move cards). */
+export function ManageProjectsVault({ boards, itemCounts, stageCounts, onSaveStages, onRename, onSetArchived, onDelete }: ManageProjectsVaultProps) {
   const active = boards.filter((b) => !b.archivedAt);
   const archived = boards.filter((b) => b.archivedAt);
 
@@ -154,6 +182,8 @@ export function ManageProjectsVault({ boards, itemCounts, onRename, onSetArchive
       key={board.id}
       board={board}
       itemCount={itemCounts[board.id] ?? 0}
+      stageCounts={stageCounts[board.id] ?? {}}
+      onSaveStages={onSaveStages}
       onRename={onRename}
       onSetArchived={onSetArchived}
       onDelete={onDelete}
@@ -176,7 +206,7 @@ export function ManageProjectsVault({ boards, itemCounts, onRename, onSetArchive
           <VaultTitle>Manage projects</VaultTitle>
         </VaultHeader>
         <VaultDescription className="mb-4">
-          Archiving hides a project&rsquo;s tab but keeps everything in it. Deleting removes the project and its items for good.
+          Edit stages to rename, reorder, add or remove them. Archiving hides a project&rsquo;s tab but keeps everything in it. Deleting removes the project and its items for good.
         </VaultDescription>
 
         <div className="space-y-5">

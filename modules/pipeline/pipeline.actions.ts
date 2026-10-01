@@ -10,6 +10,7 @@ import {
   moveStageSchema,
   renameBoardSchema,
   setBoardArchivedSchema,
+  updateBoardColumnsSchema,
   updatePipelineItemSchema,
 } from "./pipeline.types";
 
@@ -33,6 +34,14 @@ export const renameBoardAction = protectedAction
   .schema(renameBoardSchema)
   .action(async ({ parsedInput, ctx }) => {
     const board = await pipelineService.renameBoard(ctx.user.tenantId, parsedInput.id, parsedInput.name);
+    revalidatePipelinePages(ctx.workspace.slug);
+    return { board };
+  });
+
+export const updateBoardColumnsAction = protectedAction
+  .schema(updateBoardColumnsSchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const board = await pipelineService.updateBoardColumns(ctx.user.tenantId, parsedInput);
     revalidatePipelinePages(ctx.workspace.slug);
     return { board };
   });

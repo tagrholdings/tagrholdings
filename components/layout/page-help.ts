@@ -301,7 +301,7 @@ const ENTRIES: Entry[] = [
         },
         {
           heading: "What you can do",
-          body: ["Create a board and choose its stages.", "Drag cards between stages.", "Attach contacts, organizations and activities to a card."],
+          body: ["Create a board and choose its stages — rename, reorder, add or remove them any time from Manage.", "Drag cards between stages.", "Attach contacts, organizations and activities to a card."],
         },
       ],
       tour: [
