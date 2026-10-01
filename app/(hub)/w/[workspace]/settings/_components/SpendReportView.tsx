@@ -80,7 +80,7 @@ export function SpendReportView({ report }: { report: SpendReport }) {
 
   if (lines.length === 0 && runs.length === 0) {
     return (
-      <Empty>
+      <Empty data-tour="spend-summary">
         <EmptyHeader>
           <EmptyMedia variant="icon">
             <Coins />

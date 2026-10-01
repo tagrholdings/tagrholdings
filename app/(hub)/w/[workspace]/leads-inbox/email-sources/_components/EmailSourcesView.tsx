@@ -125,7 +125,7 @@ export function EmailSourcesView({ sources, inboxAddress }: { sources: EmailSour
   if (sources.length === 0) {
     return (
       <div className="flex min-w-0 flex-1 flex-col gap-4">
-        <Empty>
+        <Empty data-tour="email-sources-table">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <Mail />

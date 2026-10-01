@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import type { TourStep } from "../page-help";
 import { mobileCardSide, placeTooltip, sameRect, spotlightRect, SPOTLIGHT_PADDING, type Rect } from "./tour-geometry";
 import { VaultFillDemo } from "./VaultFillDemo";
+import { BoardPreviewDemo } from "./BoardPreviewDemo";
+import { TablePreviewDemo } from "./TablePreviewDemo";
 
 /** Above every other layer in the app (the highest in use is `z-[100]`). */
 const LAYER = "z-[110]";
@@ -199,7 +201,13 @@ export function TourOverlay({ steps, open, onClose }: TourOverlayProps) {
       </div>
       {step.demo && (
         <div className="mt-3">
-          <VaultFillDemo fields={step.demo.fields} checkbox={step.demo.checkbox} button={step.demo.button} />
+          {step.demo.kind === "board" ? (
+            <BoardPreviewDemo columns={step.demo.columns} />
+          ) : step.demo.kind === "table" ? (
+            <TablePreviewDemo columns={step.demo.columns} />
+          ) : (
+            <VaultFillDemo fields={step.demo.fields} checkbox={step.demo.checkbox} button={step.demo.button} />
+          )}
         </div>
       )}
       <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{step.text}</p>

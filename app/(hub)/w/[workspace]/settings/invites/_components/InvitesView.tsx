@@ -45,7 +45,7 @@ export function InvitesView({ invites }: { invites: InviteSummary[] }) {
   if (invites.length === 0) {
     return (
       <>
-        <Empty>
+        <Empty data-tour="invites-table">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <Users />

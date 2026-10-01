@@ -31,14 +31,21 @@ export interface TourStep {
   /** Limits the step to one viewport — for controls that only exist there (the sidebar, the bottom nav). */
   only?: "desktop" | "mobile";
   /**
-   * For a step that points at a button opening a Vault: a small looping illustration of its inputs being filled
-   * in and the button being pressed, shown above the step text. `fields` are plain labels, not the vault's real
-   * field names — this is a schematic ("you'll fill something in here"), not a preview, so it never goes stale
-   * when the vault's actual fields change. `checkbox` is optional — only use it for a checkbox that's actually a
-   * meaningful decision in that vault (e.g. which sources to search), not every minor "optional" tickbox. `button`
-   * is the primary button's label.
+   * A small looping illustration shown above the step text, above the step's own words. Three kinds:
+   *
+   * - `"vault"`, for a step that points at a button opening a Vault: its inputs filling in and the button being
+   *   pressed. `fields` are plain labels, not the vault's real field names — a schematic ("you'll fill something
+   *   in here"), not a preview, so it never goes stale when the vault's actual fields change. `checkbox` is
+   *   optional — only use it for a checkbox that's actually a meaningful decision in that vault (e.g. which
+   *   sources to search), not every minor "optional" tickbox.
+   * - `"board"` / `"table"`, for a step that points at a kanban board or a table: a made-up, populated version of
+   *   it (fake columns/cards, or fake rows), so a brand-new workspace's empty page still shows what things look
+   *   like once there's data in it. Same schematic spirit as `"vault"` — `columns` are plain labels, not real ones.
+   *
+   * A `"board"`/`"table"` step's own `target` should point at an element that stays on the page even when it's
+   * empty (not just the populated one), or the step disappears exactly when this illustration would help most.
    */
-  demo?: { fields: string[]; checkbox?: string; button: string };
+  demo?: { kind: "vault"; fields: string[]; checkbox?: string; button: string } | { kind: "board"; columns: string[] } | { kind: "table"; columns: string[] };
 }
 
 export interface PageHelp {
@@ -116,6 +123,7 @@ const ENTRIES: Entry[] = [
           target: "leads-inbox-table",
           title: "What the engine found",
           text: "One row per business. The badges tell you how well it matches your requirements and whether it is really in your area — neither ever hides a lead.",
+          demo: { kind: "table", columns: ["Business", "Location", "Fit"] },
         },
         {
           target: "leads-inbox-filters",
@@ -126,7 +134,7 @@ const ENTRIES: Entry[] = [
           target: "leads-inbox-add",
           title: "Something you found yourself",
           text: "Paste a link or some text and it is added as a lead, read by the AI like any other. On your phone you can also share a page straight into the CRM.",
-          demo: { fields: ["Link or text of the listing"], button: "Add" },
+          demo: { kind: "vault", fields: ["Link or text of the listing"], button: "Add" },
         },
         HELP_AGAIN,
       ],
@@ -161,12 +169,13 @@ const ENTRIES: Entry[] = [
           target: "profiles-create",
           title: "Start with a profile",
           text: "A profile is a saved search: the industries you want to buy, the city and radius, and how often to look. This is where you tell the engine what to do.",
-          demo: { fields: ["Category", "City", "Radius (miles)"], checkbox: "Broker listing sites", button: "Create profile" },
+          demo: { kind: "vault", fields: ["Category", "City", "Radius (miles)"], checkbox: "Broker listing sites", button: "Create profile" },
         },
         {
           target: "profiles-table",
           title: "Your profiles",
           text: "Each row shows the area, the sources it uses and when it last ran. Turn one off and the engine skips it without losing anything.",
+          demo: { kind: "table", columns: ["Profile", "Area", "Status"] },
         },
         {
           target: "profiles-table",
@@ -205,6 +214,7 @@ const ENTRIES: Entry[] = [
           target: "listing-sites-table",
           title: "The brokers the engine reads",
           text: "The engine finds these on its own, then opens each one's “buy a business” page the way you would by hand.",
+          demo: { kind: "table", columns: ["Site", "Status"] },
         },
         {
           target: "listing-sites-table",
@@ -220,7 +230,7 @@ const ENTRIES: Entry[] = [
           target: "listing-sites-add",
           title: "Add a broker yourself",
           text: "Know a broker the engine missed? Add its address here. If you already know the page that lists the businesses, paste that too.",
-          demo: { fields: ["Website", "Name"], button: "Add site" },
+          demo: { kind: "vault", fields: ["Website", "Name"], button: "Add site" },
         },
         HELP_AGAIN,
       ],
@@ -252,12 +262,13 @@ const ENTRIES: Entry[] = [
           target: "email-sources-add",
           title: "Sites that deliver by email",
           text: "Some brokers never let a program read their site, but will happily email you new listings. Add those sites here.",
-          demo: { fields: ["Site name", "Signup page URL"], button: "Add site" },
+          demo: { kind: "vault", fields: ["Site name", "Signup page URL"], button: "Add site" },
         },
         {
           target: "email-sources-table",
           title: "Who is subscribed",
           text: "Each row shows whether the inbox is signed up yet. Where the form is simple, the engine can fill it in for you; otherwise it asks you to do it by hand.",
+          demo: { kind: "table", columns: ["Site", "Subscribed"] },
         },
         {
           target: "email-sources-flagged",
@@ -292,6 +303,7 @@ const ENTRIES: Entry[] = [
           target: "pipeline-board",
           title: "Your deals, stage by stage",
           text: "Every lead you promoted from the inbox lands here. Drag a card to the next column as the conversation with the seller moves forward.",
+          demo: { kind: "board", columns: ["Sourced", "Outreach", "In Discussion"] },
         },
         {
           target: "pipeline-view",
@@ -302,7 +314,7 @@ const ENTRIES: Entry[] = [
           target: "pipeline-create",
           title: "Add a lead directly",
           text: "Already know who you want to pursue? Create it here instead of going through the inbox — you can set its stage, and attach a contact or organization right away.",
-          demo: { fields: ["Title"], button: "Create lead" },
+          demo: { kind: "vault", fields: ["Title"], button: "Create lead" },
         },
         HELP_AGAIN,
       ],
@@ -328,12 +340,13 @@ const ENTRIES: Entry[] = [
           target: "projects-board",
           title: "Boards for everything else",
           text: "Leads has its own board. Use these for anything different — a due-diligence checklist, an acquisition you closed, an internal task list.",
+          demo: { kind: "board", columns: ["To do", "In progress", "Done"] },
         },
         {
           target: "projects-create",
           title: "Make a board",
           text: "Create a board and name its stages yourself. Cards work the same as on the Leads board.",
-          demo: { fields: ["Name", "Stages"], button: "Create project" },
+          demo: { kind: "vault", fields: ["Name", "Stages"], button: "Create project" },
         },
         HELP_AGAIN,
       ],
@@ -361,12 +374,13 @@ const ENTRIES: Entry[] = [
           target: "activities-list",
           title: "The list",
           text: "Tick one off when it's done. Open it to change the date, who does it, or the lead and contact it belongs to.",
+          demo: { kind: "table", columns: ["Title", "Due", "Status"] },
         },
         {
           target: "activities-create",
           title: "Add one",
           text: "Log a call you just had, or plan the next step. Turn on “Enable notification” and the CRM reminds you when it's due. An activity can be attached to a lead, a contact or an organization.",
-          demo: { fields: ["Title", "Due date"], checkbox: "Enable notification", button: "Create activity" },
+          demo: { kind: "vault", fields: ["Title", "Due date"], checkbox: "Enable notification", button: "Create activity" },
         },
         HELP_AGAIN,
       ],
@@ -394,18 +408,19 @@ const ENTRIES: Entry[] = [
           target: "contacts-table",
           title: "The list",
           text: "Open anyone to see their history in one place: the leads they are attached to and every call, meeting and email logged with them.",
+          demo: { kind: "table", columns: ["Name", "Organization", "Email"] },
         },
         {
           target: "contacts-create-org",
           title: "Add a company",
           text: "For a company with no single contact yet, or to fill in its website and notes up front.",
-          demo: { fields: ["Name", "Website"], button: "Create organization" },
+          demo: { kind: "vault", fields: ["Name", "Website"], button: "Create organization" },
         },
         {
           target: "contacts-create",
           title: "Add someone",
           text: "Add a person or a company by hand. Promoting a lead from the inbox also creates these for you automatically.",
-          demo: { fields: ["Name", "Email"], button: "Create contact" },
+          demo: { kind: "vault", fields: ["Name", "Email"], button: "Create contact" },
         },
         HELP_AGAIN,
       ],
@@ -443,6 +458,7 @@ const ENTRIES: Entry[] = [
           target: "inbox-table",
           title: "Every email that arrived",
           text: "One row per message, with what the AI found in it. Use View to see the businesses it read out and open each one as a lead.",
+          demo: { kind: "table", columns: ["Email", "Result", "Received"] },
         },
         HELP_AGAIN,
       ],
@@ -490,12 +506,13 @@ const ENTRIES: Entry[] = [
           target: "invites-create",
           title: "Invite a teammate",
           text: "Enter their email and they get a link to choose a password. There is no public sign-up — this is the only way in.",
-          demo: { fields: ["Email", "Role"], button: "Send invite" },
+          demo: { kind: "vault", fields: ["Email", "Role"], button: "Send invite" },
         },
         {
           target: "invites-table",
           title: "Who has been invited",
           text: "See which invites are still open, resend one that expired, or revoke one you no longer want.",
+          demo: { kind: "table", columns: ["Email", "Role", "Status"] },
         },
         HELP_AGAIN,
       ],
@@ -605,6 +622,7 @@ const ENTRIES: Entry[] = [
           target: "spend-summary",
           title: "What the engine costs",
           text: "Every paid call is logged and added up here. The figures are estimates from public prices, not invoices, so use them to compare rather than to reconcile.",
+          demo: { kind: "table", columns: ["Service", "Calls", "Cost"] },
         },
         {
           target: "spend-runs",

@@ -103,7 +103,7 @@ export function ListingSitesView({ sites }: { sites: ListingSiteSummary[] }) {
   if (sites.length === 0) {
     return (
       <div className="flex min-w-0 flex-1 flex-col gap-4">
-        <Empty>
+        <Empty data-tour="listing-sites-table">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <Building2 />

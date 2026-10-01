@@ -291,7 +291,7 @@ export function RawLeadsView({
         </div>
 
         {visible.length === 0 && !(filter === "new" && pending.length > 0) ? (
-          <Empty>
+          <Empty data-tour="leads-inbox-table">
             <EmptyTitle className="text-sm">{query || cutoff !== null ? "No leads match these filters" : EMPTY_COPY[filter]}</EmptyTitle>
           </Empty>
         ) : (

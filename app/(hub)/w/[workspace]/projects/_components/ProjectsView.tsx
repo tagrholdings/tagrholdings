@@ -154,7 +154,7 @@ export function ProjectsView({
 
   if (boards.length === 0) {
     return (
-      <Empty className="border border-dashed border-divider">
+      <Empty data-tour="projects-board" className="border border-dashed border-divider">
         <EmptyHeader>
           <EmptyMedia variant="icon">
             <FolderKanban />

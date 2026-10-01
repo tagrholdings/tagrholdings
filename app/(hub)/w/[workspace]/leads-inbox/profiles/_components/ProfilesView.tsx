@@ -200,7 +200,7 @@ export function ProfilesView({ profiles }: { profiles: SearchProfileSummary[] })
   if (profiles.length === 0) {
     return (
       <>
-        <Empty>
+        <Empty data-tour="profiles-table">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <Radar />

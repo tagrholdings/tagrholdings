@@ -160,7 +160,7 @@ export function ContactsView({
 
   if (contacts.length === 0 && organizations.length === 0) {
     return (
-      <Empty>
+      <Empty data-tour="contacts-table">
         <EmptyHeader>
           <EmptyMedia variant="icon">
             <Building2 />
