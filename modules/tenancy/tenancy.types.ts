@@ -47,6 +47,35 @@ export const createWorkspaceWithAdminSchema = createWorkspaceSchema.extend({
 });
 export type CreateWorkspaceWithAdminInput = z.input<typeof createWorkspaceWithAdminSchema>;
 
+/** The text a super admin must type, besides the workspace's name, to archive or delete it (the Vercel-style double confirmation). */
+export const ARCHIVE_PHRASE = "archive workspace";
+export const DELETE_PHRASE = "delete workspace";
+
+export const renameWorkspaceSchema = z.object({ id: z.uuid(), name: z.string().trim().min(2, "Enter a name.").max(80) });
+
+export const inviteToWorkspaceSchema = z.object({
+  workspaceId: z.uuid(),
+  email: z.string().trim().toLowerCase().max(254).pipe(z.email("Enter a valid email address.")),
+  role: workspaceRoleSchema.default("member"),
+});
+
+/** The two things typed to confirm a destructive action: the workspace's exact name and the action phrase. */
+const confirmationFields = { confirmName: z.string().max(200), confirmPhrase: z.string().max(100) };
+export const archiveWorkspaceSchema = z.object({ id: z.uuid(), ...confirmationFields });
+export const deleteWorkspaceSchema = z.object({ id: z.uuid(), ...confirmationFields });
+export const unarchiveWorkspaceSchema = z.object({ id: z.uuid() });
+export type WorkspaceConfirmation = { confirmName: string; confirmPhrase: string };
+
+/** Row shape for /admin. */
+export interface WorkspaceAdminRow {
+  id: string;
+  name: string;
+  slug: string;
+  inboundLocalPart: string;
+  archivedAt: Date | null;
+  memberCount: number;
+}
+
 export const changeMemberRoleSchema = z.object({ userId: z.string().min(1).max(100), role: workspaceRoleSchema });
 export const removeMemberSchema = z.object({ userId: z.string().min(1).max(100) });
 

@@ -16,7 +16,7 @@ import {
 
 /** Pipeline items show up on Projects, Leads, a contact's panel, and as activity links. */
 function revalidatePipelinePages(slug: string) {
-  revalidateWorkspace(slug, "/pipeline");
+  revalidateWorkspace(slug, "/projects");
   revalidateWorkspace(slug, "/leads");
   revalidateWorkspace(slug, "/contacts");
   revalidateWorkspace(slug, "/activities");
@@ -26,7 +26,7 @@ export const createBoardAction = protectedAction
   .schema(createBoardSchema)
   .action(async ({ parsedInput, ctx }) => {
     const board = await pipelineService.createBoard(ctx.user.tenantId, parsedInput);
-    revalidateWorkspace(ctx.workspace.slug, "/pipeline");
+    revalidateWorkspace(ctx.workspace.slug, "/projects");
     return { board };
   });
 

@@ -1,3 +1,4 @@
+import * as React from "react"
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
 import { Loader2 } from "lucide-react"
@@ -39,31 +40,30 @@ const buttonVariants = cva(
   }
 )
 
-function Button({
-  className,
-  variant = "default",
-  size = "default",
-  loading = false,
-  disabled,
-  children,
-  nativeButton,
-  ...props
-}: ButtonPrimitive.Props &
-  VariantProps<typeof buttonVariants> & { loading?: boolean }) {
-  const isNativeButton = nativeButton ?? (props.render ? false : true)
+// forwardRef is required, not optional: Radix's `asChild` (DropdownMenuTrigger, SelectPrimitive.Trigger, …)
+// clones this element and attaches its own ref to measure/position a floating menu against it. Without
+// forwarding, that ref silently lands on nothing and the menu renders with no anchor to position itself
+// against — it doesn't error, it just never becomes visible. A plain `<button>` has no such requirement,
+// which is why this only ever broke combined with a Radix trigger that needs the element's position.
+const Button = React.forwardRef<HTMLElement, ButtonPrimitive.Props & VariantProps<typeof buttonVariants> & { loading?: boolean }>(
+  ({ className, variant = "default", size = "default", loading = false, disabled, children, nativeButton, ...props }, ref) => {
+    const isNativeButton = nativeButton ?? (props.render ? false : true)
 
-  return (
-    <ButtonPrimitive
-      data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
-      disabled={disabled || loading}
-      nativeButton={isNativeButton}
-      {...props}
-    >
-      {loading && <Loader2 className="animate-spin" />}
-      {children}
-    </ButtonPrimitive>
-  )
-}
+    return (
+      <ButtonPrimitive
+        ref={ref}
+        data-slot="button"
+        className={cn(buttonVariants({ variant, size, className }))}
+        disabled={disabled || loading}
+        nativeButton={isNativeButton}
+        {...props}
+      >
+        {loading && <Loader2 className="animate-spin" />}
+        {children}
+      </ButtonPrimitive>
+    )
+  }
+)
+Button.displayName = "Button"
 
 export { Button, buttonVariants }

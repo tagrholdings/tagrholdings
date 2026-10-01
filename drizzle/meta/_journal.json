@@ -155,6 +155,13 @@
       "when": 1790821796770,
       "tag": "0021_workspaces",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1790831547988,
+      "tag": "0022_workspace_archive",
+      "breakpoints": true
     }
   ]
 }

@@ -9,7 +9,7 @@ interface TableProps {
 export function Table({ children, className = "" }: TableProps) {
   return (
     <div className={`bg-transparent md:bg-surface md:rounded-lg md:border md:border-divider overflow-hidden ${className}`}>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto no-scrollbar">
         {/* nowrap only in the real table; in the mobile cards text must wrap, or long values push out of the card. */}
         <table className="block md:table w-full text-left text-sm whitespace-normal break-words md:whitespace-nowrap md:break-normal">
           {children}

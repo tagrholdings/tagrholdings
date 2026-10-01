@@ -67,8 +67,9 @@ export async function POST(request: Request) {
 
     // The workspace comes from our own database (the address's token), never from anything the sender controls.
     const localParts = [...new Set(email.to.map(inboundLocalPartOf).filter(isString))];
+    // An archived workspace no longer takes mail: it is dropped like an address nobody owns.
     const tenants = (await Promise.all(localParts.map((localPart) => tenancyService.findByInboundLocalPart(localPart)))).filter(
-      (tenant): tenant is NonNullable<typeof tenant> => !!tenant
+      (tenant): tenant is NonNullable<typeof tenant> => !!tenant && !tenant.archivedAt
     );
     if (tenants.length === 0) {
       console.warn("resend-inbound webhook: no workspace owns any recipient of this email — dropped.");

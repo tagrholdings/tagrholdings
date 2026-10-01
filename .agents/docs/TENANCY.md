@@ -54,6 +54,8 @@ A **workspace is a tenant** (`tenants` row). Everything about who can open one l
 
 Switching workspace (the avatar menu) navigates to the *same page* in the other workspace inside a transition; `app/(hub)/w/[workspace]/layout.tsx` keys the chrome by slug so no client state (filters, optimistic rows, open panels) or SWR data of the previous workspace survives. Links and `revalidatePath` always carry the slug (`workspacePath`, `useWorkspacePath`, `revalidateWorkspace`).
 
+**Managing workspaces (super admin, `/admin` and `/admin/<slug>`):** create, rename, invite people (as admin or member — the invite email names the workspace), **archive** and **delete**. Archiving (`tenants.archived_at`) closes the workspace to its members (404 — only a super admin can still open it), hides it from the switcher and makes every job skip it (reminders, inbound email, the lead engine); nothing is deleted and it can be restored. Deleting removes the workspace and *all* its data in one transaction (`tenancyRepository.deleteTenantAndData`, children before parents; `tenant-data-tables.test.ts` fails if a new tenant table isn't in the list). Both need a Vercel-style double confirmation — the workspace's exact name **and** the phrase (`archive workspace` / `delete workspace`) — checked again on the server.
+
 Outside a workspace: `/auth/*`, `/home` (picks the last-used workspace — a cookie that is only a redirect hint — and also receives the old pre-workspace URLs), `/workspaces`, `/admin`, `/share`.
 
 Everything below this section about `tenantId` filters, composite FKs and RLS is unchanged: services and repositories still take a `tenantId`, which now comes from `getWorkspace` / `ctx.user.tenantId` instead of from the user.

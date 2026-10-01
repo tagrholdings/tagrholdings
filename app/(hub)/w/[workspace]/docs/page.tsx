@@ -217,7 +217,7 @@ const SECTIONS: DocSection[] = [
   {
     id: "projects",
     title: "Projects",
-    href: "/pipeline",
+    href: "/projects",
     icon: FolderKanban,
     summary:
       "Your own boards, each with the stages you choose — for example \"Vendor onboarding: Contacted → Negotiating → Signed\". Each project is a tab at the top of the page.",

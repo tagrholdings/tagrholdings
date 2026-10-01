@@ -290,7 +290,7 @@ const ENTRIES: Entry[] = [
     }),
   },
   {
-    path: "/pipeline",
+    path: "/projects",
     build: () => ({
       title: "Projects",
       summary: "Your own boards for anything else you are working on, one tab per board.",

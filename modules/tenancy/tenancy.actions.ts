@@ -6,7 +6,18 @@ import { revalidateWorkspace } from "@/lib/revalidate";
 import { UserFacingError } from "@/lib/errors";
 import { invitesService } from "@/modules/invites/invites.service";
 import { tenancyService } from "./tenancy.service";
-import { buyerIdentitySchema, changeMemberRoleSchema, createWorkspaceWithAdminSchema, removeMemberSchema } from "./tenancy.types";
+import { rateLimitService } from "@/modules/rate-limit/rate-limit.service";
+import {
+  archiveWorkspaceSchema,
+  buyerIdentitySchema,
+  changeMemberRoleSchema,
+  createWorkspaceWithAdminSchema,
+  deleteWorkspaceSchema,
+  inviteToWorkspaceSchema,
+  removeMemberSchema,
+  renameWorkspaceSchema,
+  unarchiveWorkspaceSchema,
+} from "./tenancy.types";
 
 // ── /admin (the platform's super admin) ───────────────────────────────────────────────────────────────
 
@@ -29,6 +40,44 @@ export const createWorkspaceAction = platformAction.schema(createWorkspaceWithAd
 
   revalidatePath("/admin");
   return { workspace: { id: workspace.id, slug: workspace.slug, name: workspace.name }, inviteWarning };
+});
+
+export const renameWorkspaceAction = platformAction.schema(renameWorkspaceSchema).action(async ({ parsedInput }) => {
+  const workspace = await tenancyService.renameWorkspace(parsedInput.id, parsedInput.name);
+  revalidatePath("/admin");
+  revalidatePath(`/admin/${workspace.slug}`);
+  return { workspace: { id: workspace.id, name: workspace.name, slug: workspace.slug } };
+});
+
+/** "Create a user" for a workspace: invites them by email (they pick their own password), as admin or member. */
+export const inviteToWorkspaceAction = platformAction.schema(inviteToWorkspaceSchema).action(async ({ parsedInput, ctx }) => {
+  if (await rateLimitService.isLimited(`invite:user:${ctx.user.id}`, 20, 60 * 60 * 1000)) {
+    throw new UserFacingError("Too many attempts. Please try again in a little while.");
+  }
+  const workspace = await tenancyService.getTenant(parsedInput.workspaceId);
+  if (!workspace) throw new UserFacingError("That workspace no longer exists.");
+  if (workspace.archivedAt) throw new UserFacingError("Restore this workspace before inviting people to it.");
+  const result = await invitesService.invite(workspace.id, { id: ctx.user.id, name: ctx.user.name || ctx.user.email }, parsedInput.email, parsedInput.role);
+  revalidatePath(`/admin/${workspace.slug}`);
+  return result;
+});
+
+export const archiveWorkspaceAction = platformAction.schema(archiveWorkspaceSchema).action(async ({ parsedInput }) => {
+  await tenancyService.archiveWorkspace(parsedInput.id, parsedInput);
+  revalidatePath("/admin", "layout");
+  return { success: true };
+});
+
+export const unarchiveWorkspaceAction = platformAction.schema(unarchiveWorkspaceSchema).action(async ({ parsedInput }) => {
+  await tenancyService.unarchiveWorkspace(parsedInput.id);
+  revalidatePath("/admin", "layout");
+  return { success: true };
+});
+
+export const deleteWorkspaceAction = platformAction.schema(deleteWorkspaceSchema).action(async ({ parsedInput }) => {
+  await tenancyService.deleteWorkspace(parsedInput.id, parsedInput);
+  revalidatePath("/admin", "layout");
+  return { success: true };
 });
 
 // ── Settings (a workspace admin) ──────────────────────────────────────────────────────────────────────

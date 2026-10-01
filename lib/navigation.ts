@@ -22,7 +22,7 @@ export const NAV_ITEMS: NavItem[] = [
   // it done → contacts tie it all together.
   { label: "Leads Inbox", href: "/leads-inbox", icon: Inbox, badgeKey: "leadsInboxUnread" },
   { label: "Leads", href: "/leads", icon: Target },
-  { label: "Projects", href: "/pipeline", icon: FolderKanban },
+  { label: "Projects", href: "/projects", icon: FolderKanban },
   { label: "Activities", href: "/activities", icon: ListChecks },
   { label: "Contacts", href: "/contacts", icon: Users },
   //{ label: "Automations", href: "/automations", icon: Zap },

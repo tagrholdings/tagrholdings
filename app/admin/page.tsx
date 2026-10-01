@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ChevronRight } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth-server";
 import { inboundAddressFor } from "@/lib/inbound-address";
 import { workspacePath } from "@/lib/workspace-path";
@@ -13,14 +14,13 @@ export const metadata: Metadata = { title: "Workspaces - TAGR CRM", manifest: nu
 export const dynamic = "force-dynamic";
 
 /**
- * Platform admin: every workspace, and a form to create one (with its first admin invited by email). Only a super admin
- * (a platform role, granted by scripts/grant-super-admin.ts) sees this — anyone else gets a plain 404.
+ * Platform admin: every workspace (archived ones last), a form to create one, and a page per workspace to manage it.
+ * Only a super admin (a platform role, granted by scripts/grant-super-admin.ts) sees this — anyone else gets a plain 404.
  */
 export default async function AdminPage() {
   const user = await getCurrentUser();
   if (!(await tenancyService.isSuperAdmin(user.id))) notFound();
-  const workspaces = await tenancyService.listTenants();
-  const details = await Promise.all(workspaces.map((w) => tenancyService.getTenant(w.id)));
+  const workspaces = await tenancyService.listForAdmin();
 
   return (
     <div className="min-h-screen bg-background px-4 py-10">
@@ -44,22 +44,37 @@ export default async function AdminPage() {
         </section>
 
         <section className="flex flex-col gap-2">
-          {workspaces.map((workspace, index) => {
-            const address = details[index] ? inboundAddressFor(details[index].inboundLocalPart) : null;
+          {workspaces.map((workspace) => {
+            const archived = !!workspace.archivedAt;
+            const address = inboundAddressFor(workspace.inboundLocalPart);
             return (
-              <Link
-                key={workspace.id}
-                href={workspacePath(workspace.slug, "/activities")}
-                className="flex items-center justify-between gap-4 rounded-lg border border-divider bg-surface px-4 py-3 transition-colors hover:border-accent"
-              >
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-medium text-foreground">{workspace.name}</span>
-                  <span className="block truncate text-xs text-muted-foreground">
-                    /w/{workspace.slug}
-                    {address ? ` · ${address}` : ""}
+              <div key={workspace.id} className="flex items-stretch gap-2">
+                <Link
+                  href={`/admin/${workspace.slug}`}
+                  className="flex min-w-0 flex-1 items-center justify-between gap-4 rounded-lg border border-divider bg-surface px-4 py-3 transition-colors hover:border-accent"
+                >
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-2">
+                      <span className={`truncate text-sm font-medium ${archived ? "text-muted-foreground" : "text-foreground"}`}>{workspace.name}</span>
+                      {archived && <span className="shrink-0 rounded-sm bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground">Archived</span>}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      /w/{workspace.slug} · {workspace.memberCount} member{workspace.memberCount === 1 ? "" : "s"}
+                      {address ? ` · ${address}` : ""}
+                    </span>
                   </span>
-                </span>
-              </Link>
+                  <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-muted-foreground">
+                    Manage
+                    <ChevronRight className="size-4" aria-hidden />
+                  </span>
+                </Link>
+                <Link
+                  href={workspacePath(workspace.slug, "/activities")}
+                  className="flex shrink-0 items-center rounded-lg border border-divider bg-surface px-3 text-xs font-medium text-accent-text transition-colors hover:border-accent hover:text-accent-hover"
+                >
+                  Open
+                </Link>
+              </div>
             );
           })}
         </section>

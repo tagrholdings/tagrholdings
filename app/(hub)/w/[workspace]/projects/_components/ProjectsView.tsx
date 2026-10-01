@@ -170,7 +170,7 @@ export function ProjectsView({
   }
 
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="flex flex-1 flex-col sm:gap-4 gap-0">
       <div className="sticky top-14 z-10 flex h-[3.25rem] shrink-0 items-center gap-2 bg-background md:static md:h-auto">
         {/* Horizontal scroll, not wrap — with several projects (plus the
             archived toggle and "New project"), wrapping pushed the board

@@ -3,6 +3,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("./tenancy.repository", () => ({
   tenancyRepository: {
     findTenantBySlug: vi.fn(),
+    findTenantById: vi.fn(),
+    updateTenantName: vi.fn(),
+    setTenantArchived: vi.fn(),
+    deleteTenantAndData: vi.fn(),
+    findAllForAdmin: vi.fn(),
     findMember: vi.fn(),
     findPlatformRole: vi.fn(),
     findWorkspacesForUser: vi.fn(),
@@ -154,5 +159,59 @@ describe("members", () => {
     repo.findMember.mockResolvedValue(undefined);
     await expect(tenancyService.changeMemberRole("t1", "ghost", "admin")).rejects.toThrow("isn't a member");
     await expect(tenancyService.removeMember("t1", "ghost")).rejects.toThrow("isn't a member");
+  });
+});
+
+describe("archived workspaces", () => {
+  const ARCHIVED = { ...TENANT, archivedAt: new Date("2026-09-30T00:00:00Z") };
+
+  it("are closed to their members (404), but a super admin can still open them", async () => {
+    repo.findTenantBySlug.mockResolvedValue(ARCHIVED as never);
+    repo.findMember.mockResolvedValue({ role: "admin" } as never);
+    expect(await tenancyService.resolveAccess("u1", "acme")).toBeNull();
+    repo.findPlatformRole.mockResolvedValue("super_admin");
+    expect(await tenancyService.resolveAccess("root", "acme")).toMatchObject({ tenantId: "t1", isSuperAdmin: true });
+  });
+});
+
+describe("archive / delete need the name AND the phrase typed", () => {
+  beforeEach(() => {
+    repo.findTenantById.mockResolvedValue({ id: "t1", name: "Acme Corp" } as never);
+  });
+
+  it("archives when both match exactly", async () => {
+    await tenancyService.archiveWorkspace("t1", { confirmName: "Acme Corp", confirmPhrase: "archive workspace" });
+    expect(repo.setTenantArchived).toHaveBeenCalledWith("t1", expect.any(Date));
+  });
+
+  it("refuses a wrong name, a wrong phrase, or the other action's phrase — and changes nothing", async () => {
+    for (const confirmation of [
+      { confirmName: "acme corp", confirmPhrase: "archive workspace" },
+      { confirmName: "Acme Corp", confirmPhrase: "archive" },
+      { confirmName: "Acme Corp", confirmPhrase: "delete workspace" },
+      { confirmName: "", confirmPhrase: "" },
+    ]) {
+      await expect(tenancyService.archiveWorkspace("t1", confirmation)).rejects.toThrow("doesn't match");
+    }
+    expect(repo.setTenantArchived).not.toHaveBeenCalled();
+  });
+
+  it("deletes the workspace's data only with the delete phrase", async () => {
+    await expect(tenancyService.deleteWorkspace("t1", { confirmName: "Acme Corp", confirmPhrase: "archive workspace" })).rejects.toThrow("doesn't match");
+    expect(repo.deleteTenantAndData).not.toHaveBeenCalled();
+    await tenancyService.deleteWorkspace("t1", { confirmName: "Acme Corp", confirmPhrase: "delete workspace" });
+    expect(repo.deleteTenantAndData).toHaveBeenCalledWith("t1");
+  });
+
+  it("a workspace that no longer exists can't be archived or deleted", async () => {
+    repo.findTenantById.mockResolvedValue(undefined);
+    await expect(tenancyService.archiveWorkspace("gone", { confirmName: "x", confirmPhrase: "archive workspace" })).rejects.toThrow("no longer exists");
+    await expect(tenancyService.deleteWorkspace("gone", { confirmName: "x", confirmPhrase: "delete workspace" })).rejects.toThrow("no longer exists");
+  });
+
+  it("restoring needs no confirmation", async () => {
+    repo.setTenantArchived.mockResolvedValue({ id: "t1" } as never);
+    await tenancyService.unarchiveWorkspace("t1");
+    expect(repo.setTenantArchived).toHaveBeenCalledWith("t1", null);
   });
 });

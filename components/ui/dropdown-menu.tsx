@@ -374,7 +374,9 @@ function DropdownMenuRadioGroup({
             defaultValue={defaultValue}
             onValueChange={onValueChange}
             {...props}
-        />
+        >
+            {children}
+        </DropdownMenuPrimitive.RadioGroup>
     );
 }
 

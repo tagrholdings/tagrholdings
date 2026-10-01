@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { platformRolesTable, tenantMembersTable, tenantsTable } from "./tenancy.schema";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { TENANT_DATA_TABLES } from "./tenancy.constants";
 import type { PlatformRole, WorkspaceRole } from "./tenancy.types";
 
 // Uses the unscoped `db`, not `withTenant`: resolving a workspace is what
@@ -67,9 +68,58 @@ export const tenancyRepository = {
     });
   },
 
-  /** Every workspace — for background jobs that sweep all of them (there is no session/tenant to start from) and for the super admin. */
+  /** Every ACTIVE workspace — for background jobs that sweep all of them (there is no session/tenant to start from). Archived ones are skipped. */
   async findAllTenants() {
-    return db.select({ id: tenantsTable.id, slug: tenantsTable.slug, name: tenantsTable.name }).from(tenantsTable).orderBy(asc(tenantsTable.name));
+    return db
+      .select({ id: tenantsTable.id, slug: tenantsTable.slug, name: tenantsTable.name })
+      .from(tenantsTable)
+      .where(isNull(tenantsTable.archivedAt))
+      .orderBy(asc(tenantsTable.name));
+  },
+
+  /** Every workspace, archived or not, with its member count — the super admin's list. */
+  async findAllForAdmin() {
+    const result = await db.execute<{ id: string; name: string; slug: string; inbound_local_part: string; archived_at: Date | null; member_count: number }>(sql`
+      select t.id, t.name, t.slug, t.inbound_local_part, t.archived_at,
+             (select count(*)::int from tenant_members tm where tm.tenant_id = t.id) as member_count
+      from tenants t
+      order by t.archived_at is not null, t.name
+    `);
+    return result.rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      slug: r.slug,
+      inboundLocalPart: r.inbound_local_part,
+      archivedAt: r.archived_at ? new Date(r.archived_at) : null,
+      memberCount: r.member_count,
+    }));
+  },
+
+  async updateTenantName(id: string, name: string) {
+    const [row] = await db.update(tenantsTable).set({ name }).where(eq(tenantsTable.id, id)).returning();
+    return row;
+  },
+
+  async setTenantArchived(id: string, archivedAt: Date | null) {
+    const [row] = await db.update(tenantsTable).set({ archivedAt }).where(eq(tenantsTable.id, id)).returning();
+    return row;
+  },
+
+  /**
+   * Deletes a workspace and EVERYTHING in it, in one transaction (all or nothing). Children go before the rows they
+   * reference — the composite (tenant_id, x_id) foreign keys have no cascade. Raw SQL on other modules' tables on
+   * purpose: this is the one platform-level operation that has to reach all of them, and it uses the unscoped `db`
+   * (RLS doesn't apply) with an explicit tenant filter on every statement. tenancy.service.test.ts fails if a new
+   * tenant table is added to the schema without being added here.
+   */
+  async deleteTenantAndData(tenantId: string) {
+    await db.transaction(async (tx) => {
+      for (const table of TENANT_DATA_TABLES) {
+        await tx.execute(sql`delete from ${sql.identifier(table)} where tenant_id = ${tenantId}`);
+      }
+      await tx.delete(tenantMembersTable).where(eq(tenantMembersTable.tenantId, tenantId));
+      await tx.delete(tenantsTable).where(eq(tenantsTable.id, tenantId));
+    });
   },
 
   /** The workspaces a person belongs to, with their role in each. */
@@ -78,7 +128,7 @@ export const tenancyRepository = {
       .select({ id: tenantsTable.id, slug: tenantsTable.slug, name: tenantsTable.name, role: tenantMembersTable.role })
       .from(tenantMembersTable)
       .innerJoin(tenantsTable, eq(tenantsTable.id, tenantMembersTable.tenantId))
-      .where(eq(tenantMembersTable.userId, userId))
+      .where(and(eq(tenantMembersTable.userId, userId), isNull(tenantsTable.archivedAt)))
       .orderBy(asc(tenantsTable.name));
   },
 

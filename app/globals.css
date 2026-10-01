@@ -251,6 +251,11 @@ h1, h2, h3, h4, h5, h6 {
   scrollbar-width: thin;
   scrollbar-color: var(--divider) transparent;
 }
+
+.kanban-scroll:hover {
+  scrollbar-color: var(--accent) transparent;
+}
+
 .kanban-scroll::-webkit-scrollbar {
   height: 6px;
 }

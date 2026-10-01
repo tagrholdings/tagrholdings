@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { UserFacingError } from "@/lib/errors";
 import { tenancyRepository } from "./tenancy.repository";
-import { isValidSlug, type CreateWorkspaceInput, type WorkspaceRole } from "./tenancy.types";
+import { ARCHIVE_PHRASE, DELETE_PHRASE, isValidSlug, type CreateWorkspaceInput, type WorkspaceConfirmation, type WorkspaceRole } from "./tenancy.types";
 
 /** What a signed-in person may do in one workspace. `role` is "admin" for a super admin who isn't a member. */
 export interface WorkspaceAccess {
@@ -17,6 +17,13 @@ export interface WorkspaceAccess {
 /** The workspace's own leads-inbox address (local part): readable slug + a random token so it can't be guessed. */
 function newInboundLocalPart(slug: string) {
   return `${slug}-${randomBytes(5).toString("hex")}`;
+}
+
+/** The Vercel-style double confirmation: the workspace's exact name AND the action phrase must both match. */
+function assertConfirmed(workspaceName: string, phrase: string, given: WorkspaceConfirmation) {
+  if (given.confirmName !== workspaceName || given.confirmPhrase !== phrase) {
+    throw new UserFacingError("The confirmation text doesn't match. Type the workspace name and the phrase exactly as shown.");
+  }
 }
 
 export const tenancyService = {
@@ -36,6 +43,8 @@ export const tenancyService = {
     ]);
     const isSuperAdmin = platformRole === "super_admin";
     if (!member && !isSuperAdmin) return null;
+    // An archived workspace is closed to its members; only a super admin can still open it (to restore it).
+    if (tenant.archivedAt && !isSuperAdmin) return null;
     return {
       tenantId: tenant.id,
       slug: tenant.slug,
@@ -117,7 +126,42 @@ export const tenancyService = {
     });
   },
 
-  /** Every workspace — for background jobs that sweep all of them. */
+  /** Every workspace, archived or not, with member counts — the super admin's list. */
+  async listForAdmin() {
+    return tenancyRepository.findAllForAdmin();
+  },
+
+  async getBySlug(slug: string) {
+    return tenancyRepository.findTenantBySlug(slug);
+  },
+
+  async renameWorkspace(id: string, name: string) {
+    const updated = await tenancyRepository.updateTenantName(id, name.trim());
+    if (!updated) throw new UserFacingError("That workspace no longer exists.");
+    return updated;
+  },
+
+  /** Closes the workspace to its members and to every job; nothing is deleted. Needs the name + "archive workspace" typed. */
+  async archiveWorkspace(id: string, confirmation: WorkspaceConfirmation) {
+    const tenant = await tenancyRepository.findTenantById(id);
+    if (!tenant) throw new UserFacingError("That workspace no longer exists.");
+    assertConfirmed(tenant.name, ARCHIVE_PHRASE, confirmation);
+    await tenancyRepository.setTenantArchived(id, new Date());
+  },
+
+  async unarchiveWorkspace(id: string) {
+    if (!(await tenancyRepository.setTenantArchived(id, null))) throw new UserFacingError("That workspace no longer exists.");
+  },
+
+  /** Deletes the workspace and all of its data for good. Needs the name + "delete workspace" typed. */
+  async deleteWorkspace(id: string, confirmation: WorkspaceConfirmation) {
+    const tenant = await tenancyRepository.findTenantById(id);
+    if (!tenant) throw new UserFacingError("That workspace no longer exists.");
+    assertConfirmed(tenant.name, DELETE_PHRASE, confirmation);
+    await tenancyRepository.deleteTenantAndData(id);
+  },
+
+  /** Every ACTIVE workspace — for background jobs that sweep all of them. */
   async listTenants() {
     return tenancyRepository.findAllTenants();
   },

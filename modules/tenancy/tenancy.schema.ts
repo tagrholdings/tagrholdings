@@ -19,6 +19,8 @@ export const tenantsTable = pgTable("tenants", {
   buyerName: text("buyer_name"),
   buyerPhone: text("buyer_phone"),
   buyerCompany: text("buyer_company"),
+  /** Set when a super admin archives the workspace: members can no longer open it, no job touches it, nothing is deleted. */
+  archivedAt: timestamp("archived_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

@@ -9,7 +9,7 @@ import { notify } from "@/components/ui/toaster";
 import { SearchInput } from "@/components/ui/search-input";
 import { useHeaderSearch } from "@/components/layout/header-search";
 import { SegmentedControl } from "@/components/shared/segmented-control";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -203,7 +203,7 @@ export function ActivitiesView({
     // See components/shared/side-panel.tsx — this row is what lets opening
     // an activity's detail panel push/shrink the content instead of overlaying it.
     <div className="flex min-w-0 flex-1 gap-4">
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col sm:gap-4 gap-0">
         {/* Sticky + horizontal-scroll only where the page scrolls (phones); on desktop it just wraps, as before. */}
         <div
           data-tour="activities-filters"
@@ -250,11 +250,14 @@ export function ActivitiesView({
                   renders as a bottom-sheet Vault on mobile) frees up a lot more row width than a full
                   segmented control, which matters here since the week nav sits right next to it. */}
               <DropdownMenu>
+                {/* A plain `<button>`, not `Button` — `DropdownMenuTrigger asChild` needs a real DOM ref on the
+                    trigger to position the floating menu against (see components/ui/button.tsx), same as every
+                    other DropdownMenuTrigger in the app (AccountMenu, BottomNav, Sidebar). */}
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-9">
+                  <button type="button" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-9")}>
                     <CalendarClock />
                     {dateField === "dueDate" ? "Due date" : "Created date"}
-                  </Button>
+                  </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuRadioGroup value={dateField} onValueChange={(value) => setDateField(value as WeekDateField)}>

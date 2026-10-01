@@ -9,7 +9,7 @@ import { createOrganizationSchema, updateOrganizationSchema } from "./organizati
 function revalidateOrganizationPages(slug: string, id?: string) {
   revalidateWorkspace(slug, "/contacts");
   if (id) revalidateWorkspace(slug, `/contacts/${id}`);
-  revalidateWorkspace(slug, "/pipeline");
+  revalidateWorkspace(slug, "/projects");
   revalidateWorkspace(slug, "/leads");
   revalidateWorkspace(slug, "/activities");
 }

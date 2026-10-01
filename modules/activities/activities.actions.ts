@@ -8,7 +8,7 @@ import { createActivitySchema, setActivityDoneSchema, updateActivityDateSchema }
 /** Activities show up on /activities, inside pipeline items (Projects, Leads) and on a contact's panel. */
 function revalidateActivityPages(slug: string) {
   revalidateWorkspace(slug, "/activities");
-  revalidateWorkspace(slug, "/pipeline");
+  revalidateWorkspace(slug, "/projects");
   revalidateWorkspace(slug, "/leads");
   revalidateWorkspace(slug, "/contacts");
 }

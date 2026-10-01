@@ -8,7 +8,7 @@ import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/
 import { SearchInput } from "@/components/ui/search-input";
 import { useHeaderSearch } from "@/components/layout/header-search";
 import { SegmentedControl } from "@/components/shared/segmented-control";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -16,6 +16,7 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 import { Pagination } from "@/components/ui/pagination";
 import { notify } from "@/components/ui/toaster";
 import { formatDateUS } from "@/utils/date";
@@ -249,11 +250,14 @@ export function RawLeadsView({
           />
           {hasFit && (
             <DropdownMenu>
+              {/* A plain `<button>`, not `Button` — `DropdownMenuTrigger asChild` needs a real DOM ref on the
+                  trigger to position the floating menu against (see components/ui/button.tsx), same as every
+                  other DropdownMenuTrigger in the app (AccountMenu, BottomNav, Sidebar). */}
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-9">
+                <button type="button" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-9")}>
                   <ArrowUpDown />
                   {sort === "fit" ? "Best fit" : "Newest"}
-                </Button>
+                </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuRadioGroup value={sort} onValueChange={(value) => changeSort(value as Sort)}>
@@ -265,10 +269,14 @@ export function RawLeadsView({
           )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9" aria-label="Filter by when the lead was found">
+              <button
+                type="button"
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-9")}
+                aria-label="Filter by when the lead was found"
+              >
                 <CalendarClock />
                 {FOUND_OPTIONS.find((o) => o.value === found)?.label}
-              </Button>
+              </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuRadioGroup value={found} onValueChange={(value) => changeFound(value as FoundRange)}>
@@ -288,7 +296,7 @@ export function RawLeadsView({
           </Empty>
         ) : (
           <div ref={fitRef} data-tour="leads-inbox-table" className="flex min-h-0 flex-1 scroll-mt-32 flex-col gap-4 md:overflow-hidden">
-          <Table className="md:min-h-0 md:overflow-y-auto">
+          <Table className="md:min-h-0 md:overflow-y-auto no-scrollbar">
             <TableHeader>
               <tr>
                 <TableHead>Business</TableHead>

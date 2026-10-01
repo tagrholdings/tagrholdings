@@ -57,6 +57,7 @@ class Database:
                    location_scope
             from search_profiles
             where active
+              and tenant_id not in (select id from tenants where archived_at is not null)
               and (%(force)s
                    or last_run_at is null
                    or run_requested_at is not null
@@ -226,6 +227,7 @@ class Database:
             select id::text, tenant_id::text, site_name, signup_url, email_field_selector, submit_selector
             from email_sources
             where not subscribed and not captcha_protected
+              and tenant_id not in (select id from tenants where archived_at is not null)
               and email_field_selector is not null and submit_selector is not null
               and (attempt_requested_at is not null or last_attempt_at is null)
               and (%(ids)s::uuid[] is null or id = any(%(ids)s::uuid[]))

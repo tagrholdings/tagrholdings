@@ -55,7 +55,7 @@ export function PipelineView({
   initialSelectedId?: string | null;
   /**
    * How much sticky chrome (rem) already sits above this view on mobile — just the `3.5rem` mobile header by
-   * default (used standalone on `/leads`). `/pipeline` (Projects) renders its own sticky project-tabs row above
+   * default (used standalone on `/leads`). `/projects` renders its own sticky project-tabs row above
    * this component, so `ProjectsView` passes a bigger value to stack this toolbar underneath it instead of overlapping.
    */
   topOffsetRem?: number;

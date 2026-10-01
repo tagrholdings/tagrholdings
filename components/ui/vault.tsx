@@ -391,7 +391,7 @@ const VaultField = ({
     className,
     ...props
 }: {
-    label?: string;
+    label?: React.ReactNode;
     required?: boolean;
     error?: string;
     children: React.ReactNode;
