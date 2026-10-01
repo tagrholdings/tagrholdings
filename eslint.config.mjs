@@ -12,7 +12,7 @@ const eslintConfig = defineConfig([
   // session, so its token lookup can't know the tenant yet (its repository says which queries are unscoped).
   {
     files: ["modules/**/*.ts"],
-    ignores: ["modules/tenancy/**", "modules/rate-limit/**", "modules/portal-access/**", "modules/auth-accounts/**", "modules/invites/**"],
+    ignores: ["modules/tenancy/**", "modules/rate-limit/**", "modules/portal-access/**", "modules/auth-accounts/**", "modules/invites/**", "modules/notifications/notifications.repository.ts"],
     rules: {
       "no-restricted-imports": [
         "error",

@@ -17,9 +17,12 @@ function walk(dir: string, match: (path: string) => boolean): string[] {
   return found;
 }
 
-/** Every `app/(hub)` page turned into the route it serves: `app/(hub)/settings/inbox/page.tsx` -> `/settings/inbox`. */
+/**
+ * Every `app/(hub)/w/[workspace]` page turned into the (workspace-relative) route it serves:
+ * `app/(hub)/w/[workspace]/settings/inbox/page.tsx` -> `/settings/inbox`.
+ */
 function hubRoutes(): string[] {
-  const hub = join(ROOT, "app", "(hub)");
+  const hub = join(ROOT, "app", "(hub)", "w", "[workspace]");
   return walk(hub, (p) => p.endsWith(`${sep}page.tsx`))
     .map((p) => relative(hub, p).replace(new RegExp(`\\${sep}`, "g"), "/").replace(/\/?page\.tsx$/, ""))
     .map((route) => `/${route}`.replace(/\/+$/, "") || "/");
@@ -31,7 +34,6 @@ function hubRoutes(): string[] {
  */
 const NO_HELP_NEEDED = new Set([
   "/settings", // redirects straight to /settings/notifications
-  "/share", // Web Share Target: redirects into the Leads Inbox, never rendered
 ]);
 
 function sourceFiles(): string[] {
@@ -52,6 +54,12 @@ function declaredTargets(): Map<string, string[]> {
 }
 
 describe("getPageHelp", () => {
+  it("ignores the /w/<workspace> part of the URL", () => {
+    expect(getPageHelp("/w/acme/leads-inbox", ctx)?.title).toBe("Leads Inbox");
+    expect(getPageHelp("/w/acme/contacts/123", ctx)?.title).toBe("Contacts");
+    expect(getPageHelp("/w/acme/settings/members", ctx)?.title).toBe("Members");
+  });
+
   it("picks the most specific page", () => {
     expect(getPageHelp("/leads-inbox", ctx)?.title).toBe("Leads Inbox");
     expect(getPageHelp("/leads-inbox/listing-sites", ctx)?.title).toBe("Listing sites");

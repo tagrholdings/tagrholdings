@@ -169,6 +169,15 @@ class Database:
             terms += [r["category"], *(r["keywords"] or [])]
         return list(dict.fromkeys(t.strip() for t in terms if t and t.strip()))
 
+    def signup_identity_for_tenant(self, tenant_id: str) -> dict[str, str | None] | None:
+        """The workspace's own inbox (the part before the "@") and who its signups sign up as — per tenant, never global.
+        `tenants` has no RLS; lead_scraper may read only these columns (migration 0021)."""
+        row = self._conn.execute(
+            "select inbound_local_part, buyer_name, buyer_phone, buyer_company from tenants where id = %s",
+            (tenant_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
     # -- email sources (auto-signup) ------------------------------------------
 
     def record_email_source_detection(self, tenant_id: str, detection, notes: str) -> bool:

@@ -30,7 +30,7 @@ export const invitesRepository = {
     return row;
   },
 
-  async create(tenantId: string, values: { email: string; tokenHash: string; invitedByUserId: string; expiresAt: Date }) {
+  async create(tenantId: string, values: { email: string; role: string; tokenHash: string; invitedByUserId: string; expiresAt: Date }) {
     const [row] = await withTenant(tenantId, (tx) => tx.insert(invitesTable).values({ ...values, tenantId }).returning());
     return row;
   },

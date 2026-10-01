@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS, BOTTOM_NAV_MAX_PRIMARY, isNavItemActive } from "@/lib/navigation";
+import { useWorkspacePath } from "@/hooks/ui/use-workspace-path";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -76,6 +77,7 @@ function NavIcon({
 
 export function BottomNav({ activeHref, badges, variant = "responsive", className }: BottomNavProps) {
   const pathname = usePathname();
+  const path = useWorkspacePath();
   const router = useRouter();
   const currentHref = activeHref ?? pathname;
 
@@ -105,7 +107,7 @@ export function BottomNav({ activeHref, badges, variant = "responsive", classNam
         return (
           <Link
             key={item.href}
-            href={item.href}
+            href={path(item.href)}
             aria-current={isActive ? "page" : undefined}
             aria-label={item.label}
             className={cn(
@@ -154,7 +156,7 @@ export function BottomNav({ activeHref, badges, variant = "responsive", classNam
               return (
                 <DropdownMenuItem
                   key={item.href}
-                  onSelect={() => router.push(item.href)}
+                  onSelect={() => router.push(path(item.href))}
                 >
                   <Icon className="size-4" aria-hidden />
                   {item.label}

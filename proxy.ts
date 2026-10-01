@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { WORKSPACE_HEADER, WORKSPACE_SECTIONS, parseWorkspacePath } from "@/lib/workspace-path";
 
 const CRM_HOST = "crm.tagrholdings.com";
 const MARKETING_HOSTS = new Set(["www.tagrholdings.com", "tagrholdings.com"]);
@@ -23,6 +24,26 @@ function isCrmHost(host: string) {
   return host === CRM_HOST || host.startsWith("crm.localhost");
 }
 
+/** Before workspaces the hub lived at `/activities`, `/contacts`… — those old URLs (bookmarks, an installed PWA, old emails) still resolve. */
+function isLegacyHubPath(pathname: string) {
+  const first = pathname.split("/")[1];
+  return (WORKSPACE_SECTIONS as readonly string[]).includes(first);
+}
+
+/**
+ * Forwards the request with the workspace taken from the URL (`/w/<slug>/…`) in the `x-workspace` header, which is how
+ * a Server Action — POSTed to its page's URL — learns which workspace it acts in (lib/safe-action.ts). The header is
+ * always rewritten here: a value the client sent is dropped, so it can only ever mirror the URL. It is an address, not
+ * proof — every action and page re-checks the person's access to that workspace.
+ */
+function forward(request: NextRequest) {
+  const requestHeaders = new Headers(request.headers);
+  const workspace = parseWorkspacePath(request.nextUrl.pathname);
+  if (workspace) requestHeaders.set(WORKSPACE_HEADER, workspace.slug);
+  else requestHeaders.delete(WORKSPACE_HEADER);
+  return NextResponse.next({ request: { headers: requestHeaders } });
+}
+
 export default function proxy(request: NextRequest) {
   const host = request.headers.get("host") || "";
   const { pathname, search } = request.nextUrl;
@@ -30,15 +51,16 @@ export default function proxy(request: NextRequest) {
   // Shared by both hosts — sign-in only ever happens on the CRM subdomain,
   // but the route itself doesn't need to be redirected either way.
   if (pathname.startsWith("/api/auth")) {
-    return NextResponse.next();
+    return forward(request);
   }
 
   if (isCrmHost(host)) {
     if (pathname === "/") {
       // The hub's home has no route of its own at "/" — app/page.tsx there
       // is already the marketing landing page — so rewrite silently to the
-      // real page. The URL bar keeps showing crm.tagrholdings.com/.
-      return NextResponse.rewrite(new URL(`/activities${search}`, request.url));
+      // resolver, which sends the person to their workspace. The URL bar
+      // keeps showing crm.tagrholdings.com/.
+      return NextResponse.rewrite(new URL(`/home${search}`, request.url));
     }
     if (isMarketingPath(pathname)) {
       // A marketing-only path has nothing to serve on the CRM host.
@@ -46,7 +68,10 @@ export default function proxy(request: NextRequest) {
         new URL(`https://www.tagrholdings.com${pathname}${search}`, request.url)
       );
     }
-    return NextResponse.next();
+    if (isLegacyHubPath(pathname)) {
+      return NextResponse.redirect(new URL(`/home?to=${encodeURIComponent(pathname + search)}`, request.url));
+    }
+    return forward(request);
   }
 
   if (MARKETING_HOSTS.has(host)) {
@@ -62,7 +87,10 @@ export default function proxy(request: NextRequest) {
   // enforce one: redirecting an unrecognized dev/preview host to the
   // production CRM domain would make local dev and PR previews unusable.
   // Both marketing and hub routes are reachable as-is at that one origin.
-  return NextResponse.next();
+  if (isLegacyHubPath(pathname)) {
+    return NextResponse.redirect(new URL(`/home?to=${encodeURIComponent(pathname + search)}`, request.url));
+  }
+  return forward(request);
 }
 
 // Static files from public/ are shared by both hosts and never go through the

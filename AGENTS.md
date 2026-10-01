@@ -26,7 +26,10 @@ Project: internal CRM for Tagr Holdings (Phoenix, AZ), with a planned future mul
 10. **NEVER** `fetch("/api/auth/...")` directly from the frontend. Use Server Actions via `authClient`.
 11. **NEVER** manage complex form state manually with `useState`. Use **React Hook Form** + **Zod** for validation and consistency. (Tip: use `z.input<typeof schema>` to export form types and avoid errors with `.default()` fields.)
 12. **NEVER** run a Repository or Service query without filtering by `tenantId`. This is the multi-tenant isolation rule — a query missing this filter is a data-leak bug between companies (Tagr vs. future Menlo Group units). Tenant tables are also protected by Postgres RLS + composite `(tenant_id, x_id)` foreign keys, which only apply when the query runs inside `withTenant()` — see `.agents/docs/TENANCY.md`.
-13. **NEVER** add or change a page under `app/(hub)` without updating `components/layout/page-help.ts` in the same change. Every page MUST have an entry there (what it is, what it's for) AND a guided tour of at least one step; every tour step's `target` MUST exist as a `data-tour="…"` attribute (or a `tourId` prop) on the element it points at, and no `data-tour` may be left orphaned. `components/layout/page-help.test.ts` enforces all three and fails `npm test` otherwise. Renaming or removing a control that a tour points at is the same change as updating its step.
+13. **NEVER** add or change a page under `app/(hub)/w/[workspace]` without updating `components/layout/page-help.ts` in the same change. Every page MUST have an entry there (what it is, what it's for) AND a guided tour of at least one step; every tour step's `target` MUST exist as a `data-tour="…"` attribute (or a `tourId` prop) on the element it points at, and no `data-tour` may be left orphaned. `components/layout/page-help.test.ts` enforces all three and fails `npm test` otherwise. Renaming or removing a control that a tour points at is the same change as updating its step.
+
+14. **NEVER** hard-code a hub link (`"/contacts"`) — every in-app link goes through `workspacePath(slug, "/contacts")` (`lib/workspace-path.ts`) or, in a client component, `useWorkspacePath()`. **NEVER** `revalidatePath("/x")` in an action — use `revalidateWorkspace(ctx.workspace.slug, "/x")`.
+15. **NEVER** resolve a workspace any way but the URL: pages call `getWorkspace(params.workspace)`, actions use `protectedAction` (reads the `x-workspace` header the proxy copies from the URL and re-checks access on every call). Use `adminAction` for workspace-admin work and `platformAction` for the super admin. A missing workspace is an error, never a guess ("the user's first workspace").
 
 ---
 
@@ -48,7 +51,7 @@ Server = "Fat"  → All intelligence, tenant isolation, business rules
 ### Full Canonical Example — moving a pipeline item to another stage
 
 ```
-app/(hub)/pipeline/board/
+app/(hub)/w/[workspace]/pipeline/board/
 ├── page.tsx                     ← RSC: fetches pipeline items via Service
 └── _components/
     ├── PipelineBoard.tsx        ← "use client": kanban with dnd-kit, calls Actions
@@ -64,13 +67,14 @@ modules/pipeline/
 
 #### page.tsx (RSC — NEVER "use client")
 ```tsx
-// app/(hub)/pipeline/board/page.tsx
+// app/(hub)/w/[workspace]/pipeline/board/page.tsx
 import { pipelineService } from "@/modules/pipeline/pipeline.service";
-import { getCurrentUser } from "@/lib/auth-server";
+import { getWorkspace } from "@/lib/auth-server";
 import { PipelineBoard } from "./_components/PipelineBoard";
 
-export default async function PipelineBoardPage() {
-  const user = await getCurrentUser();
+export default async function PipelineBoardPage({ params }: { params: Promise<{ workspace: string }> }) {
+  const { workspace } = await params;
+  const { user } = await getWorkspace(workspace); // 404 unless the person is a member (or a super admin)
   const items = await pipelineService.getBoardItems(user.tenantId);
   return <PipelineBoard initialData={items} />;
 }
@@ -78,7 +82,7 @@ export default async function PipelineBoardPage() {
 
 #### Client Component (_components/ — "use client" goes here)
 ```tsx
-// app/(hub)/pipeline/board/_components/PipelineBoard.tsx
+// app/(hub)/w/[workspace]/pipeline/board/_components/PipelineBoard.tsx
 "use client";
 import { moveItemStageAction } from "@/modules/pipeline/pipeline.actions";
 import { notify } from "@/components/ui/toaster";
@@ -169,7 +173,7 @@ The full rules live in separate files. **Read them when implementing:**
 
 | File | Content | When to read |
 |---|---|---|
-| `.agents/docs/TENANCY.md` | Multi-tenant model via `tenantId` — isolation rules, Menlo Group expansion plan | When implementing any query or Service |
+| `.agents/docs/TENANCY.md` | Multi-tenant model via `tenantId` — isolation rules, workspaces in the URL, roles, super admin | When implementing any query or Service, or touching access/roles |
 | `.agents/docs/LEAD_INGESTION.md` | Contract between the Python job (scraper + AI extraction) and the `raw_leads` schema | When integrating data coming from the scraper |
 | `.agents/docs/DOMAINS.md` | Why `www.tagrholdings.com` (marketing) and `crm.tagrholdings.com` (hub) are one deployment split by `proxy.ts`, and the trade-offs that come with it | When adding a route, touching `proxy.ts`, or debugging cross-domain/auth-redirect behavior |
 
@@ -200,8 +204,8 @@ modules/[domain]/[domain].service.ts     → Business logic + tenant isolation
 modules/[domain]/[domain].actions.ts     → Server Actions (gatekeeper)
 modules/[domain]/[domain].types.ts       → Shared types
 
-app/(hub)/[feature]/page.tsx             → RSC (NEVER "use client")
-app/(hub)/[feature]/_components/         → Route-local Client Components
+app/(hub)/w/[workspace]/[feature]/page.tsx     → RSC (NEVER "use client")
+app/(hub)/w/[workspace]/[feature]/_components/ → Route-local Client Components
 
 hooks/use[Name].ts                       → UI logic (SWR, Zustand)
 components/ui/                           → Design system (Shadcn) — minimalist, no shadows

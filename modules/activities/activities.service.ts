@@ -10,14 +10,14 @@ export const activitiesService = {
     return activitiesRepository.findAllWithRelations(tenantId);
   },
 
-  async create(tenantId: string, data: NewActivity) {
+  async create(tenantId: string, data: NewActivity, createdByUserId: string | null = null) {
     // contact/organization/pipeline-item links are enforced by composite
     // (tenant_id, x_id) foreign keys; the assignee is a Neon Auth user id with
     // no FK possible, so its tenant membership is checked here.
     if (data.assignedToUserId && !(await tenancyService.isMember(tenantId, data.assignedToUserId))) {
       throw new UserFacingError("That team member isn't part of this workspace.");
     }
-    return activitiesRepository.create(tenantId, data);
+    return activitiesRepository.create(tenantId, data, createdByUserId);
   },
 
   async setDone(tenantId: string, id: string, done: boolean) {

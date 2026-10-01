@@ -6,7 +6,8 @@ vi.mock("@/lib/resend-inbound", async (importActual) => ({
   ...(await importActual<typeof import("@/lib/resend-inbound")>()),
   fetchReceivedEmail: vi.fn(),
 }));
-vi.mock("@/modules/tenancy/tenancy.service", () => ({ tenancyService: { tenantExists: vi.fn() } }));
+vi.mock("@/modules/tenancy/tenancy.service", () => ({ tenancyService: { findByInboundLocalPart: vi.fn() } }));
+vi.mock("@/modules/rate-limit/rate-limit.service", () => ({ rateLimitService: { isLimited: vi.fn() } }));
 // The lead-saving path runs for real (email-inbound -> ingest service); only its edges are faked.
 vi.mock("@/modules/leads/leads.repository", () => ({ leadsRepository: { findIdByDedupeKey: vi.fn(), createIfNew: vi.fn(), existsForEmail: vi.fn(), findIdByListingSignature: vi.fn() } }));
 vi.mock("@/modules/lead-extraction/lead-extraction.service", async (importActual) => ({
@@ -23,6 +24,7 @@ import { POST } from "./route";
 import { fetchReceivedEmail } from "@/lib/resend-inbound";
 import { safeFetchText } from "@/lib/safe-fetch";
 import { tenancyService } from "@/modules/tenancy/tenancy.service";
+import { rateLimitService } from "@/modules/rate-limit/rate-limit.service";
 import { leadsRepository } from "@/modules/leads/leads.repository";
 import { leadExtractionService } from "@/modules/lead-extraction/lead-extraction.service";
 import { leadEngineService } from "@/modules/lead-engine/lead-engine.service";
@@ -32,6 +34,9 @@ const SECRET_BYTES = Buffer.from("resend-webhook-test-secret-bytes");
 const SECRET = `whsec_${SECRET_BYTES.toString("base64")}`;
 const TENANT = "3f8a1c2e-6b1d-4c7a-9a52-0d3c5f1e7b90";
 const EMAIL_ID = "re_email_123";
+const DOMAIN = "in.example.test";
+const ADDRESS = `tagr-0a1b2c3d4e@${DOMAIN}`;
+const WORKSPACE = { id: TENANT, slug: "tagr", name: "Tagr" };
 const OPENAI_USAGE = { provider: "openai", operation: "extract", model: "gpt-4o-mini", inputTokens: 900, outputTokens: 120, costUsd: 0.0002 } as const;
 
 /** A webhook request signed exactly the way Svix/Resend signs it. */
@@ -47,12 +52,12 @@ function signedRequest(payload: object, opts: { secretBytes?: Buffer; timestamp?
   });
 }
 
-const receivedEvent = { type: "email.received", created_at: new Date().toISOString(), data: { email_id: EMAIL_ID, from: "x", to: ["leads@tagrholdings.com"], subject: "s" } };
+const receivedEvent = { type: "email.received", created_at: new Date().toISOString(), data: { email_id: EMAIL_ID, from: "x", to: [ADDRESS], subject: "s" } };
 
 const listingEmail = {
   id: EMAIL_ID,
   from: "Listings <alerts@bizlistings.test>",
-  to: ["leads@tagrholdings.com"],
+  to: [ADDRESS],
   subject: "3 new HVAC businesses for sale in Arizona",
   text: "Profitable HVAC company, Phoenix AZ. Asking $850,000. Owner retiring. https://bizlistings.test/listing/42",
   html: null,
@@ -61,8 +66,9 @@ const listingEmail = {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.stubEnv("RESEND_WEBHOOK_SECRET", SECRET);
-  vi.stubEnv("INBOUND_EMAIL_TENANT_ID", TENANT);
-  vi.mocked(tenancyService.tenantExists).mockResolvedValue(true);
+  vi.stubEnv("INBOUND_EMAIL_DOMAIN", DOMAIN);
+  vi.mocked(tenancyService.findByInboundLocalPart).mockImplementation(async (localPart) => (localPart === "tagr-0a1b2c3d4e" ? (WORKSPACE as never) : undefined));
+  vi.mocked(rateLimitService.isLimited).mockResolvedValue(false);
   vi.mocked(fetchReceivedEmail).mockResolvedValue(listingEmail);
   vi.mocked(leadsRepository.findIdByDedupeKey).mockResolvedValue(undefined);
   vi.mocked(leadsRepository.existsForEmail).mockResolvedValue(false);
@@ -112,7 +118,7 @@ describe("resend-inbound webhook — a valid email.received", () => {
   it("fetches the full body, extracts its listings, and saves each as an email_digest lead", async () => {
     const res = await POST(signedRequest(receivedEvent));
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ received: true, outcome: "lead" });
+    expect(await res.json()).toEqual({ received: true, outcome: "lead", workspaces: 1 });
 
     expect(fetchReceivedEmail).toHaveBeenCalledWith(EMAIL_ID); // the webhook itself is metadata-only
     expect(leadExtractionService.extractListings).toHaveBeenCalledTimes(1);
@@ -147,7 +153,7 @@ describe("resend-inbound webhook — a valid email.received", () => {
     vi.mocked(leadsRepository.createIfNew).mockImplementation(async (_t, lead) => ({ id: `id-${lead.dedupeKey}` }));
 
     const res = await POST(signedRequest(receivedEvent));
-    expect(await res.json()).toEqual({ received: true, outcome: "lead" });
+    expect(await res.json()).toEqual({ received: true, outcome: "lead", workspaces: 1 });
 
     expect(leadExtractionService.extractListings).toHaveBeenCalledTimes(1);
     const saved = vi.mocked(leadsRepository.createIfNew).mock.calls.map(([, lead]) => lead);
@@ -162,7 +168,7 @@ describe("resend-inbound webhook — a valid email.received", () => {
   it("is idempotent: a redelivered webhook for the same email creates nothing and pays for nothing", async () => {
     vi.mocked(leadsRepository.existsForEmail).mockResolvedValue(true);
     const res = await POST(signedRequest(receivedEvent));
-    expect(await res.json()).toEqual({ received: true, outcome: "lead" });
+    expect(await res.json()).toEqual({ received: true, outcome: "lead", workspaces: 1 });
     expect(leadExtractionService.extractListings).not.toHaveBeenCalled();
     expect(leadsRepository.createIfNew).not.toHaveBeenCalled();
     expect(leadEngineService.recordUsage).not.toHaveBeenCalled();
@@ -174,9 +180,56 @@ describe("resend-inbound webhook — a valid email.received", () => {
     expect(fetchReceivedEmail).not.toHaveBeenCalled();
   });
 
-  it("uses the configured tenant, cross-checked against a real one", async () => {
+  it("takes the workspace from the recipient address, looked up in the database", async () => {
+    await POST(signedRequest(receivedEvent));
+    expect(tenancyService.findByInboundLocalPart).toHaveBeenCalledWith("tagr-0a1b2c3d4e");
+    expect(leadsRepository.createIfNew).toHaveBeenCalledWith(TENANT, expect.anything());
+  });
+
+  it("each workspace has its own address: mail for workspace B never lands in A", async () => {
+    const other = { id: "b-tenant", slug: "menlo", name: "Menlo" };
+    vi.mocked(tenancyService.findByInboundLocalPart).mockImplementation(async (lp) => ((lp === "menlo-zzzzzzzzzz" ? other : lp === "tagr-0a1b2c3d4e" ? WORKSPACE : undefined) as never));
+    vi.mocked(fetchReceivedEmail).mockResolvedValue({ ...listingEmail, to: [`Menlo <menlo-zzzzzzzzzz@${DOMAIN}>`] });
+    await POST(signedRequest({ ...receivedEvent, data: { ...receivedEvent.data, to: [`menlo-zzzzzzzzzz@${DOMAIN}`] } }));
+    expect(leadsRepository.createIfNew).toHaveBeenCalledWith("b-tenant", expect.anything());
+    expect(leadsRepository.createIfNew).not.toHaveBeenCalledWith(TENANT, expect.anything());
+  });
+
+  it("an email addressed to two workspaces becomes leads in both", async () => {
+    const other = { id: "b-tenant", slug: "menlo", name: "Menlo" };
+    vi.mocked(tenancyService.findByInboundLocalPart).mockImplementation(async (lp) => ((lp === "menlo-zzzzzzzzzz" ? other : WORKSPACE) as never));
+    vi.mocked(fetchReceivedEmail).mockResolvedValue({ ...listingEmail, to: [ADDRESS, `menlo-zzzzzzzzzz@${DOMAIN}`] });
+    const res = await POST(signedRequest(receivedEvent));
+    expect((await res.json()).workspaces).toBe(2);
+    const tenants = vi.mocked(leadsRepository.createIfNew).mock.calls.map(([t]) => t);
+    expect(tenants).toEqual(expect.arrayContaining([TENANT, "b-tenant"]));
+  });
+
+  it("an address nobody owns is acknowledged (200) and dropped — retrying can't fix it", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.mocked(fetchReceivedEmail).mockResolvedValue({ ...listingEmail, to: [`stranger-1234567890@${DOMAIN}`] });
+    const res = await POST(signedRequest({ ...receivedEvent, data: { ...receivedEvent.data, to: [`stranger-1234567890@${DOMAIN}`] } }));
+    expect(res.status).toBe(200);
+    expect(leadsRepository.createIfNew).not.toHaveBeenCalled();
+  });
+
+  it("mail for some other domain is dropped before spending an API call to fetch it", async () => {
+    const res = await POST(signedRequest({ ...receivedEvent, data: { ...receivedEvent.data, to: ["someone@elsewhere.test"] } }));
+    expect(res.status).toBe(200);
+    expect(fetchReceivedEmail).not.toHaveBeenCalled();
+  });
+
+  it("a workspace over its hourly inbound limit has the email dropped (200), the others unaffected", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.mocked(rateLimitService.isLimited).mockResolvedValue(true);
+    const res = await POST(signedRequest(receivedEvent));
+    expect(res.status).toBe(200);
+    expect(leadsRepository.createIfNew).not.toHaveBeenCalled();
+  });
+
+  it("answers 500 when the inbound domain isn't configured", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
-    vi.mocked(tenancyService.tenantExists).mockResolvedValue(false);
+    vi.stubEnv("INBOUND_EMAIL_DOMAIN", "");
     expect((await POST(signedRequest(receivedEvent))).status).toBe(500);
     expect(leadsRepository.createIfNew).not.toHaveBeenCalled();
   });
@@ -192,7 +245,7 @@ describe("resend-inbound webhook — subscription confirmations", () => {
   const confirmEmail = {
     id: EMAIL_ID,
     from: "BizListings <no-reply@bizlistings.test>",
-    to: ["leads@tagrholdings.com"],
+    to: [ADDRESS],
     subject: "Please confirm your subscription",
     text: "Thanks for signing up. Confirm your email: https://bizlistings.test/confirm?t=abc123",
     html: null,
@@ -205,7 +258,7 @@ describe("resend-inbound webhook — subscription confirmations", () => {
     vi.mocked(safeFetchText).mockResolvedValue({ status: 200, finalUrl: "https://bizlistings.test/confirmed", contentType: "text/html", text: "ok" });
 
     const res = await POST(signedRequest(receivedEvent));
-    expect(await res.json()).toEqual({ received: true, outcome: "subscription_confirmed" });
+    expect(await res.json()).toEqual({ received: true, outcome: "subscription_confirmed", workspaces: 1 });
     expect(safeFetchText).toHaveBeenCalledWith("https://bizlistings.test/confirm?t=abc123", expect.anything());
     expect(emailSourcesService.markSubscribedFromConfirmation).toHaveBeenCalledWith(TENANT, "src-1");
     expect(leadsRepository.createIfNew).not.toHaveBeenCalled();

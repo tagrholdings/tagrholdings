@@ -7,6 +7,10 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS, isNavItemActive } from "@/lib/navigation";
 import { AnimatedWaves } from "@/components/shared/animated-waves";
+import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { workspacePath } from "@/lib/workspace-path";
+import { AccountMenuContent } from "./AccountMenu";
+import { useWorkspace } from "./workspace-context";
 
 export interface SidebarUser {
   name: string;
@@ -48,6 +52,7 @@ export function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const currentHref = activeHref ?? pathname;
+  const workspace = useWorkspace();
 
   return (
     <aside
@@ -108,7 +113,7 @@ export function Sidebar({
           return (
             <Link
               key={item.href}
-              href={item.href}
+              href={workspacePath(workspace.slug, item.href)}
               aria-current={isActive ? "page" : undefined}
               title={collapsed ? item.label : undefined}
               className={cn(
@@ -137,18 +142,31 @@ export function Sidebar({
         </nav>
 
         <div className={cn("mt-auto border-t border-sidebar-border py-4", collapsed ? "px-2" : "px-3")}>
-          <div
-            className={cn(
-              "flex items-center rounded-md py-2",
-              collapsed ? "justify-center px-0" : "gap-3 px-2"
-            )}
-            title={collapsed ? user.name : undefined}
-          >
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-sidebar-hover text-xs font-semibold">
-              {user.initials}
-            </div>
-            {!collapsed && <span className="flex-1 truncate text-sm">{user.name}</span>}
-          </div>
+          {/* The avatar is the account menu — it also holds the workspace switcher (same menu as the header's avatar). */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label="Account menu"
+                title={collapsed ? `${user.name} · ${workspace.name}` : undefined}
+                className={cn(
+                  "flex w-full items-center rounded-md py-2 text-left transition-colors hover:bg-sidebar-hover",
+                  collapsed ? "justify-center px-0" : "gap-3 px-2"
+                )}
+              >
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-sidebar-hover text-xs font-semibold">
+                  {user.initials}
+                </span>
+                {!collapsed && (
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm">{user.name}</span>
+                    <span className="block truncate text-xs text-sidebar-foreground-muted">{workspace.name}</span>
+                  </span>
+                )}
+              </button>
+            </DropdownMenuTrigger>
+            <AccountMenuContent user={user} side="top" align="start" />
+          </DropdownMenu>
         </div>
       </div>
     </aside>

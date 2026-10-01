@@ -20,6 +20,7 @@
  * that case link an existing user id directly with SEED_ADMIN_USER_ID
  * instead of SEED_ADMIN_EMAIL/PASSWORD.
  */
+import { randomBytes } from "node:crypto";
 import { config } from "dotenv";
 import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
@@ -80,13 +81,14 @@ async function main() {
       (
         await db
           .insert(tenantsTable)
-          .values({ name: TENANT_NAME, slug: TENANT_SLUG })
+          .values({ name: TENANT_NAME, slug: TENANT_SLUG, inboundLocalPart: `${TENANT_SLUG}-${randomBytes(5).toString("hex")}` })
           .returning({ id: tenantsTable.id })
       )[0].id;
 
     const userId = await resolveUserId();
 
-    await db.insert(tenantMembersTable).values({ tenantId, userId }).onConflictDoNothing();
+    // The first person in a workspace is its admin. (A super admin is granted separately: scripts/grant-super-admin.ts.)
+    await db.insert(tenantMembersTable).values({ tenantId, userId, role: "admin" }).onConflictDoNothing();
 
     console.log(`Linked user ${userId} to tenant "${TENANT_NAME}" (${tenantId}).`);
   } finally {

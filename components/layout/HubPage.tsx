@@ -37,7 +37,6 @@ export function HubPage({ user, kicker, title, backHref, showSearch, primaryActi
         primaryAction={primaryAction}
         user={user}
         onSignOut={onSignOut}
-        inboxAddress={process.env.INBOUND_LEADS_ADDRESS?.trim() || null}
       />
       <main
         className={cn(

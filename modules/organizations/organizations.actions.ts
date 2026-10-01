@@ -1,24 +1,24 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateWorkspace } from "@/lib/revalidate";
 import { protectedAction } from "@/lib/safe-action";
 import { organizationsService } from "./organizations.service";
 import { createOrganizationSchema, updateOrganizationSchema } from "./organizations.types";
 
 /** Organization pickers/lists show up on Contacts, Leads, Projects and Activities. */
-function revalidateOrganizationPages(id?: string) {
-  revalidatePath("/contacts");
-  if (id) revalidatePath(`/contacts/${id}`);
-  revalidatePath("/pipeline");
-  revalidatePath("/leads");
-  revalidatePath("/activities");
+function revalidateOrganizationPages(slug: string, id?: string) {
+  revalidateWorkspace(slug, "/contacts");
+  if (id) revalidateWorkspace(slug, `/contacts/${id}`);
+  revalidateWorkspace(slug, "/pipeline");
+  revalidateWorkspace(slug, "/leads");
+  revalidateWorkspace(slug, "/activities");
 }
 
 export const createOrganizationAction = protectedAction
   .schema(createOrganizationSchema)
   .action(async ({ parsedInput, ctx }) => {
     const organization = await organizationsService.create(ctx.user.tenantId, parsedInput);
-    revalidateOrganizationPages();
+    revalidateOrganizationPages(ctx.workspace.slug);
     return { organization };
   });
 
@@ -27,6 +27,6 @@ export const updateOrganizationAction = protectedAction
   .action(async ({ parsedInput, ctx }) => {
     const { id, ...data } = parsedInput;
     const organization = await organizationsService.update(ctx.user.tenantId, id, data);
-    revalidateOrganizationPages();
+    revalidateOrganizationPages(ctx.workspace.slug);
     return { organization };
   });

@@ -5,6 +5,7 @@ import { inviteEmail, inviteEmailText } from "@/lib/email/templates/invite";
 import { UserFacingError } from "@/lib/errors";
 import { authAccountsService } from "@/modules/auth-accounts/auth-accounts.service";
 import { tenancyService } from "@/modules/tenancy/tenancy.service";
+import type { WorkspaceRole } from "@/modules/tenancy/tenancy.types";
 import { invitesRepository } from "./invites.repository";
 import { INVITE_TTL_DAYS, inviteStatus, maskEmail, type InviteLinkState, type InviteSummary } from "./invites.types";
 
@@ -14,17 +15,21 @@ const newToken = () => randomBytes(32).toString("base64url");
 const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
 const expiryFrom = (now: Date) => new Date(now.getTime() + INVITE_TTL_DAYS * DAY_MS);
 
+async function workspaceNameOf(tenantId: string): Promise<string> {
+  return (await tenancyService.getTenant(tenantId))?.name ?? "a workspace";
+}
+
 export interface Inviter {
   id: string;
   name: string;
 }
 
-async function emailInvite(email: string, token: string, inviterName: string): Promise<boolean> {
+async function emailInvite(email: string, token: string, inviterName: string, workspaceName: string, role: WorkspaceRole): Promise<boolean> {
   const acceptUrl = `${crmUrl()}/auth/accept-invite?token=${encodeURIComponent(token)}`;
-  const options = { acceptUrl, inviterName, expiresInDays: INVITE_TTL_DAYS };
+  const options = { acceptUrl, inviterName, workspaceName, role, expiresInDays: INVITE_TTL_DAYS };
   return sendEmail({
     to: email,
-    subject: `${inviterName} invited you to the TAGR CRM`,
+    subject: `${inviterName} invited you to ${workspaceName} on TAGR CRM`,
     html: inviteEmail(options),
     text: inviteEmailText(options),
   });
@@ -36,6 +41,7 @@ export const invitesService = {
     return rows.map((row) => ({
       id: row.id,
       email: row.email,
+      role: row.role as WorkspaceRole,
       status: inviteStatus(row, now),
       lastSentAt: row.lastSentAt,
       expiresAt: row.expiresAt,
@@ -44,7 +50,7 @@ export const invitesService = {
   },
 
   /** Invites `email` (or re-sends the open invite it already has) and emails the link. */
-  async invite(tenantId: string, inviter: Inviter, email: string, now: Date = new Date()) {
+  async invite(tenantId: string, inviter: Inviter, email: string, role: WorkspaceRole = "member", now: Date = new Date()) {
     const existingUser = await authAccountsService.findByEmail(email);
     if (existingUser && (await tenancyService.isMember(tenantId, existingUser.id))) {
       throw new UserFacingError("That person already has access.");
@@ -54,9 +60,10 @@ export const invitesService = {
     const values = { tokenHash: hashToken(token), expiresAt: expiryFrom(now), now };
     const open = await invitesRepository.findOpenByEmail(tenantId, email);
     if (open) await invitesRepository.rotate(tenantId, open.id, values);
-    else await invitesRepository.create(tenantId, { email, tokenHash: values.tokenHash, invitedByUserId: inviter.id, expiresAt: values.expiresAt });
+    else await invitesRepository.create(tenantId, { email, role, tokenHash: values.tokenHash, invitedByUserId: inviter.id, expiresAt: values.expiresAt });
 
-    if (!(await emailInvite(email, token, inviter.name))) {
+    // An open invite keeps the role it was made with; re-inviting only re-sends it.
+    if (!(await emailInvite(email, token, inviter.name, await workspaceNameOf(tenantId), open ? (open.role as WorkspaceRole) : role))) {
       throw new UserFacingError("The invite was saved, but the email couldn't be sent. Use Resend to try again.");
     }
     return { resent: !!open };
@@ -70,7 +77,7 @@ export const invitesService = {
     }
     const token = newToken();
     await invitesRepository.rotate(tenantId, id, { tokenHash: hashToken(token), expiresAt: expiryFrom(now), now });
-    if (!(await emailInvite(invite.email, token, inviter.name))) {
+    if (!(await emailInvite(invite.email, token, inviter.name, await workspaceNameOf(tenantId), invite.role as WorkspaceRole))) {
       throw new UserFacingError("The email couldn't be sent. Please try again.");
     }
   },
@@ -91,7 +98,7 @@ export const invitesService = {
       case "expired":
         return { state: "expired", maskedEmail: maskEmail(invite.email) };
       case "pending":
-        return { state: "valid", email: invite.email };
+        return { state: "valid", email: invite.email, workspaceName: await workspaceNameOf(invite.tenantId) };
     }
   },
 
@@ -110,7 +117,7 @@ export const invitesService = {
     const rotated = await invitesRepository.rotateById(invite.id, { tokenHash: hashToken(fresh), expiresAt: expiryFrom(now), now });
     if (!rotated) throw new UserFacingError("This invite is no longer valid. Ask for a new one.");
     const inviterName = (await authAccountsService.nameOf(invite.invitedByUserId)) ?? "A teammate";
-    if (!(await emailInvite(invite.email, fresh, inviterName))) {
+    if (!(await emailInvite(invite.email, fresh, inviterName, await workspaceNameOf(invite.tenantId), invite.role as WorkspaceRole))) {
       throw new UserFacingError("We couldn't send the email right now. Please try again in a few minutes.");
     }
   },
@@ -133,23 +140,25 @@ export const invitesService = {
 
     if (!(await invitesRepository.claim(invite.id, now))) throw new UserFacingError("This invite was already used. Try signing in.");
 
+    const workspaceSlug = (await tenancyService.getTenant(invite.tenantId))?.slug ?? null;
+
     try {
       // Someone who already has a login (say, an earlier account) is added to the workspace as-is: an invite never
       // overwrites an existing password.
       const existing = await authAccountsService.findByEmail(invite.email);
       if (existing) {
-        await tenancyService.addMember(invite.tenantId, existing.id);
-        return { email: invite.email, createdAccount: false };
+        await tenancyService.addMember(invite.tenantId, existing.id, invite.role as WorkspaceRole);
+        return { email: invite.email, createdAccount: false, workspaceSlug };
       }
       const { userId } = await authAccountsService.createAccount({ email: invite.email, name: input.name, password: input.password });
       try {
-        await tenancyService.addMember(invite.tenantId, userId);
+        await tenancyService.addMember(invite.tenantId, userId, invite.role as WorkspaceRole);
       } catch (error) {
         // The login exists but has no workspace: undo it so the retry starts clean rather than hitting "already exists".
         await authAccountsService.removeAccount(userId);
         throw error;
       }
-      return { email: invite.email, createdAccount: true };
+      return { email: invite.email, createdAccount: true, workspaceSlug };
     } catch (error) {
       await invitesRepository.releaseClaim(invite.id).catch((releaseError) => console.error("Couldn't release the invite:", releaseError));
       throw error;

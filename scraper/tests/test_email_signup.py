@@ -26,7 +26,10 @@ TARGET = SignupTarget(
     email_field_selector="#email",
     submit_selector="button[type=submit]",
 )
+DOMAIN = "in.example.test"
+LOCAL_PART = "tagr-0a1b2c3d4e"
 ADDRESS = "leads@tagrholdings.com"
+TENANT_ADDRESS = f"{LOCAL_PART}@{DOMAIN}"
 
 
 class FakePage:
@@ -110,6 +113,8 @@ class TestAttemptSignup:
 class FakeDb:
     def __init__(self, targets):
         self.targets = targets
+        self.default_identity = {"inbound_local_part": LOCAL_PART, "buyer_name": "Tanner", "buyer_phone": "480 282 2225", "buyer_company": "TAGR Holdings"}
+        self.identities: dict = {}
         self.recorded: list[tuple[str, str | None]] = []
         self.subscribed_calls = 0
 
@@ -118,6 +123,9 @@ class FakeDb:
 
     def industries_for_tenant(self, tenant_id):
         return ["HVAC", "plumbing"]
+
+    def signup_identity_for_tenant(self, tenant_id):
+        return self.identities.get(tenant_id, self.default_identity)
 
     def record_signup_attempt(self, target, result, error):
         self.recorded.append((result, error))
@@ -147,34 +155,64 @@ class DenyAll:
 class TestRunSignups:
     def test_a_successful_submit_is_recorded_as_submitted_and_never_as_subscribed(self):
         db, driver = FakeDb([TARGET]), FakeDriver(SignupOutcome("submitted"))
-        counts = run_signups(db, driver, ADDRESS, robots=AllowAll())
+        counts = run_signups(db, driver, DOMAIN, robots=AllowAll())
         assert counts == {"submitted": 1, "captcha": 0, "manual": 0, "failed": 0}
         assert db.recorded == [("submitted", None)]
         # The Database has no way to mark subscribed here at all: record_signup_attempt is the only write,
         # and (see test_db_sql) it never touches the subscribed column.
-        assert driver.attempts == [ADDRESS]
+        assert driver.attempts == [TENANT_ADDRESS]  # the WORKSPACE's own inbox, not a shared one
 
     def test_a_captcha_is_recorded_so_the_site_becomes_captcha_protected(self):
         db = FakeDb([TARGET])
-        counts = run_signups(db, FakeDriver(SignupOutcome("captcha")), ADDRESS, robots=AllowAll())
+        counts = run_signups(db, FakeDriver(SignupOutcome("captcha")), DOMAIN, robots=AllowAll())
         assert counts["captcha"] == 1 and db.recorded == [("captcha", None)]
 
     def test_a_manual_outcome_is_recorded_with_its_reason_and_counted(self):
         db, driver = FakeDb([TARGET]), FakeDriver(SignupOutcome("manual", "The site requires accepting: NDA"))
-        buyer = Buyer("Tanner", "480 282 2225", "TAGR Holdings")
-        counts = run_signups(db, driver, ADDRESS, robots=AllowAll(), buyer=buyer)
+        buyer = Buyer("Tanner", "480 282 2225", "TAGR Holdings")  # this workspace's own identity, read from the database
+        counts = run_signups(db, driver, DOMAIN, robots=AllowAll())
         assert counts["manual"] == 1 and db.recorded == [("manual", "The site requires accepting: NDA")]
         assert driver.context == (buyer, ["HVAC", "plumbing"])  # who to sign up as, and the tenant's industries
 
     def test_robots_txt_disallow_means_no_browser_is_opened(self):
         db, driver = FakeDb([TARGET]), FakeDriver(SignupOutcome("submitted"))
-        counts = run_signups(db, driver, ADDRESS, robots=DenyAll())
+        counts = run_signups(db, driver, DOMAIN, robots=DenyAll())
         assert counts["failed"] == 1 and driver.attempts == []
         assert "robots.txt" in (db.recorded[0][1] or "")
 
+    def test_each_workspace_signs_up_with_its_own_inbox_and_its_own_buyer(self):
+        from dataclasses import replace
+
+        other = replace(TARGET, id="s2", tenant_id="tenant-2")
+        db, driver = FakeDb([TARGET, other]), FakeDriver(SignupOutcome("submitted"))
+        db.identities["tenant-2"] = {"inbound_local_part": "menlo-zzzzzzzzzz", "buyer_name": "Dana", "buyer_phone": None, "buyer_company": "Menlo CRE"}
+
+        class Recording(FakeDriver):
+            def __init__(self):
+                super().__init__(SignupOutcome("submitted"))
+                self.seen = []
+
+            def attempt(self, target, address, buyer=None, industries=None):
+                self.seen.append((target.tenant_id, address, buyer))
+                return self.outcome
+
+        driver = Recording()
+        run_signups(db, driver, DOMAIN, robots=AllowAll())
+        assert driver.seen == [
+            (TARGET.tenant_id, TENANT_ADDRESS, Buyer("Tanner", "480 282 2225", "TAGR Holdings")),
+            ("tenant-2", f"menlo-zzzzzzzzzz@{DOMAIN}", Buyer("Dana", None, "Menlo CRE")),
+        ]
+
+    def test_a_workspace_without_an_inbox_address_is_a_failure_not_a_guess(self):
+        db, driver = FakeDb([TARGET]), FakeDriver(SignupOutcome("submitted"))
+        db.identities[TARGET.tenant_id] = None
+        counts = run_signups(db, driver, DOMAIN, robots=AllowAll())
+        assert counts["failed"] == 1 and driver.attempts == []
+        assert "no inbox address" in (db.recorded[0][1] or "")
+
     def test_nothing_due_does_nothing(self):
         db, driver = FakeDb([]), FakeDriver(SignupOutcome("submitted"))
-        assert run_signups(db, driver, ADDRESS) == {"submitted": 0, "captcha": 0, "manual": 0, "failed": 0}
+        assert run_signups(db, driver, DOMAIN) == {"submitted": 0, "captcha": 0, "manual": 0, "failed": 0}
         assert driver.attempts == []
 
 

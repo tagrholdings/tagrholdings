@@ -60,10 +60,9 @@ export function SignInForm({ fieldVariants, dark = false }: SignInFormProps) {
       return;
     }
 
-    // "/" also works on crm.tagrholdings.com (proxy.ts rewrites it to
-    // /pipeline), but going straight to /pipeline is host-agnostic —
-    // it also works in local dev without a crm.localhost DNS entry.
-    router.push("/pipeline");
+    // "/home" picks the workspace (the last one used, else the first) and redirects into it. It is host-agnostic, unlike
+    // "/" (which proxy.ts rewrites there on the CRM host only) — it also works in local dev without a crm.localhost entry.
+    router.push("/home");
     router.refresh();
   };
 

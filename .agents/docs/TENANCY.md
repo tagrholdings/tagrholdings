@@ -38,16 +38,32 @@ Rules that follow from this:
 
 `SET ROLE` can be undone by `RESET ROLE`, so RLS here protects against application bugs (a missing filter, an unchecked ID), not against arbitrary SQL execution — which the app doesn't allow anyway (Drizzle parameterizes everything). A dedicated `LOGIN NOBYPASSRLS` role for the app's `DATABASE_URL` would close that gap too, at the cost of a second credential to manage in Vercel.
 
-## Current state
+## Workspaces, members and roles
 
-Today there is **a single active tenant**: Tagr Holdings. The code already treats everything as multi-tenant from the start (no query without a `tenantId` filter), even with only one tenant running — this avoids architectural rework once the second tenant is added.
+A **workspace is a tenant** (`tenants` row). Everything about who can open one lives in three tables, none with RLS (they are read *before* a tenant is known):
+
+- `tenant_members` — many-to-many: a person can belong to several workspaces, with a `role` **per membership** (`admin` | `member`). A workspace always keeps at least one admin (`tenancyService.changeMemberRole` / `removeMember`).
+- `platform_roles` — a **platform-level** role above any workspace. Today only `super_admin`: creates workspaces (`/admin`) and can open **any** workspace, acting as its admin, without being a member. It is checked by *role*, never by an email or id in code, and it is granted **only** by `scripts/grant-super-admin.ts` — there is no screen or action that writes it.
+- `tenants.inbound_local_part` — the workspace's own leads-inbox address (see LEAD_INGESTION.md).
+
+**The workspace is in the URL: `/w/<slug>/…`.** One function decides access — `tenancyService.resolveAccess(userId, slug)` — and everything goes through it:
+
+- Pages call `getWorkspace(params.workspace)` (`lib/auth-server.ts`): a member or super admin gets `{ user, tenantId, slug, role, isSuperAdmin }`; anyone else gets a **404** (never "forbidden", so a slug's existence isn't revealed). A layout's check doesn't protect its pages — each page calls it.
+- Server Actions are POSTed to the page's own URL, so `proxy.ts` copies `/w/<slug>` into the `x-workspace` request header (always overwritten, so a client-sent value never gets through) and `protectedAction` (`lib/safe-action.ts`) re-resolves access from it **on every call**. The header is only an address, never proof. A missing header is an error — it never falls back to "the user's first workspace", which would write into a workspace the person isn't looking at.
+- `userAction` (session only — a person's push subscriptions), `protectedAction` (a workspace member), `adminAction` (workspace admin, which includes the super admin), `platformAction` (super admin).
+
+Switching workspace (the avatar menu) navigates to the *same page* in the other workspace inside a transition; `app/(hub)/w/[workspace]/layout.tsx` keys the chrome by slug so no client state (filters, optimistic rows, open panels) or SWR data of the previous workspace survives. Links and `revalidatePath` always carry the slug (`workspacePath`, `useWorkspacePath`, `revalidateWorkspace`).
+
+Outside a workspace: `/auth/*`, `/home` (picks the last-used workspace — a cookie that is only a redirect hint — and also receives the old pre-workspace URLs), `/workspaces`, `/admin`, `/share`.
+
+Everything below this section about `tenantId` filters, composite FKs and RLS is unchanged: services and repositories still take a `tenantId`, which now comes from `getWorkspace` / `ctx.user.tenantId` instead of from the user.
 
 ## Expansion plan
 
 When the project expands to the Menlo Group, the expectation is:
 
-1. Each Menlo Group unit (CRE, Dental Transitions, Business Brokerage) becomes a new row in `tenants`.
-2. Users may need access to more than one tenant (e.g. someone working across two units) — this isn't designed yet; when the time comes, evaluate a `user_tenants` join table instead of assuming 1 user = 1 tenant.
+1. Each Menlo Group unit (CRE, Dental Transitions, Business Brokerage) becomes a new workspace, created by the super admin at `/admin`.
+2. Someone working across two units is simply a member of both (many-to-many, per-workspace role).
 3. Custom fields per business type (each unit may evaluate leads/deals differently) — evaluate whether this becomes flexible JSON columns per tenant or fixed fields with slightly different meaning per context. Not decided yet — don't assume a solution in code before this is defined.
 
 ## Golden rule for any new code

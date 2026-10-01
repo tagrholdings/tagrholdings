@@ -11,6 +11,7 @@ import { formatDateTimeUS } from "@/utils/date";
 import type { ActivityRow } from "@/modules/activities/activities.types";
 import { pipelineItemHref } from "@/components/pipeline/links";
 import type { PipelineItemSummary } from "@/components/pipeline/types";
+import { useWorkspacePath } from "@/hooks/ui/use-workspace-path";
 
 interface ActivityDetailPanelProps {
   activity: ActivityRow | null;
@@ -32,6 +33,7 @@ function DetailBody({
   pipelineItems: PipelineItemSummary[];
   onSetDone: (id: string, done: boolean) => void;
 }) {
+  const path = useWorkspacePath();
   const linkedItem = pipelineItems.find((i) => i.id === activity.pipelineItemId);
   const assignee =
     activity.assignedToContactName ??
@@ -84,7 +86,7 @@ function DetailBody({
 
       {activity.pipelineItemTitle && linkedItem && (
         <Link
-          href={pipelineItemHref(linkedItem)}
+          href={path(pipelineItemHref(linkedItem))}
           className="flex items-center gap-2 rounded-lg border border-divider bg-background p-3 text-sm text-foreground transition-colors hover:bg-muted"
         >
           <Link2 className="size-4 shrink-0 text-muted-foreground" />
@@ -113,7 +115,7 @@ function DetailBody({
       )}
 
       {activity.contactId && (
-        <Button render={<Link href={`/contacts?contact=${activity.contactId}`} />} variant="outline" className="w-full">
+        <Button render={<Link href={path(`/contacts?contact=${activity.contactId}`)} />} variant="outline" className="w-full">
           View contact
           <ArrowUpRight />
         </Button>

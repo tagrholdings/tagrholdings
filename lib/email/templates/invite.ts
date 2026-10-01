@@ -6,15 +6,26 @@ const escapeHtml = (value: string) => value.replace(/&/g, "&amp;").replace(/</g,
  * The invitation to create an account. `inviterName` is a teammate's own display name, so it is escaped;
  * the link carries the single-use token. `expiresInDays` is stated so nobody is surprised by an expired link.
  */
-export function inviteEmail({ acceptUrl, inviterName, expiresInDays }: { acceptUrl: string; inviterName: string; expiresInDays: number }) {
+export interface InviteEmailOptions {
+  acceptUrl: string;
+  inviterName: string;
+  /** The workspace being joined: named in the subject, heading and body so it's clear WHICH company this is for. */
+  workspaceName: string;
+  role: "admin" | "member";
+  expiresInDays: number;
+}
+
+export function inviteEmail({ acceptUrl, inviterName, workspaceName, role, expiresInDays }: InviteEmailOptions) {
   const inviter = escapeHtml(inviterName);
+  const workspace = escapeHtml(workspaceName);
   const body = `
     <h1 style="margin:0 0 20px; font-family: Georgia, 'Times New Roman', serif; font-size:22px; font-weight:600; color:#1b1d1f;">
-      You&rsquo;re invited to the TAGR CRM
+      You&rsquo;re invited to ${workspace}
     </h1>
     <p style="margin:0 0 16px;">Hi,</p>
     <p style="margin:0 0 16px;">
-      <strong>${inviter}</strong> has invited you to join the TAGR Holdings CRM.
+      <strong>${inviter}</strong> has invited you to the workspace <strong>${workspace}</strong> in the TAGR CRM,
+      as ${role === "admin" ? "an admin" : "a member"}.
       Choose your name and a password to create your account &mdash; it only takes a moment.
     </p>
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin:28px 0;">
@@ -40,11 +51,11 @@ export function inviteEmail({ acceptUrl, inviterName, expiresInDays }: { acceptU
   return emailLayout(body);
 }
 
-export function inviteEmailText({ acceptUrl, inviterName, expiresInDays }: { acceptUrl: string; inviterName: string; expiresInDays: number }) {
+export function inviteEmailText({ acceptUrl, inviterName, workspaceName, role, expiresInDays }: InviteEmailOptions) {
   return [
     "Hi,",
     "",
-    `${inviterName} has invited you to join the TAGR Holdings CRM. Open the link below to choose your name and a password:`,
+    `${inviterName} has invited you to the workspace "${workspaceName}" in the TAGR CRM, as ${role === "admin" ? "an admin" : "a member"}. Open the link below to choose your name and a password:`,
     "",
     acceptUrl,
     "",

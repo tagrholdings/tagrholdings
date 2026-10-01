@@ -19,7 +19,7 @@ vi.mock("@/lib/app-url", () => ({ crmUrl: () => "https://crm.example" }));
 vi.mock("@/modules/auth-accounts/auth-accounts.service", () => ({
   authAccountsService: { findByEmail: vi.fn(), createAccount: vi.fn(), removeAccount: vi.fn(), nameOf: vi.fn() },
 }));
-vi.mock("@/modules/tenancy/tenancy.service", () => ({ tenancyService: { isMember: vi.fn(), addMember: vi.fn() } }));
+vi.mock("@/modules/tenancy/tenancy.service", () => ({ tenancyService: { isMember: vi.fn(), addMember: vi.fn(), getTenant: vi.fn() } }));
 
 import { invitesService } from "./invites.service";
 import { invitesRepository } from "./invites.repository";
@@ -29,7 +29,7 @@ import { tenancyService } from "@/modules/tenancy/tenancy.service";
 
 const NOW = new Date("2026-09-28T12:00:00Z");
 const inviter = { id: "u1", name: "Tanner" };
-const base = { id: "inv1", tenantId: "t1", email: "jane@example.com", invitedByUserId: "u1", acceptedAt: null, revokedAt: null };
+const base = { id: "inv1", tenantId: "t1", email: "jane@example.com", role: "member", invitedByUserId: "u1", acceptedAt: null, revokedAt: null };
 const pending = { ...base, expiresAt: new Date(NOW.getTime() + 86_400_000) };
 const expired = { ...base, expiresAt: new Date(NOW.getTime() - 86_400_000) };
 const sentLink = () => (vi.mocked(sendEmail).mock.calls.at(-1)?.[0].text.match(/token=([^\s]+)/)?.[1] ?? "") as string;
@@ -41,15 +41,16 @@ beforeEach(() => {
   vi.mocked(invitesRepository.rotateById).mockResolvedValue(pending as never);
   vi.mocked(invitesRepository.releaseClaim).mockResolvedValue(undefined);
   vi.mocked(authAccountsService.createAccount).mockResolvedValue({ userId: "new-user" });
+  vi.mocked(tenancyService.getTenant).mockResolvedValue({ id: "t1", slug: "acme", name: "Acme & Co" } as never);
   vi.spyOn(console, "error").mockImplementation(() => undefined);
 });
 
 describe("invite", () => {
   it("stores only a hash of the token and emails the link to the invitee", async () => {
-    const result = await invitesService.invite("t1", inviter, "jane@example.com", NOW);
+    const result = await invitesService.invite("t1", inviter, "jane@example.com", "member", NOW);
     expect(result).toEqual({ resent: false });
     const created = vi.mocked(invitesRepository.create).mock.calls[0][1];
-    expect(created).toMatchObject({ email: "jane@example.com", invitedByUserId: "u1" });
+    expect(created).toMatchObject({ email: "jane@example.com", role: "member", invitedByUserId: "u1" });
     expect(created.expiresAt).toEqual(new Date(NOW.getTime() + 7 * 86_400_000));
     // The DB holds a hash, never the token that is in the link.
     const token = sentLink();
@@ -58,9 +59,19 @@ describe("invite", () => {
     expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: "jane@example.com" }));
   });
 
+  it("names the workspace (and the role) in the subject and the body of the email", async () => {
+    await invitesService.invite("t1", inviter, "jane@example.com", "admin", NOW);
+    const mail = vi.mocked(sendEmail).mock.calls[0][0];
+    expect(mail.subject).toBe("Tanner invited you to Acme & Co on TAGR CRM");
+    expect(mail.text).toContain('the workspace "Acme & Co"');
+    expect(mail.text).toContain("as an admin");
+    expect(mail.html).toContain("Acme &amp; Co"); // escaped in the HTML version
+    expect(vi.mocked(invitesRepository.create).mock.calls[0][1]).toMatchObject({ role: "admin" });
+  });
+
   it("inviting someone who already has an open invite re-sends it instead of adding a second", async () => {
     vi.mocked(invitesRepository.findOpenByEmail).mockResolvedValue(pending as never);
-    expect(await invitesService.invite("t1", inviter, "jane@example.com", NOW)).toEqual({ resent: true });
+    expect(await invitesService.invite("t1", inviter, "jane@example.com", "member", NOW)).toEqual({ resent: true });
     expect(invitesRepository.create).not.toHaveBeenCalled();
     expect(invitesRepository.rotate).toHaveBeenCalledWith("t1", "inv1", expect.objectContaining({ tokenHash: expect.any(String) }));
   });
@@ -68,14 +79,14 @@ describe("invite", () => {
   it("refuses someone who is already on the team", async () => {
     vi.mocked(authAccountsService.findByEmail).mockResolvedValue({ id: "u9", name: "Jane" });
     vi.mocked(tenancyService.isMember).mockResolvedValue(true);
-    await expect(invitesService.invite("t1", inviter, "jane@example.com", NOW)).rejects.toThrow("already has access");
+    await expect(invitesService.invite("t1", inviter, "jane@example.com", "member", NOW)).rejects.toThrow("already has access");
     expect(invitesRepository.create).not.toHaveBeenCalled();
     expect(sendEmail).not.toHaveBeenCalled();
   });
 
   it("keeps the invite but says so when the email couldn't be sent", async () => {
     vi.mocked(sendEmail).mockResolvedValue(false);
-    await expect(invitesService.invite("t1", inviter, "jane@example.com", NOW)).rejects.toThrow("couldn't be sent");
+    await expect(invitesService.invite("t1", inviter, "jane@example.com", "member", NOW)).rejects.toThrow("couldn't be sent");
     expect(invitesRepository.create).toHaveBeenCalled();
   });
 });
@@ -83,7 +94,7 @@ describe("invite", () => {
 describe("linkState (the accept page)", () => {
   it("valid, expired, used, revoked, and unknown links each read differently", async () => {
     vi.mocked(invitesRepository.findByTokenHash).mockResolvedValueOnce(pending as never);
-    expect(await invitesService.linkState("tok", NOW)).toEqual({ state: "valid", email: "jane@example.com" });
+    expect(await invitesService.linkState("tok", NOW)).toEqual({ state: "valid", email: "jane@example.com", workspaceName: "Acme & Co" });
     vi.mocked(invitesRepository.findByTokenHash).mockResolvedValueOnce(expired as never);
     expect(await invitesService.linkState("tok", NOW)).toEqual({ state: "expired", maskedEmail: "j•••@example.com" });
     vi.mocked(invitesRepository.findByTokenHash).mockResolvedValueOnce({ ...pending, acceptedAt: NOW } as never);
@@ -127,9 +138,9 @@ describe("accept", () => {
 
   it("creates the account, adds the person to the workspace, and reports a new account", async () => {
     vi.mocked(invitesRepository.findByTokenHash).mockResolvedValue(pending as never);
-    expect(await invitesService.accept("tok", input, NOW)).toEqual({ email: "jane@example.com", createdAccount: true });
+    expect(await invitesService.accept("tok", input, NOW)).toEqual({ email: "jane@example.com", createdAccount: true, workspaceSlug: "acme" });
     expect(authAccountsService.createAccount).toHaveBeenCalledWith({ email: "jane@example.com", ...input });
-    expect(tenancyService.addMember).toHaveBeenCalledWith("t1", "new-user");
+    expect(tenancyService.addMember).toHaveBeenCalledWith("t1", "new-user", "member");
     expect(invitesRepository.releaseClaim).not.toHaveBeenCalled();
   });
 
@@ -165,8 +176,8 @@ describe("accept", () => {
   it("someone who already has a login is added without touching their password", async () => {
     vi.mocked(invitesRepository.findByTokenHash).mockResolvedValue(pending as never);
     vi.mocked(authAccountsService.findByEmail).mockResolvedValue({ id: "old-user", name: "Jane" });
-    expect(await invitesService.accept("tok", input, NOW)).toEqual({ email: "jane@example.com", createdAccount: false });
+    expect(await invitesService.accept("tok", input, NOW)).toEqual({ email: "jane@example.com", createdAccount: false, workspaceSlug: "acme" });
     expect(authAccountsService.createAccount).not.toHaveBeenCalled();
-    expect(tenancyService.addMember).toHaveBeenCalledWith("t1", "old-user");
+    expect(tenancyService.addMember).toHaveBeenCalledWith("t1", "old-user", "member");
   });
 });

@@ -12,12 +12,15 @@ import {
 import { BottomNav } from "./BottomNav";
 import { PushSoundListener } from "@/components/notifications/PushSoundListener";
 import { useSidebarCollapsed } from "@/hooks/ui/use-sidebar-collapsed";
+import { LAST_WORKSPACE_COOKIE } from "@/lib/last-workspace-cookie";
+import { WorkspaceProvider, type WorkspaceContextValue } from "./workspace-context";
 
 const CONTENT_OFFSET_EXPANDED = SIDEBAR_WIDTH_EXPANDED + SIDEBAR_INSET + SIDEBAR_GAP;
 const CONTENT_OFFSET_COLLAPSED = SIDEBAR_WIDTH_COLLAPSED + SIDEBAR_INSET + SIDEBAR_GAP;
 
 interface HubChromeProps {
   user: SidebarUser;
+  workspace: WorkspaceContextValue;
   activeHref?: string;
   badges?: Record<string, number>;
   children: React.ReactNode;
@@ -33,11 +36,17 @@ interface HubChromeProps {
  * primaryAction genuinely differ per route and App Router layouts can't
  * receive props from the page below them.
  */
-export function HubChrome({ user, activeHref, badges, children }: HubChromeProps) {
+export function HubChrome({ user, workspace, activeHref, badges, children }: HubChromeProps) {
   const [collapsed, setCollapsed] = useSidebarCollapsed();
+
+  // Remember this workspace so `/` (and the installed app's launch) reopens it. Only a redirect hint — never authorization.
+  React.useEffect(() => {
+    document.cookie = `${LAST_WORKSPACE_COOKIE}=${encodeURIComponent(workspace.slug)}; path=/; max-age=31536000; samesite=lax`;
+  }, [workspace.slug]);
   const contentOffset = collapsed ? CONTENT_OFFSET_COLLAPSED : CONTENT_OFFSET_EXPANDED;
 
   return (
+    <WorkspaceProvider value={workspace}>
     <div className="min-h-screen bg-background">
       <Sidebar
         user={user}
@@ -57,5 +66,6 @@ export function HubChrome({ user, activeHref, badges, children }: HubChromeProps
       <BottomNav activeHref={activeHref} badges={badges} />
       <PushSoundListener />
     </div>
+    </WorkspaceProvider>
   );
 }

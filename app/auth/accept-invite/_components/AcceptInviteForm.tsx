@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { notify } from "@/components/ui/toaster";
 import { acceptInviteAction } from "@/modules/invites/invites.actions";
+import { workspacePath } from "@/lib/workspace-path";
 
 const formSchema = z
   .object({
@@ -25,7 +26,7 @@ type FormValues = z.input<typeof formSchema>;
 const inputClass = "border-cream/15 bg-cream/5 text-cream placeholder:text-cream/35 focus-visible:border-accent";
 
 /** Name + password for a valid invite link. On success the person is already signed in and lands in the app. */
-export function AcceptInviteForm({ token, email }: { token: string; email: string }) {
+export function AcceptInviteForm({ token, email, workspaceName }: { token: string; email: string; workspaceName: string }) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -46,7 +47,8 @@ export function AcceptInviteForm({ token, email }: { token: string; email: strin
         return;
       }
       if (result.data.signedIn) {
-        router.push("/activities");
+        // Straight into the workspace the invite was for (the resolver would pick the last-used one, which is none yet).
+        router.push(result.data.workspaceSlug ? workspacePath(result.data.workspaceSlug, "/activities") : "/home");
         router.refresh();
       } else {
         notify.success("Your account is ready — sign in to continue.");
@@ -61,6 +63,11 @@ export function AcceptInviteForm({ token, email }: { token: string; email: strin
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+      <div className="space-y-1.5">
+        <Label>Workspace</Label>
+        <Input value={workspaceName} readOnly disabled aria-label="Workspace" className={inputClass} />
+      </div>
+
       <div className="space-y-1.5">
         <Label>Email</Label>
         <Input value={email} readOnly disabled aria-label="Your email" className={inputClass} />

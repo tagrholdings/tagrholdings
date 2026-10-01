@@ -32,8 +32,8 @@ export default async function AcceptInvitePage({ searchParams }: { searchParams:
 
   if (link.state === "valid" && token) {
     return (
-      <AuthShell title="Create your account" description="You've been invited to the TAGR CRM. Choose a password to finish.">
-        <AcceptInviteForm token={token} email={link.email} />
+      <AuthShell title="Create your account" description={`You've been invited to ${link.workspaceName} in the TAGR CRM. Choose a password to finish.`}>
+        <AcceptInviteForm token={token} email={link.email} workspaceName={link.workspaceName} />
       </AuthShell>
     );
   }

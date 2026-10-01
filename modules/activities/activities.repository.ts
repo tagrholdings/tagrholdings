@@ -48,11 +48,11 @@ export const activitiesRepository = {
     );
   },
 
-  async create(tenantId: string, data: NewActivity) {
+  async create(tenantId: string, data: NewActivity, createdByUserId: string | null) {
     const [row] = await withTenant(tenantId, (tx) =>
       tx
         .insert(activitiesTable)
-        .values({ ...data, tenantId })
+        .values({ ...data, tenantId, createdByUserId })
         .returning()
     );
     return row;

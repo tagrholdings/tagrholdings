@@ -5,7 +5,7 @@
 Reads `email_sources` rows still waiting for a subscription (not subscribed, not captcha-protected, with
 both form selectors configured, and either never attempted or explicitly re-requested from the CRM), opens
 each signup page with Playwright, reads the form, types the dedicated inbox address into the configured email
-field — plus the buyer identity (BUYER_NAME / BUYER_PHONE / BUYER_COMPANY) into any name / phone / company
+field — plus the workspace's buyer identity (Settings → Workspace) into any name / phone / company
 field the form asks for and the matching industry choice — and clicks the configured submit button.
 `email_signup_form.plan_form` decides what is safe to fill.
 
@@ -192,20 +192,34 @@ class PlaywrightSignupDriver:
                 browser.close()
 
 
+def tenant_identity(db: Any, tenant_id: str, inbound_domain: str) -> tuple[str, Buyer] | None:
+    """Where THIS workspace's signups subscribe from, and who they sign up as. Every workspace has its own inbox address
+    (`<inbound_local_part>@<domain>`) so what a site sends back is routed to the right workspace; None when the tenant is unknown."""
+    row = db.signup_identity_for_tenant(tenant_id)
+    if not row or not row.get("inbound_local_part"):
+        return None
+    return f"{row['inbound_local_part']}@{inbound_domain}", Buyer(row.get("buyer_name"), row.get("buyer_phone"), row.get("buyer_company"))
+
+
 def run_signups(
     db: Any,
     driver: SignupDriver,
-    address: str,
+    inbound_domain: str,
     robots: RobotsCache | None = None,
     throttle: DomainThrottle | None = None,
     only_ids: list[str] | None = None,
-    buyer: Buyer | None = None,
 ) -> dict[str, int]:
     """Attempts every due source and records each outcome. Returns counts per result."""
     counts = {"submitted": 0, "captcha": 0, "manual": 0, "failed": 0}
     industries_by_tenant: dict[str, list[str]] = {}
+    identity_by_tenant: dict[str, tuple[str, Buyer] | None] = {}
     for target in db.due_email_sources(only_ids):
-        if robots is not None and not robots.allowed(target.signup_url):
+        if target.tenant_id not in identity_by_tenant:
+            identity_by_tenant[target.tenant_id] = tenant_identity(db, target.tenant_id, inbound_domain)
+        identity = identity_by_tenant[target.tenant_id]
+        if identity is None:
+            outcome = SignupOutcome("failed", "This workspace has no inbox address yet.")
+        elif robots is not None and not robots.allowed(target.signup_url):
             outcome = SignupOutcome("failed", "robots.txt disallows opening this signup page.")
         else:
             if throttle is not None:
@@ -213,6 +227,7 @@ def run_signups(
             log.info("Signing up to %s (%s)…", target.site_name, target.signup_url)
             if target.tenant_id not in industries_by_tenant:
                 industries_by_tenant[target.tenant_id] = db.industries_for_tenant(target.tenant_id)
+            address, buyer = identity
             outcome = driver.attempt(target, address, buyer, industries_by_tenant[target.tenant_id])
 
         # Recorded either way. `submitted` leaves the site unsubscribed: the confirmation email does that.
@@ -246,18 +261,17 @@ def main(argv: list[str] | None = None) -> int:
         if not db.due_email_sources(args.source_id):
             log.info("No email-source signups are due.")
             return 0
-        if not settings.inbound_leads_address:
-            log.error("INBOUND_LEADS_ADDRESS is not set — that is the address the signups use (e.g. leads@tagrholdings.com).")
+        if not settings.inbound_email_domain:
+            log.error("INBOUND_EMAIL_DOMAIN is not set — every workspace's signups use <its own inbox>@that domain (e.g. in.tagrholdings.com).")
             return 2
         with httpx.Client(headers={"User-Agent": settings.user_agent}) as http:
             counts = run_signups(
                 db,
                 PlaywrightSignupDriver(settings.user_agent),
-                settings.inbound_leads_address,
+                settings.inbound_email_domain,
                 robots=RobotsCache(http, settings.user_agent),
                 throttle=DomainThrottle(min_interval=5.0, jitter=3.0),
                 only_ids=args.source_id,
-                buyer=Buyer(settings.buyer_name, settings.buyer_phone, settings.buyer_company),
             )
         log.info(
             "Done: %(submitted)d submitted (awaiting confirmation email), %(captcha)d captcha, %(manual)d need a person, %(failed)d failed.",

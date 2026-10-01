@@ -23,7 +23,7 @@ export const dynamic = "force-dynamic";
 export default async function SignInPage() {
   const { data: session } = await auth.getSession();
   if (session?.user) {
-    redirect("/activities");
+    redirect("/home");
   }
 
   return <SignInCard />;

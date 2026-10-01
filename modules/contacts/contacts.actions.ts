@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateWorkspace } from "@/lib/revalidate";
 import { protectedAction } from "@/lib/safe-action";
 import { contactsService } from "./contacts.service";
 import { createContactSchema, updateContactSchema } from "./contacts.types";
@@ -9,7 +9,7 @@ export const createContactAction = protectedAction
   .schema(createContactSchema)
   .action(async ({ parsedInput, ctx }) => {
     const contact = await contactsService.create(ctx.user.tenantId, parsedInput);
-    revalidatePath("/contacts");
+    revalidateWorkspace(ctx.workspace.slug, "/contacts");
     return { contact };
   });
 
@@ -18,7 +18,7 @@ export const updateContactAction = protectedAction
   .action(async ({ parsedInput, ctx }) => {
     const { id, ...data } = parsedInput;
     const contact = await contactsService.update(ctx.user.tenantId, id, data);
-    revalidatePath("/contacts");
-    revalidatePath(`/contacts/${id}`);
+    revalidateWorkspace(ctx.workspace.slug, "/contacts");
+    revalidateWorkspace(ctx.workspace.slug, `/contacts/${id}`);
     return { contact };
   });

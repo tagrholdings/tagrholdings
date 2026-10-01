@@ -1,23 +1,23 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateWorkspace } from "@/lib/revalidate";
 import { protectedAction } from "@/lib/safe-action";
 import { activitiesService } from "./activities.service";
 import { createActivitySchema, setActivityDoneSchema, updateActivityDateSchema } from "./activities.types";
 
 /** Activities show up on /activities, inside pipeline items (Projects, Leads) and on a contact's panel. */
-function revalidateActivityPages() {
-  revalidatePath("/activities");
-  revalidatePath("/pipeline");
-  revalidatePath("/leads");
-  revalidatePath("/contacts");
+function revalidateActivityPages(slug: string) {
+  revalidateWorkspace(slug, "/activities");
+  revalidateWorkspace(slug, "/pipeline");
+  revalidateWorkspace(slug, "/leads");
+  revalidateWorkspace(slug, "/contacts");
 }
 
 export const createActivityAction = protectedAction
   .schema(createActivitySchema)
   .action(async ({ parsedInput, ctx }) => {
-    const activity = await activitiesService.create(ctx.user.tenantId, parsedInput);
-    revalidateActivityPages();
+    const activity = await activitiesService.create(ctx.user.tenantId, parsedInput, ctx.user.id);
+    revalidateActivityPages(ctx.workspace.slug);
     return { activity };
   });
 
@@ -25,7 +25,7 @@ export const setActivityDoneAction = protectedAction
   .schema(setActivityDoneSchema)
   .action(async ({ parsedInput, ctx }) => {
     const activity = await activitiesService.setDone(ctx.user.tenantId, parsedInput.id, parsedInput.done);
-    revalidateActivityPages();
+    revalidateActivityPages(ctx.workspace.slug);
     return { activity };
   });
 
@@ -33,6 +33,6 @@ export const updateActivityDateAction = protectedAction
   .schema(updateActivityDateSchema)
   .action(async ({ parsedInput, ctx }) => {
     const activity = await activitiesService.updateDate(ctx.user.tenantId, parsedInput.id, parsedInput.field, parsedInput.date);
-    revalidateActivityPages();
+    revalidateActivityPages(ctx.workspace.slug);
     return { activity };
   });

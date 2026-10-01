@@ -7,9 +7,12 @@
  * that no `data-tour` is orphaned). When you add, rename or remove a page or one of its main controls, update this
  * file in the same change.
  *
- * Matching is by the longest route prefix, so /contacts/123 uses the /contacts entry. Kept as data (not JSX) so it
+ * Matching is by the longest route prefix, so /contacts/123 uses the /contacts entry. Routes are workspace-relative: the
+ * `/w/<slug>` part of the URL is dropped first. Kept as data (not JSX) so it
  * is cheap to edit and to test.
  */
+import { stripWorkspacePrefix } from "@/lib/workspace-path";
+
 export interface PageHelpSection {
   heading: string;
   /** One paragraph (string) or a bulleted list (array). */
@@ -470,6 +473,64 @@ const ENTRIES: Entry[] = [
     }),
   },
   {
+    path: "/settings/members",
+    build: () => ({
+      title: "Members",
+      summary: "Everyone in this workspace, and what each person is allowed to do.",
+      sections: [
+        {
+          heading: "Admins and members",
+          body: [
+            "Members work in the CRM: leads, projects, activities and contacts.",
+            "Admins can also invite people, change roles here and see the engine's spend.",
+          ],
+        },
+        {
+          heading: "Good to know",
+          body: ["A workspace always keeps at least one admin.", "Removing someone takes away their access here; their account and other workspaces are untouched."],
+        },
+      ],
+      tour: [
+        {
+          target: "members-table",
+          title: "The people in this workspace",
+          text: "Switch someone between Member and Admin, or remove them. To add a person, send an invite from the Invites tab.",
+        },
+        HELP_AGAIN,
+      ],
+    }),
+  },
+  {
+    path: "/settings/workspace",
+    build: () => ({
+      title: "Workspace",
+      summary: "This workspace's own leads inbox address, and who its email signups sign up as.",
+      sections: [
+        {
+          heading: "The leads inbox address",
+          body: "Each workspace has its own address. Anything sent to it becomes leads here and nowhere else, and it is the address the engine uses to subscribe to listing sites.",
+        },
+        {
+          heading: "Who the engine signs up as",
+          body: "Listing sites ask for a name, phone and company when you subscribe to their alerts. Fill these in so this workspace's signups use them.",
+        },
+      ],
+      tour: [
+        {
+          target: "workspace-address",
+          title: "This workspace's inbox",
+          text: "Forward listing emails here, or use it to subscribe to alerts yourself. Copy it with the button.",
+        },
+        {
+          target: "workspace-buyer",
+          title: "Who the engine signs up as",
+          text: "The name, phone and company the engine fills in on listing sites' signup forms for this workspace.",
+        },
+        HELP_AGAIN,
+      ],
+    }),
+  },
+  {
     path: "/settings/application",
     build: () => ({
       title: "Application",
@@ -551,7 +612,8 @@ const ENTRIES: Entry[] = [
 /** Help for a route, or null when the page has none. Longest matching prefix wins. */
 export function getPageHelp(pathname: string | null, ctx: HelpContext): PageHelp | null {
   if (!pathname) return null;
-  const path = pathname.replace(/\/+$/, "") || "/";
+  // Entries are keyed by workspace-relative route ("/contacts"); the URL is "/w/<slug>/contacts".
+  const path = stripWorkspacePrefix(pathname).replace(/\/+$/, "") || "/";
   const entry = ENTRIES.filter((e) => path === e.path || path.startsWith(`${e.path}/`)).sort((a, b) => b.path.length - a.path.length)[0];
   return entry ? entry.build(ctx) : null;
 }

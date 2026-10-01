@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateWorkspace } from "@/lib/revalidate";
 import { protectedAction } from "@/lib/safe-action";
 import { leadsService } from "./leads.service";
 import { leadsIngestService } from "./leads-ingest.service";
@@ -11,9 +11,9 @@ export const promoteRawLeadAction = protectedAction
   .schema(promoteRawLeadSchema)
   .action(async ({ parsedInput, ctx }) => {
     const item = await leadsService.promote(ctx.user.tenantId, parsedInput.id, { title: parsedInput.title });
-    revalidatePath("/leads-inbox");
-    revalidatePath("/leads");
-    revalidatePath("/contacts");
+    revalidateWorkspace(ctx.workspace.slug, "/leads-inbox");
+    revalidateWorkspace(ctx.workspace.slug, "/leads");
+    revalidateWorkspace(ctx.workspace.slug, "/contacts");
     return { pipelineItemId: item.id };
   });
 
@@ -21,7 +21,7 @@ export const dismissRawLeadAction = protectedAction
   .schema(rawLeadIdSchema)
   .action(async ({ parsedInput, ctx }) => {
     await leadsService.dismiss(ctx.user.tenantId, parsedInput.id);
-    revalidatePath("/leads-inbox");
+    revalidateWorkspace(ctx.workspace.slug, "/leads-inbox");
     return { success: true };
   });
 
@@ -29,7 +29,7 @@ export const restoreRawLeadAction = protectedAction
   .schema(rawLeadIdSchema)
   .action(async ({ parsedInput, ctx }) => {
     await leadsService.restore(ctx.user.tenantId, parsedInput.id);
-    revalidatePath("/leads-inbox");
+    revalidateWorkspace(ctx.workspace.slug, "/leads-inbox");
     return { success: true };
   });
 
@@ -41,6 +41,6 @@ export const quickAddLeadAction = protectedAction
   .schema(quickAddLeadSchema)
   .action(async ({ parsedInput, ctx }) => {
     const result = await leadsIngestService.quickAdd(ctx.user.tenantId, parsedInput.input);
-    revalidatePath("/leads-inbox");
+    revalidateWorkspace(ctx.workspace.slug, "/leads-inbox");
     return result;
   });

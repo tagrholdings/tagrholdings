@@ -148,6 +148,13 @@
       "when": 1790731859569,
       "tag": "0020_location_scope",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1790821796770,
+      "tag": "0021_workspaces",
+      "breakpoints": true
     }
   ]
 }

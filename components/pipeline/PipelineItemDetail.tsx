@@ -12,6 +12,7 @@ import type { ActivityLookups } from "@/components/shared/activity-form";
 import type { ActivityRow } from "@/modules/activities/activities.types";
 import { PipelineItemActivities } from "./PipelineItemActivities";
 import type { PipelineItemRow, BoardColumn } from "./types";
+import { useWorkspacePath } from "@/hooks/ui/use-workspace-path";
 
 interface PipelineItemDetailProps {
   item: PipelineItemRow | null;
@@ -29,6 +30,7 @@ function DetailBody({
   lookups,
   onMoveStage,
 }: Omit<PipelineItemDetailProps, "item" | "onOpenChange"> & { item: PipelineItemRow }) {
+  const path = useWorkspacePath();
   return (
     <div className="space-y-5">
       <div>
@@ -86,7 +88,7 @@ function DetailBody({
       )}
 
       {item.contactId && (
-        <Button render={<Link href={`/contacts?contact=${item.contactId}`} />} variant="outline" className="w-full">
+        <Button render={<Link href={path(`/contacts?contact=${item.contactId}`)} />} variant="outline" className="w-full">
           View contact
           <ArrowUpRight />
         </Button>

@@ -1,25 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { BookOpen, ChevronLeft, LogOut, Search, Settings } from "lucide-react";
+import { ChevronLeft, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useScrolled } from "@/hooks/ui/use-scrolled";
-import { authClient } from "@/lib/auth-client";
-import { notify } from "@/components/ui/toaster";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { PageHelp } from "./PageHelp";
 import { HeaderSearchBar, HeaderSearchButton } from "./header-search";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AccountMenuContent, useDefaultSignOut } from "./AccountMenu";
+import { useWorkspace } from "./workspace-context";
 
 export interface AppHeaderUser {
   name: string;
@@ -41,8 +33,6 @@ interface AppHeaderProps {
   primaryAction?: AppHeaderAction;
   user: AppHeaderUser;
   onSignOut?: () => void;
-  /** The leads inbox address, shown in the help text of the pages that mention it. */
-  inboxAddress?: string | null;
   /**
    * Forces a single rendering regardless of viewport — only meant for
    * previews/demos embedded in a fixed-size frame. Leave unset in real
@@ -52,74 +42,15 @@ interface AppHeaderProps {
   className?: string;
 }
 
-/**
- * `onSignOut` can't be passed down from page.tsx (a Server Component) — a
- * closure over `authClient` isn't a serializable prop across that boundary.
- * So sign-out is handled here by default; `onSignOut` stays as an optional
- * override for previews/tests that render AppHeader from a client tree.
- */
-function useDefaultSignOut() {
-  const router = useRouter();
-  return async () => {
-    // See the matching comment in SignInForm.tsx — authClient methods can
-    // reject instead of resolving { error }.
-    let error: { message?: string } | null = null;
-    try {
-      ({ error } = await authClient.signOut());
-    } catch (caught) {
-      error = { message: caught instanceof Error ? caught.message : undefined };
-    }
-
-    if (error) {
-      notify.error(error.message ?? "Couldn't sign out. Please try again.");
-      return;
-    }
-    router.push("/auth/sign-in");
-    router.refresh();
-  };
-}
-
-/** The avatar dropdown's body — shared by the mobile and desktop headers so the two can't drift apart. */
-function AccountMenuContent({ user, onSignOut }: { user: AppHeaderUser; onSignOut?: () => void }) {
-  const router = useRouter();
-  return (
-    <DropdownMenuContent align="end" className="min-w-56">
-      {/* Who's signed in: the same avatar as the trigger + the name, left-aligned like the rows below. */}
-      <DropdownMenuLabel className="flex items-center gap-3 px-3 py-2 text-foreground">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-background/50 text-xs font-semibold">{user.initials}</span>
-        <span className="min-w-0">
-          <span className="block truncate text-sm font-semibold">{user.name}</span>
-          <span className="block text-xs font-normal text-muted-foreground">Signed in</span>
-        </span>
-      </DropdownMenuLabel>
-      <DropdownMenuSeparator />
-      {/* Every row: icon + label, same left edge. */}
-      <DropdownMenuItem onSelect={() => router.push("/settings")}>
-        <Settings aria-hidden />
-        Settings
-      </DropdownMenuItem>
-      <DropdownMenuItem onSelect={() => router.push("/docs")}>
-        <BookOpen aria-hidden />
-        Documentation
-      </DropdownMenuItem>
-      <DropdownMenuSeparator />
-      <DropdownMenuItem variant="destructive" onSelect={onSignOut}>
-        <LogOut aria-hidden />
-        Sign out
-      </DropdownMenuItem>
-    </DropdownMenuContent>
-  );
-}
-
 function MobileHeader({
   title,
   backHref,
   primaryAction,
   user,
   onSignOut,
-  inboxAddress,
   className,
 }: AppHeaderProps & { className?: string }) {
+  const { inboundAddress } = useWorkspace();
   return (
     <header
       className={cn(
@@ -148,7 +79,7 @@ function MobileHeader({
           {primaryAction.label}
         </Button>
       )}
-      <PageHelp inboxAddress={inboxAddress ?? null} />
+      <PageHelp inboxAddress={inboundAddress} />
       <ThemeToggle />
       <HeaderSearchButton />
       <DropdownMenu>
@@ -179,10 +110,10 @@ function DesktopHeader({
   primaryAction,
   user,
   onSignOut,
-  inboxAddress,
   className,
   backHref
 }: AppHeaderProps & { className?: string }) {
+  const { inboundAddress } = useWorkspace();
   // Transparent at the top of the page; once content scrolls under it, it takes a frosted background so the
   // page doesn't show through the title. `top-0` + `pt-4` (not `top-4`): the 16px above the bar must be covered
   // too, or content slides past in that gap.
@@ -224,7 +155,7 @@ function DesktopHeader({
         </Button>
       )}
 
-      <PageHelp inboxAddress={inboxAddress ?? null} />
+      <PageHelp inboxAddress={inboundAddress} />
       <ThemeToggle className="hover:bg-muted" />
 
       <DropdownMenu>

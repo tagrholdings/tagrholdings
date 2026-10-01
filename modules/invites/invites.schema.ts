@@ -20,6 +20,8 @@ export const invitesTable = pgTable(
       .notNull()
       .references(() => tenantsTable.id),
     email: text("email").notNull(),
+    /** The role the person gets in the workspace when they accept: "admin" | "member". */
+    role: text("role").notNull().default("member"),
     tokenHash: text("token_hash").notNull().unique(),
     invitedByUserId: text("invited_by_user_id").notNull(),
     expiresAt: timestamp("expires_at").notNull(),

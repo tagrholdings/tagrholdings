@@ -1,11 +1,24 @@
 import { sql } from "drizzle-orm";
-import { pgTable, pgPolicy, pgRole, uuid, text, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, pgPolicy, pgRole, uuid, text, timestamp, unique, check } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 
+/**
+ * A workspace (one company / business unit). `slug` is its public name in the URL (`/w/<slug>/…`).
+ *
+ * `inboundLocalPart` is the workspace's own leads-inbox address — `<inboundLocalPart>@<INBOUND_EMAIL_DOMAIN>`.
+ * Generated once at creation (slug + random token) and then STORED, so renaming a slug never breaks the address a
+ * listing site was signed up with, and the token makes it unguessable. It is how an inbound email finds its workspace.
+ *
+ * `buyer*` is who this workspace's email signups sign up as (read by the lead engine, per tenant).
+ */
 export const tenantsTable = pgTable("tenants", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
+  inboundLocalPart: text("inbound_local_part").notNull().unique(),
+  buyerName: text("buyer_name"),
+  buyerPhone: text("buyer_phone"),
+  buyerCompany: text("buyer_company"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -14,18 +27,41 @@ export const selectTenantSchema = createSelectSchema(tenantsTable);
 
 /**
  * Links a Neon Auth user (managed — its table isn't ours to alter, so this
- * table stands in for a `tenantId` column on `user`) to a tenant. `userId`
- * is unique for now (one user = one tenant, per TENANCY.md's MVP model);
- * drop that constraint when checklist item 13 makes it many-to-many.
+ * table stands in for a `tenantId` column on `user`) to a workspace. Many-to-many:
+ * one person can belong to several workspaces, with a role in each (`role` is
+ * per membership — admin in one, member in another). See tenancy.types.ts.
  */
-export const tenantMembersTable = pgTable("tenant_members", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  tenantId: uuid("tenant_id")
-    .notNull()
-    .references(() => tenantsTable.id),
-  userId: text("user_id").notNull().unique(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+export const tenantMembersTable = pgTable(
+  "tenant_members",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenantsTable.id),
+    userId: text("user_id").notNull(),
+    role: text("role").notNull().default("member"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    unique("tenant_members_tenant_user_unique").on(t.tenantId, t.userId),
+    check("tenant_members_role_check", sql`${t.role} in ('admin', 'member')`),
+  ]
+);
+
+/**
+ * A platform-level role, above any workspace (today only `super_admin`: creates workspaces and can open any of
+ * them). No `tenant_id` and no RLS, like `rate-limit`'s table. Granted ONLY by scripts/grant-super-admin.ts — there
+ * is deliberately no action or screen that writes here. `userId` is a Neon Auth id (no FK possible).
+ */
+export const platformRolesTable = pgTable(
+  "platform_roles",
+  {
+    userId: text("user_id").primaryKey(),
+    role: text("role").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [check("platform_roles_role_check", sql`${t.role} in ('super_admin')`)]
+);
 
 export const insertTenantMemberSchema = createInsertSchema(tenantMembersTable);
 export const selectTenantMemberSchema = createSelectSchema(tenantMembersTable);

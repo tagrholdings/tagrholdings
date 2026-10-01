@@ -18,13 +18,10 @@ class Settings:
     openai_api_key: str | None
     openai_model: str
     user_agent: str
-    # The dedicated leads inbox the email signups subscribe with (e.g. leads@tagrholdings.com). Only email_signup needs it.
-    inbound_leads_address: str | None = None
-    # Who the engine signs up as on broker sites that ask for more than an email. Real contact details given by the
-    # owner (BUYER_NAME / BUYER_PHONE / BUYER_COMPANY) — never invented; a form needing something else is left for a person.
-    buyer_name: str | None = None
-    buyer_phone: str | None = None
-    buyer_company: str | None = None
+    # The domain every workspace's leads inbox lives on (INBOUND_EMAIL_DOMAIN, e.g. in.tagrholdings.com). Each workspace has
+    # its OWN address on it — `<tenants.inbound_local_part>@<domain>` — and its own buyer identity (who the signups sign up
+    # as); both are read per tenant from the database, so nothing here is shared between workspaces. Only email_signup needs it.
+    inbound_email_domain: str | None = None
     # Optional overrides for the cost estimate of a model missing from pricing.py.
     openai_input_usd_per_million: float | None = None
     openai_output_usd_per_million: float | None = None
@@ -52,10 +49,7 @@ def load_settings() -> Settings:
         openai_model=os.environ.get("OPENAI_MODEL", "").strip() or "gpt-4o-mini",
         user_agent=os.environ.get("SCRAPER_USER_AGENT", "").strip()
         or "TagrLeadEngine/1.0 (+https://www.tagrholdings.com; business research)",
-        inbound_leads_address=os.environ.get("INBOUND_LEADS_ADDRESS", "").strip() or None,
-        buyer_name=os.environ.get("BUYER_NAME", "").strip() or None,
-        buyer_phone=os.environ.get("BUYER_PHONE", "").strip() or None,
-        buyer_company=os.environ.get("BUYER_COMPANY", "").strip() or None,
+        inbound_email_domain=os.environ.get("INBOUND_EMAIL_DOMAIN", "").strip().lower() or None,
         openai_input_usd_per_million=_optional_float("OPENAI_INPUT_USD_PER_MILLION"),
         openai_output_usd_per_million=_optional_float("OPENAI_OUTPUT_USD_PER_MILLION"),
     )

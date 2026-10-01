@@ -33,6 +33,8 @@ export const activitiesTable = pgTable(
      *  a `public` table's foreign key — so activitiesService checks tenant membership instead. */
     assignedToUserId: text("assigned_to_user_id"),
     assignedToContactId: uuid("assigned_to_contact_id"),
+    /** Who created the activity (a Neon Auth user id; no FK possible — see assignedToUserId). Null for rows made by jobs. */
+    createdByUserId: text("created_by_user_id"),
     /** "Enable notification": send a push reminder when `dueDate` arrives. Needs a due date (with a time). */
     notify: boolean("notify").notNull().default(false),
     /** Set when the reminder went out (claimed by the reminder job) so it fires once; cleared when `dueDate` moves. */

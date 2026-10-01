@@ -1,8 +1,10 @@
 import type { LucideIcon } from "lucide-react";
+import { stripWorkspacePrefix } from "@/lib/workspace-path";
 import { FolderKanban, Users, ListChecks, Inbox, Target, Zap, BookOpen } from "lucide-react";
 
 export interface NavItem {
   label: string;
+  /** Workspace-relative ("/contacts") — render it with `workspacePath(slug, href)` / `useWorkspacePath()`. */
   href: string;
   icon: LucideIcon;
   /** Key into the `badges` map passed to Sidebar/BottomNav, e.g. unread counts. */
@@ -29,7 +31,9 @@ export const NAV_ITEMS: NavItem[] = [
 /** Bottom nav shows the first N items as tabs; the rest collapse into "More". */
 export const BOTTOM_NAV_MAX_PRIMARY = 5;
 
+/** `itemHref` is workspace-relative ("/contacts"); `currentHref` may be the full `/w/<slug>/contacts/12` — the prefix is ignored. */
 export function isNavItemActive(currentHref: string | undefined | null, itemHref: string) {
   if (!currentHref) return false;
-  return currentHref === itemHref || currentHref.startsWith(`${itemHref}/`);
+  const path = stripWorkspacePrefix(currentHref);
+  return path === itemHref || path.startsWith(`${itemHref}/`);
 }

@@ -1,8 +1,8 @@
 "use server";
 
 import { headers } from "next/headers";
-import { revalidatePath } from "next/cache";
-import { actionClient, protectedAction } from "@/lib/safe-action";
+import { actionClient, adminAction } from "@/lib/safe-action";
+import { revalidateWorkspace } from "@/lib/revalidate";
 import { UserFacingError } from "@/lib/errors";
 import { signInWithPassword } from "@/lib/auth-password";
 import { rateLimitService } from "@/modules/rate-limit/rate-limit.service";
@@ -14,26 +14,26 @@ const TOO_MANY = "Too many attempts. Please try again in a little while.";
 
 const inviter = (user: { id: string; name?: string | null; email: string }) => ({ id: user.id, name: user.name || user.email });
 
-// ── Settings → Invites (a signed-in team member) ──────────────────────────────────────────────────────────
+// ── Settings → Invites (a workspace admin) ──────────────────────────────────────────────────────────
 
-export const createInviteAction = protectedAction.schema(inviteEmailSchema).action(async ({ parsedInput, ctx }) => {
+export const createInviteAction = adminAction.schema(inviteEmailSchema).action(async ({ parsedInput, ctx }) => {
   // Invites send email and create logins: cap how many one person can fire off.
   if (await rateLimitService.isLimited(`invite:user:${ctx.user.id}`, 20, 60 * 60 * 1000)) throw new UserFacingError(TOO_MANY);
-  const result = await invitesService.invite(ctx.user.tenantId, inviter(ctx.user), parsedInput.email);
-  revalidatePath("/settings/invites");
+  const result = await invitesService.invite(ctx.user.tenantId, inviter(ctx.user), parsedInput.email, parsedInput.role);
+  revalidateWorkspace(ctx.workspace.slug, "/settings/invites");
   return result;
 });
 
-export const resendInviteAction = protectedAction.schema(inviteIdSchema).action(async ({ parsedInput, ctx }) => {
+export const resendInviteAction = adminAction.schema(inviteIdSchema).action(async ({ parsedInput, ctx }) => {
   if (await rateLimitService.isLimited(`invite:user:${ctx.user.id}`, 20, 60 * 60 * 1000)) throw new UserFacingError(TOO_MANY);
   await invitesService.resend(ctx.user.tenantId, inviter(ctx.user), parsedInput.id);
-  revalidatePath("/settings/invites");
+  revalidateWorkspace(ctx.workspace.slug, "/settings/invites");
   return { success: true };
 });
 
-export const revokeInviteAction = protectedAction.schema(inviteIdSchema).action(async ({ parsedInput, ctx }) => {
+export const revokeInviteAction = adminAction.schema(inviteIdSchema).action(async ({ parsedInput, ctx }) => {
   await invitesService.revoke(ctx.user.tenantId, parsedInput.id);
-  revalidatePath("/settings/invites");
+  revalidateWorkspace(ctx.workspace.slug, "/settings/invites");
   return { success: true };
 });
 
@@ -45,10 +45,10 @@ export const acceptInviteAction = actionClient.schema(acceptInviteSchema).action
   if (await rateLimitService.isLimited(`invite-accept:ip:${ip}`, 10, 10 * 60 * 1000)) throw new UserFacingError(TOO_MANY);
 
   const { name, password, token } = parsedInput;
-  const { email, createdAccount } = await invitesService.accept(token, { name, password });
+  const { email, createdAccount, workspaceSlug } = await invitesService.accept(token, { name, password });
   // Only a brand-new account has the password just chosen; an existing login keeps its own and signs in normally.
   const signedIn = createdAccount ? await signInWithPassword(email, password) : false;
-  return { signedIn };
+  return { signedIn, workspaceSlug };
 });
 
 /** From the expired-link page: sends a fresh link to the invite's own address. */

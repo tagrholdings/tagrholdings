@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useRef } from "react";
+import { useParams } from "next/navigation";
 import useSWR from "swr";
 import { isRunActive, type LiveRunsResponse } from "@/modules/lead-engine/live-runs";
 
 const ENDPOINT = "/api/lead-engine/status";
+const endpointFor = (workspace: string) => `${ENDPOINT}?workspace=${encodeURIComponent(workspace)}`;
 /** While a run is going (or was just started), ask GitHub this often. */
 const ACTIVE_POLL_MS = 8_000;
 /** Otherwise just glance now and then, so a scheduled run that starts while the page is open shows up. */
@@ -25,7 +27,9 @@ const fetcher = async (url: string): Promise<LiveRunsResponse> => {
  */
 export function useLeadEngineStatus() {
   const boostUntil = useRef(0);
-  const { data, mutate } = useSWR<LiveRunsResponse>(ENDPOINT, fetcher, {
+  // The workspace is part of the SWR key: switching workspaces must never show the previous one's runs.
+  const { workspace } = useParams<{ workspace: string }>();
+  const { data, mutate } = useSWR<LiveRunsResponse>(endpointFor(workspace), fetcher, {
     revalidateOnFocus: true,
     dedupingInterval: 3_000,
     // Re-evaluated after every answer: fast while anything is running or a fast window is open.

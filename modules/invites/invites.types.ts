@@ -1,9 +1,11 @@
 import { z } from "zod";
+import { workspaceRoleSchema, type WorkspaceRole } from "@/modules/tenancy/tenancy.types";
 
 export const INVITE_TTL_DAYS = 7;
 
 export const inviteEmailSchema = z.object({
   email: z.string().trim().toLowerCase().max(254).pipe(z.email("Enter a valid email address.")),
+  role: workspaceRoleSchema.default("member"),
 });
 
 export const inviteIdSchema = z.object({ id: z.uuid() });
@@ -40,6 +42,7 @@ export function inviteStatus(invite: InviteRecord, now: Date): InviteStatus {
 export interface InviteSummary {
   id: string;
   email: string;
+  role: WorkspaceRole;
   status: InviteStatus;
   lastSentAt: Date;
   expiresAt: Date;
@@ -48,7 +51,7 @@ export interface InviteSummary {
 
 /** What the accept page needs to know about a link. `masked` hides most of the address (the link alone isn't proof of who's looking). */
 export type InviteLinkState =
-  | { state: "valid"; email: string }
+  | { state: "valid"; email: string; workspaceName: string }
   | { state: "expired"; maskedEmail: string }
   | { state: "used" }
   | { state: "revoked" }

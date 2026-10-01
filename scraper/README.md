@@ -59,7 +59,7 @@ Flags: `--max-minutes N` (stop starting work, save checkpoint), `--profile-id ID
 
 Docker (same image for CI and the future server): `docker build -t tagr-lead-engine scraper/` then `docker run --rm --env-file scraper/.env tagr-lead-engine --max-minutes 5`.
 
-Scheduled: `.github/workflows/lead-engine.yml` (every 6 h + manual dispatch). Repository secrets: `DATABASE_URL_SCRAPER`, `GOOGLE_CLOUD_API_KEY`, `BRAVE_API_KEY`, `OPENAI_API_KEY`; optional variables `OPENAI_MODEL`, `INBOUND_LEADS_ADDRESS` (needed for the email signups) and `BUYER_NAME` / `BUYER_PHONE` / `BUYER_COMPANY` (who the signups sign up as). Manual runs: Actions tab → Run workflow (`task`: `engine` or `email-signups`).
+Scheduled: `.github/workflows/lead-engine.yml` (every 6 h + manual dispatch). Repository secrets: `DATABASE_URL_SCRAPER`, `GOOGLE_CLOUD_API_KEY`, `BRAVE_API_KEY`, `OPENAI_API_KEY`; optional variables `OPENAI_MODEL` and `INBOUND_EMAIL_DOMAIN` (the domain every workspace's leads inbox lives on; needed for the email signups — each workspace's own address and buyer identity come from the database, per tenant). Manual runs: Actions tab → Run workflow (`task`: `engine` or `email-signups`).
 
 ## Broker listing sites (businesses for sale)
 
@@ -67,7 +67,7 @@ Source `broker_listings` (`sources/broker_listings.py`, helpers in `util/pages.p
 
 ## Email-source signups
 
-`python -m leadengine.email_signup` (also run after the engine on every scheduled tick, and on its own when "Attempt subscribe" is clicked in the CRM) subscribes the dedicated leads inbox (`INBOUND_LEADS_ADDRESS`) to listing sites that deliver by email. For each `email_sources` row that is unsubscribed, not captcha-protected, has both selectors configured, and was never attempted or explicitly re-requested, it opens the signup page with Playwright, types the address into the configured email field and clicks the configured submit button.
+`python -m leadengine.email_signup` (also run after the engine on every scheduled tick, and on its own when "Attempt subscribe" is clicked in the CRM) subscribes each workspace's own leads inbox (`<tenants.inbound_local_part>@INBOUND_EMAIL_DOMAIN`) to listing sites that deliver by email. For each `email_sources` row that is unsubscribed, not captcha-protected, has both selectors configured, and was never attempted or explicitly re-requested, it opens the signup page with Playwright, types the address into the configured email field and clicks the configured submit button.
 
 - **Captcha → stop.** reCAPTCHA / hCaptcha / Turnstile / Arkose markup before submitting, or a "verify you're human" challenge after, sets `captcha_protected` and leaves the site a manual signup. It never solves or bypasses one.
 - **It never sets `subscribed`.** Most sites use double opt-in; a submitted form is only recorded as `last_attempt_result = submitted`. The site's confirmation email reaches the inbox and the CRM's inbound webhook (`modules/email-inbound`) clicks the link and marks the site subscribed.

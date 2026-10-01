@@ -24,6 +24,7 @@ import {
 import { createActivityAction, setActivityDoneAction } from "@/modules/activities/activities.actions";
 import type { ActivityRow, NewActivity } from "@/modules/activities/activities.types";
 import { ActivityProgressBadge } from "./ActivityProgressBadge";
+import { useWorkspacePath } from "@/hooks/ui/use-workspace-path";
 
 type Patch = { kind: "add"; activity: ActivityRow } | { kind: "done"; id: string; done: boolean };
 
@@ -33,6 +34,7 @@ function applyPatch(state: ActivityRow[], patch: Patch): ActivityRow[] {
 }
 
 function ActivityRowItem({ activity, onToggle }: { activity: ActivityRow; onToggle: (id: string, done: boolean) => void }) {
+  const path = useWorkspacePath();
   const Icon = ACTIVITY_TYPE_ICONS[activity.type] ?? CheckSquare;
   const isOptimistic = activity.id.startsWith("optimistic-");
   const overdue = !activity.done && dueBucket(activity.dueDate) === "overdue";
@@ -54,7 +56,7 @@ function ActivityRowItem({ activity, onToggle }: { activity: ActivityRow; onTogg
       </button>
       <Icon className="size-3.5 shrink-0 text-muted-foreground" />
       <Link
-        href={isOptimistic ? "#" : `/activities?activity=${activity.id}`}
+        href={isOptimistic ? "#" : path(`/activities?activity=${activity.id}`)}
         className={cn(
           "min-w-0 flex-1 truncate text-sm hover:underline",
           activity.done ? "text-muted-foreground line-through" : "text-foreground"
@@ -129,6 +131,7 @@ export function PipelineItemActivities({
   activities: ActivityRow[];
   lookups: ActivityLookups;
 }) {
+  const path = useWorkspacePath();
   const isMobile = useIsMobile();
   const [showInlineForm, setShowInlineForm] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -203,7 +206,7 @@ export function PipelineItemActivities({
 
       {optimisticActivities.length > 0 && (
         <Link
-          href="/activities"
+          href={path("/activities")}
           className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
           See all on Activities

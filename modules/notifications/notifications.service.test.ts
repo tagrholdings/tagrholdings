@@ -5,7 +5,7 @@ vi.mock("./notifications.repository", () => ({
 }));
 vi.mock("@/lib/web-push", () => ({ isPushConfigured: vi.fn(), sendPush: vi.fn() }));
 vi.mock("@/modules/activities/activities.service", () => ({ activitiesService: { claimDueReminders: vi.fn() } }));
-vi.mock("@/modules/tenancy/tenancy.service", () => ({ tenancyService: { listTenantIds: vi.fn(), listMembers: vi.fn() } }));
+vi.mock("@/modules/tenancy/tenancy.service", () => ({ tenancyService: { listTenants: vi.fn(), listMembers: vi.fn() } }));
 
 import { notificationsService } from "./notifications.service";
 import { notificationsRepository } from "./notifications.repository";
@@ -28,10 +28,10 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(isPushConfigured).mockReturnValue(true);
   vi.mocked(sendPush).mockResolvedValue("sent");
-  vi.mocked(tenancyService.listTenantIds).mockResolvedValue(["t1"]);
+  vi.mocked(tenancyService.listTenants).mockResolvedValue([{ id: "t1", slug: "acme", name: "Acme" }]);
   vi.mocked(tenancyService.listMembers).mockResolvedValue([
-    { id: "u1", name: "Tanner", email: "t@x.com" },
-    { id: "u2", name: "Matheus", email: "m@x.com" },
+    { id: "u1", name: "Tanner", email: "t@x.com", role: "admin" },
+    { id: "u2", name: "Matheus", email: "m@x.com", role: "member" },
   ]);
   vi.mocked(notificationsRepository.findByUserIds).mockResolvedValue([sub("s1")]);
 });
@@ -40,12 +40,12 @@ describe("subscribe", () => {
   const input = { endpoint: "https://fcm.googleapis.com/fcm/send/abc", keys: { p256dh: "k", auth: "a" } };
 
   it("stores the subscription for the signed-in user", async () => {
-    await notificationsService.subscribe("t1", "u1", input);
-    expect(notificationsRepository.upsert).toHaveBeenCalledWith("t1", "u1", input);
+    await notificationsService.subscribe("u1", input);
+    expect(notificationsRepository.upsert).toHaveBeenCalledWith("u1", input);
   });
 
   it("refuses an endpoint that isn't a known push service (the server POSTs to it)", async () => {
-    await expect(notificationsService.subscribe("t1", "u1", { ...input, endpoint: "https://169.254.169.254/latest" })).rejects.toThrow("isn't supported");
+    await expect(notificationsService.subscribe("u1", { ...input, endpoint: "https://169.254.169.254/latest" })).rejects.toThrow("isn't supported");
     expect(notificationsRepository.upsert).not.toHaveBeenCalled();
   });
 });
@@ -60,10 +60,10 @@ describe("sendDueTaskReminders", () => {
   it("an assigned task goes only to its assignee, with a link to the activity", async () => {
     vi.mocked(activitiesService.claimDueReminders).mockResolvedValue([reminder({ assignedToUserId: "u2" })] as never);
     const result = await notificationsService.sendDueTaskReminders(NOW);
-    expect(notificationsRepository.findByUserIds).toHaveBeenCalledWith("t1", ["u2"]);
+    expect(notificationsRepository.findByUserIds).toHaveBeenCalledWith(["u2"]);
     expect(sendPush).toHaveBeenCalledWith(
       expect.objectContaining({ endpoint: "https://fcm.googleapis.com/s1" }),
-      expect.objectContaining({ title: "Call the seller", body: "Call due now", url: "/activities?activity=act-1", tag: "activity-act-1" })
+      expect.objectContaining({ title: "Call the seller", body: "Call due now", url: "/w/acme/activities?activity=act-1", tag: "activity-act-1" })
     );
     expect(result).toEqual({ reminders: 1, delivered: 1 });
   });
@@ -71,7 +71,7 @@ describe("sendDueTaskReminders", () => {
   it("an unassigned task goes to the whole team", async () => {
     vi.mocked(activitiesService.claimDueReminders).mockResolvedValue([reminder()] as never);
     await notificationsService.sendDueTaskReminders(NOW);
-    expect(notificationsRepository.findByUserIds).toHaveBeenCalledWith("t1", ["u1", "u2"]);
+    expect(notificationsRepository.findByUserIds).toHaveBeenCalledWith(["u1", "u2"]);
   });
 
   it("forgets subscriptions the push service reports as gone", async () => {
@@ -79,12 +79,12 @@ describe("sendDueTaskReminders", () => {
     vi.mocked(notificationsRepository.findByUserIds).mockResolvedValue([sub("live"), sub("dead")]);
     vi.mocked(sendPush).mockImplementation(async (target) => (target.endpoint.endsWith("dead") ? "gone" : "sent"));
     const result = await notificationsService.sendDueTaskReminders(NOW);
-    expect(notificationsRepository.deleteByIds).toHaveBeenCalledWith("t1", ["dead"]);
+    expect(notificationsRepository.deleteByIds).toHaveBeenCalledWith(["dead"]);
     expect(result.delivered).toBe(1);
   });
 
   it("one workspace failing doesn't stop the others", async () => {
-    vi.mocked(tenancyService.listTenantIds).mockResolvedValue(["broken", "t1"]);
+    vi.mocked(tenancyService.listTenants).mockResolvedValue([{ id: "broken", slug: "broken", name: "B" }, { id: "t1", slug: "acme", name: "Acme" }]);
     vi.mocked(activitiesService.claimDueReminders).mockImplementation(async (tenantId) => {
       if (tenantId === "broken") throw new Error("db down");
       return [reminder()] as never;
@@ -103,11 +103,11 @@ describe("sendDueTaskReminders", () => {
 describe("sendTest", () => {
   it("asks the person to turn notifications on when this account has no device", async () => {
     vi.mocked(notificationsRepository.findByUserIds).mockResolvedValue([]);
-    await expect(notificationsService.sendTest("t1", "u1")).rejects.toThrow("Turn notifications on");
+    await expect(notificationsService.sendTest("u1", "acme")).rejects.toThrow("Turn notifications on");
   });
 
   it("sends to the person's own devices", async () => {
-    expect(await notificationsService.sendTest("t1", "u1")).toEqual({ sent: 1 });
-    expect(notificationsRepository.findByUserIds).toHaveBeenCalledWith("t1", ["u1"]);
+    expect(await notificationsService.sendTest("u1", "acme")).toEqual({ sent: 1 });
+    expect(notificationsRepository.findByUserIds).toHaveBeenCalledWith(["u1"]);
   });
 });
