@@ -3,7 +3,7 @@
 import { revalidateWorkspace } from "@/lib/revalidate";
 import { protectedAction } from "@/lib/safe-action";
 import { activitiesService } from "./activities.service";
-import { createActivitySchema, setActivityDoneSchema, updateActivityDateSchema } from "./activities.types";
+import { createActivitySchema, setActivityDoneSchema, updateActivityDateSchema, updateActivitySchema } from "./activities.types";
 
 /** Activities show up on /activities, inside pipeline items (Projects, Leads) and on a contact's panel. */
 function revalidateActivityPages(slug: string) {
@@ -17,6 +17,14 @@ export const createActivityAction = protectedAction
   .schema(createActivitySchema)
   .action(async ({ parsedInput, ctx }) => {
     const activity = await activitiesService.create(ctx.user.tenantId, parsedInput, ctx.user.id);
+    revalidateActivityPages(ctx.workspace.slug);
+    return { activity };
+  });
+
+export const updateActivityAction = protectedAction
+  .schema(updateActivitySchema)
+  .action(async ({ parsedInput, ctx }) => {
+    const activity = await activitiesService.update(ctx.user.tenantId, parsedInput);
     revalidateActivityPages(ctx.workspace.slug);
     return { activity };
   });

@@ -195,9 +195,11 @@ export function ContactsView({
     // of overlaying it.
     <div className="flex min-w-0 flex-1 gap-4">
       <div className="flex min-w-0 flex-1 flex-col gap-4">
-        <div className="sticky top-14 z-10 md:top-20 flex flex-wrap items-center gap-2 bg-background pb-4 pt-4">
+        {/* One line on a phone (the tab labels collapse to icons, and the row scrolls sideways if it still doesn't fit); wraps from md up. */}
+        <div className="no-scrollbar sticky top-14 z-10 flex items-center gap-2 overflow-x-auto bg-background pb-4 pt-4 md:top-20 md:flex-wrap md:overflow-visible">
           <SegmentedControl
             tourId="contacts-tabs"
+            collapseInactive
             value={tab}
             onChange={setTab}
             options={[
@@ -222,7 +224,7 @@ export function ContactsView({
               containerClassName="hidden min-w-0 md:block md:w-auto md:flex-1 md:max-w-xs"
             />
           )}
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             {createOrgVault}
             {createContactVault}
           </div>

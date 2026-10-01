@@ -39,7 +39,7 @@ const FILTERS: { id: DueBucket | "all" | "open" | "done"; label: string }[] = [
   { id: "all", label: "All" },
 ];
 
-// Completion animation timings (ms) — the strike-through line draws for STRIKE_MS, then the row leaves over LEAVE_MS.
+// Toggle animation timings (ms) — the strike-through line draws (or retracts) for STRIKE_MS, then the row leaves over LEAVE_MS.
 // Keep in step with the duration-* classes on the row and the title's strike line below.
 const STRIKE_MS = 600;
 const LEAVE_MS = 300;
@@ -102,8 +102,9 @@ export function ActivitiesView({
 
   const [optimisticActivities, addPatch] = useOptimistic(initialActivities, applyPatch);
   const [, startTransition] = useTransition();
-  // Tasks mid-completion (see handleToggleDone): "striking" = title being struck out, "leaving" = row fading away.
-  const [completing, setCompleting] = useState<Record<string, "striking" | "leaving">>({});
+  // Tasks mid-toggle (see handleToggleDone): "striking"/"unstriking" = the title's strike line drawing / retracting,
+  // "leaving"/"unleaving" = the row fading away once the current filter would hide it in its new state.
+  const [completing, setCompleting] = useState<Record<string, "striking" | "leaving" | "unstriking" | "unleaving">>({});
 
   function handleSetDone(id: string, done: boolean) {
     startTransition(async () => {
@@ -114,26 +115,31 @@ export function ActivitiesView({
   }
 
   /**
-   * Completing a task from the list plays out before it's committed: the title is struck through,
-   * then — when the current filter would hide a done task — the row fades and collapses, and only
-   * then does the real "done" go through. Without it the row just vanishes and it's unclear what
-   * happened. Un-completing is instant.
+   * Toggling a task from the list plays out before it's committed. Completing: the title is struck through, then —
+   * when the current filter would hide a done task — the row fades and collapses, and only then does the real "done"
+   * go through. Un-completing is the mirror image: the strike retracts and the box clears, then the row leaves if the
+   * filter would hide it (e.g. un-doing a task while looking at Done). Without it the row just changes or vanishes
+   * and it's unclear what happened.
    */
   function handleToggleDone(activity: ActivityRow) {
-    if (activity.done) return handleSetDone(activity.id, false);
     if (completing[activity.id]) return;
 
-    const leavesList = !matchesFilter({ ...activity, done: true }, filter);
-    setCompleting((prev) => ({ ...prev, [activity.id]: "striking" }));
-    if (leavesList) setTimeout(() => setCompleting((prev) => ({ ...prev, [activity.id]: "leaving" })), STRIKE_MS);
+    const undoing = activity.done;
+    const leavesList = !matchesFilter({ ...activity, done: !undoing }, filter);
+    const [first, second] = undoing ? (["unstriking", "unleaving"] as const) : (["striking", "leaving"] as const);
+    setCompleting((prev) => ({ ...prev, [activity.id]: first }));
+    if (leavesList) setTimeout(() => setCompleting((prev) => ({ ...prev, [activity.id]: second })), STRIKE_MS);
     setTimeout(
       () => {
-        handleSetDone(activity.id, true);
-        setCompleting((prev) => {
-          const next = { ...prev };
-          delete next[activity.id];
-          return next;
-        });
+        handleSetDone(activity.id, !undoing);
+        // In a transition too, so it lands in the same render as the optimistic "done" and the row never flashes its old state.
+        startTransition(() =>
+          setCompleting((prev) => {
+            const next = { ...prev };
+            delete next[activity.id];
+            return next;
+          })
+        );
       },
       leavesList ? STRIKE_MS + LEAVE_MS : STRIKE_MS
     );
@@ -359,7 +365,8 @@ export function ActivitiesView({
                     .filter(Boolean)
                     .join(" · ");
                   const phase = completing[activity.id];
-                  const checked = activity.done || phase !== undefined;
+                  const undoing = phase === "unstriking" || phase === "unleaving";
+                  const checked = undoing ? false : activity.done || phase !== undefined;
                   return (
                     <li
                       key={activity.id}
@@ -367,7 +374,7 @@ export function ActivitiesView({
                         "flex max-h-24 items-center gap-3 px-4 py-3.5 transition-[max-height,opacity,transform,padding,background-color] duration-300 hover:bg-accent/5",
                         isOptimistic && "pointer-events-none opacity-60",
                         phase && "pointer-events-none",
-                        phase === "leaving" && "max-h-0 translate-x-3 overflow-hidden py-0 opacity-0"
+                        (phase === "leaving" || phase === "unleaving") && "max-h-0 translate-x-3 overflow-hidden py-0 opacity-0"
                       )}
                     >
                       <button
@@ -446,8 +453,7 @@ export function ActivitiesView({
 
       <ActivityDetailPanel
         activity={selected}
-        members={lookups.members}
-        pipelineItems={lookups.pipelineItems}
+        lookups={lookups}
         onOpenChange={(open) => !open && setSelectedId(null)}
         onSetDone={(id, done) => {
           const activity = optimisticActivities.find((a) => a.id === id);

@@ -23,6 +23,7 @@ export function SegmentedControl<T extends string>({
   options,
   className,
   tourId,
+  collapseInactive,
 }: {
   value: T;
   onChange: (value: T) => void;
@@ -30,12 +31,15 @@ export function SegmentedControl<T extends string>({
   className?: string;
   /** `data-tour` name, so a guided tour can point at this control (see components/layout/page-help.ts). */
   tourId?: string;
+  /** On a phone, only the active option shows its label (the others shrink to their icon) — for a toolbar that has to fit one line. */
+  collapseInactive?: boolean;
 }) {
   return (
     <div data-tour={tourId} className={cn("inline-flex h-9 shrink-0 items-center rounded-md border border-divider bg-surface p-0.5", className)}>
       {options.map((option) => {
         const Icon = option.icon;
         const active = option.value === value;
+        const collapsed = collapseInactive && !active && !!Icon && !!option.label;
         return (
           <button
             key={option.value}
@@ -46,11 +50,12 @@ export function SegmentedControl<T extends string>({
             className={cn(
               "flex h-full items-center justify-center gap-1.5 rounded-sm text-xs font-medium transition-colors",
               option.label ? "px-2.5" : "w-8",
+              collapsed && "max-md:w-8 max-md:gap-0 max-md:px-0",
               active ? "bg-accent text-ink" : "text-muted-foreground hover:text-foreground"
             )}
           >
             {Icon && <Icon className="size-4" />}
-            {option.label}
+            {collapsed ? <span className="max-md:sr-only">{option.label}</span> : option.label}
           </button>
         );
       })}

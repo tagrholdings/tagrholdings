@@ -7,7 +7,8 @@
  * that no `data-tour` is orphaned). When you add, rename or remove a page or one of its main controls, update this
  * file in the same change.
  *
- * Matching is by the longest route prefix, so /contacts/123 uses the /contacts entry. Routes are workspace-relative: the
+ * Matching is by the longest route prefix (so /contacts/123 would use /contacts if it had no entry of its own), and a
+ * `[param]` segment matches any one segment (so `/contacts/[id]` is the entry for /contacts/123). Routes are workspace-relative: the
  * `/w/<slug>` part of the URL is dropped first. Kept as data (not JSX) so it
  * is cheap to edit and to test.
  */
@@ -302,7 +303,7 @@ const ENTRIES: Entry[] = [
         {
           target: "pipeline-board",
           title: "Your deals, stage by stage",
-          text: "Every lead you promoted from the inbox lands here. Drag a card to the next column as the conversation with the seller moves forward.",
+          text: "Every lead you promoted from the inbox lands here. Drag a card to the next column as the conversation with the seller moves forward. Open one and press Edit details to change its title, organization, contact or notes.",
           demo: { kind: "board", columns: ["Sourced", "Outreach", "In Discussion"] },
         },
         {
@@ -395,7 +396,7 @@ const ENTRIES: Entry[] = [
         {
           target: "activities-list",
           title: "The list",
-          text: "Tick one off when it's done. Open it to change the date, who does it, or the lead and contact it belongs to.",
+          text: "Tick one off when it's done. Open one and press Edit activity to change its title, date, who does it, or the lead and contact it belongs to.",
           demo: { kind: "table", columns: ["Title", "Due", "Status"] },
         },
         {
@@ -443,6 +444,65 @@ const ENTRIES: Entry[] = [
           title: "Add someone",
           text: "Add a person or a company by hand. Promoting a lead from the inbox also creates these for you automatically.",
           demo: { kind: "vault", fields: ["Name", "Email"], button: "Create contact" },
+        },
+        HELP_AGAIN,
+      ],
+    }),
+  },
+  {
+    path: "/contacts/[id]",
+    build: () => ({
+      title: "Contact",
+      summary: "Everything about one person: how to reach them, their company, and every lead, project and activity they are part of.",
+      sections: [
+        {
+          heading: "What it's for",
+          body: "Open someone from the Contacts list to see their whole history in one place before you call or write. Nothing here is a copy: the leads, projects and activities listed are the real ones, so a change made here shows up everywhere.",
+        },
+        {
+          heading: "What you can do",
+          body: [
+            "Edit their name, email and phone with the pencil, or tap the email or phone to write or call.",
+            "Pick, change or create their organization.",
+            "Open a lead, a project item or an activity to read it, move it to another stage, tick it done, or edit it — the same panel you get on the Leads, Projects and Activities pages.",
+            "Use the back arrow to return to the list.",
+          ],
+        },
+      ],
+      tour: [
+        {
+          target: "contact-profile",
+          title: "Who this is",
+          text: "Their name, company, email and phone at a glance. The email and phone are links: tap one to write or call.",
+        },
+        {
+          target: "contact-edit",
+          title: "Fix or complete the details",
+          text: "Press the pencil to edit the name, email and phone right here, then Save. Nothing else on the page changes.",
+          demo: { kind: "vault", fields: ["Name", "Email", "Phone"], button: "Save" },
+        },
+        {
+          target: "contact-organization",
+          title: "Which company they belong to",
+          text: "Choose an organization from the list, switch to another, or type a new name and create it on the spot. View organization opens that company in the Contacts list.",
+        },
+        {
+          target: "contact-leads",
+          title: "Leads they are on",
+          text: "Every lead this person is attached to, with its current stage. Open one to move it forward, edit it or add activities. A lead lands here when you pick this person as its contact.",
+          demo: { kind: "table", columns: ["Lead", "Stage"] },
+        },
+        {
+          target: "contact-projects",
+          title: "Projects they are part of",
+          text: "The same idea for your own boards: each card this person is linked to, which project it is in, and its stage.",
+          demo: { kind: "table", columns: ["Item", "Project", "Stage"] },
+        },
+        {
+          target: "contact-activities",
+          title: "Calls, meetings and tasks",
+          text: "Everything planned or done with them, open ones first. The badge counts how many are finished. Open one to edit it or tick it done.",
+          demo: { kind: "table", columns: ["Title", "Type", "Due"] },
         },
         HELP_AGAIN,
       ],
@@ -678,12 +738,25 @@ const ENTRIES: Entry[] = [
   },
 ];
 
+/**
+ * Whether an entry's route covers `path`: every segment of the entry must match the start of the path, where a
+ * `[param]` segment (an `app/` dynamic folder, e.g. `/contacts/[id]`) matches any single segment.
+ */
+function routeMatches(entryPath: string, path: string): boolean {
+  const entrySegments = entryPath.split("/");
+  const segments = path.split("/");
+  if (segments.length < entrySegments.length) return false;
+  return entrySegments.every((segment, i) => (segment.startsWith("[") && segment.endsWith("]") ? segments[i] !== "" : segment === segments[i]));
+}
+
 /** Help for a route, or null when the page has none. Longest matching prefix wins. */
 export function getPageHelp(pathname: string | null, ctx: HelpContext): PageHelp | null {
   if (!pathname) return null;
   // Entries are keyed by workspace-relative route ("/contacts"); the URL is "/w/<slug>/contacts".
   const path = stripWorkspacePrefix(pathname).replace(/\/+$/, "") || "/";
-  const entry = ENTRIES.filter((e) => path === e.path || path.startsWith(`${e.path}/`)).sort((a, b) => b.path.length - a.path.length)[0];
+  const entry = ENTRIES.filter((e) => routeMatches(e.path, path)).sort(
+    (a, b) => b.path.split("/").length - a.path.split("/").length || b.path.length - a.path.length
+  )[0];
   return entry ? entry.build(ctx) : null;
 }
 

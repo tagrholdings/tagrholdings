@@ -1,8 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Building2, User, ArrowUpRight } from "lucide-react";
+import { Building2, User, ArrowUpRight, Pencil } from "lucide-react";
 import { useIsMobile } from "@/hooks/ui/use-device";
 import { cn } from "@/lib/utils";
 import { SidePanel } from "@/components/shared/side-panel";
@@ -11,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import type { ActivityLookups } from "@/components/shared/activity-form";
 import type { ActivityRow } from "@/modules/activities/activities.types";
 import { PipelineItemActivities } from "./PipelineItemActivities";
+import { PipelineItemEditForm } from "./PipelineItemEditForm";
 import type { PipelineItemRow, BoardColumn } from "./types";
 import { useWorkspacePath } from "@/hooks/ui/use-workspace-path";
 
@@ -29,7 +31,8 @@ function DetailBody({
   activities,
   lookups,
   onMoveStage,
-}: Omit<PipelineItemDetailProps, "item" | "onOpenChange"> & { item: PipelineItemRow }) {
+  onEdit,
+}: Omit<PipelineItemDetailProps, "item" | "onOpenChange"> & { item: PipelineItemRow; onEdit: () => void }) {
   const path = useWorkspacePath();
   return (
     <div className="space-y-5">
@@ -94,6 +97,14 @@ function DetailBody({
         </Button>
       )}
 
+      {/* An item still being created has no server id yet, so there is nothing to edit. */}
+      {!item.id.startsWith("optimistic-") && (
+        <Button variant="outline" className="w-full" onClick={onEdit}>
+          <Pencil />
+          Edit details
+        </Button>
+      )}
+
       <PipelineItemActivities
         // Remount per item so the inline form's defaults (linked contact/org) follow the selection.
         key={item.id}
@@ -105,6 +116,15 @@ function DetailBody({
       />
     </div>
   );
+}
+
+/** The panel's content: the details, or — after "Edit details" — the edit form. Keyed per item by its caller, so it always opens on the details. */
+function PanelContent({ item, columns, activities, lookups, onMoveStage }: Omit<PipelineItemDetailProps, "item" | "onOpenChange"> & { item: PipelineItemRow }) {
+  const [editing, setEditing] = useState(false);
+  if (editing) {
+    return <PipelineItemEditForm item={item} contacts={lookups.contacts} organizations={lookups.organizations} onDone={() => setEditing(false)} />;
+  }
+  return <DetailBody item={item} columns={columns} activities={activities} lookups={lookups} onMoveStage={onMoveStage} onEdit={() => setEditing(true)} />;
 }
 
 export function PipelineItemDetail({ item, columns, activities, lookups, onOpenChange, onMoveStage }: PipelineItemDetailProps) {
@@ -121,7 +141,7 @@ export function PipelineItemDetail({ item, columns, activities, lookups, onOpenC
                 <VaultTitle>{item.title}</VaultTitle>
               </VaultHeader>
               <VaultBody>
-                <DetailBody item={item} columns={columns} activities={activities} lookups={lookups} onMoveStage={onMoveStage} />
+                <PanelContent key={item.id} item={item} columns={columns} activities={activities} lookups={lookups} onMoveStage={onMoveStage} />
               </VaultBody>
             </>
           )}
@@ -132,7 +152,7 @@ export function PipelineItemDetail({ item, columns, activities, lookups, onOpenC
 
   return (
     <SidePanel open={open} onOpenChange={onOpenChange} title={item?.title ?? ""} description={item?.organizationName ?? undefined}>
-      {item && <DetailBody item={item} columns={columns} activities={activities} lookups={lookups} onMoveStage={onMoveStage} />}
+      {item && <PanelContent key={item.id} item={item} columns={columns} activities={activities} lookups={lookups} onMoveStage={onMoveStage} />}
     </SidePanel>
   );
 }

@@ -43,14 +43,17 @@ function Section({
   title,
   aside,
   children,
+  tourId,
 }: {
   icon: typeof Mail;
   title: string;
   aside?: React.ReactNode;
   children: React.ReactNode;
+  /** `data-tour` name, so the page's guided tour can point at this section (see components/layout/page-help.ts). */
+  tourId?: string;
 }) {
   return (
-    <div className="rounded-lg border border-divider bg-surface p-5">
+    <div data-tour={tourId} className="rounded-lg border border-divider bg-surface p-5">
       <div className="mb-3 flex items-center gap-2">
         <Icon className="size-4 text-muted-foreground" />
         <h3 className="font-serif text-base font-semibold text-foreground">{title}</h3>
@@ -173,7 +176,7 @@ export function ContactProfileView({
     // side actually shrink when a detail panel opens (see side-panel.tsx).
     <div className="flex min-w-0 flex-1 gap-4">
       <div className="flex min-w-0 flex-1 flex-col gap-4">
-        <div className="rounded-lg border border-divider bg-surface p-6">
+        <div data-tour="contact-profile" className="rounded-lg border border-divider bg-surface p-6">
           <div className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
               <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-surface-alt text-base font-semibold text-foreground">
@@ -195,6 +198,7 @@ export function ContactProfileView({
               <button
                 type="button"
                 onClick={() => setEditing(true)}
+                data-tour="contact-edit"
                 aria-label="Edit contact"
                 className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
@@ -262,6 +266,7 @@ export function ContactProfileView({
         </div>
 
         <Section
+          tourId="contact-organization"
           icon={Building2}
           title="Organization"
           aside={
@@ -287,7 +292,7 @@ export function ContactProfileView({
           />
         </Section>
 
-        <Section icon={Inbox} title="Leads">
+        <Section tourId="contact-leads" icon={Inbox} title="Leads">
           {leads.length === 0 ? (
             <Empty className="border border-dashed border-divider py-8">
               <EmptyTitle className="text-sm">Not on any lead yet</EmptyTitle>
@@ -310,7 +315,7 @@ export function ContactProfileView({
           )}
         </Section>
 
-        <Section icon={FolderKanban} title="Projects">
+        <Section tourId="contact-projects" icon={FolderKanban} title="Projects">
           {projects.length === 0 ? (
             <Empty className="border border-dashed border-divider py-8">
               <EmptyTitle className="text-sm">Not part of any project yet</EmptyTitle>
@@ -335,6 +340,7 @@ export function ContactProfileView({
         </Section>
 
         <Section
+          tourId="contact-activities"
           icon={ListChecks}
           title="Activities"
           aside={<ActivityProgressBadge progress={{ done: doneCount, total: contactActivities.length }} />}
@@ -391,8 +397,7 @@ export function ContactProfileView({
 
       <ActivityDetailPanel
         activity={selectedActivity}
-        members={members}
-        pipelineItems={pipelineItems}
+        lookups={{ contacts, organizations, members, pipelineItems }}
         onOpenChange={(open) => !open && setSelection(null)}
         onSetDone={(id, done) => setDone({ id, done })}
       />

@@ -1,7 +1,7 @@
 import { UserFacingError } from "@/lib/errors";
 import { tenancyService } from "@/modules/tenancy/tenancy.service";
 import { activitiesRepository } from "./activities.repository";
-import type { NewActivity } from "./activities.types";
+import type { ActivityUpdate, NewActivity } from "./activities.types";
 
 const REMINDER_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
@@ -18,6 +18,17 @@ export const activitiesService = {
       throw new UserFacingError("That team member isn't part of this workspace.");
     }
     return activitiesRepository.create(tenantId, data, createdByUserId);
+  },
+
+  async update(tenantId: string, data: ActivityUpdate) {
+    if (data.assignedToUserId && !(await tenancyService.isMember(tenantId, data.assignedToUserId))) {
+      throw new UserFacingError("That team member isn't part of this workspace.");
+    }
+    const updated = await activitiesRepository.update(tenantId, data);
+    if (!updated) {
+      throw new UserFacingError("Activity not found.");
+    }
+    return updated;
   },
 
   async setDone(tenantId: string, id: string, done: boolean) {

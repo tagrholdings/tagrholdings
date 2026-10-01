@@ -9,7 +9,7 @@ import type { PipelineItemSummary } from "@/components/pipeline/types";
 import { CommandSelect } from "@/components/shared/command-select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { parseLocalDateTime, toDateInputValue } from "@/utils/date";
+import { hasTimeComponent, parseLocalDateTime, toDateInputValue, toTimeInputValue } from "@/utils/date";
 import {
   ACTIVITY_TYPES,
   ACTIVITY_PRIORITIES,
@@ -79,6 +79,32 @@ export function activityFormDefaults(overrides: Partial<ActivityFormValues> = {}
     pipelineItemId: undefined,
     notify: false,
     ...overrides,
+  };
+}
+
+/** An existing activity's values, for the edit form. A due time shows only when one was actually set (not local midnight). */
+export function activityToFormValues(activity: ActivityRow): ActivityFormValues {
+  const due = activity.dueDate ? new Date(activity.dueDate) : null;
+  const type = (ACTIVITY_TYPES as readonly string[]).includes(activity.type) ? (activity.type as (typeof ACTIVITY_TYPES)[number]) : "task";
+  const priority = (ACTIVITY_PRIORITIES as readonly string[]).includes(activity.priority ?? "")
+    ? (activity.priority as (typeof ACTIVITY_PRIORITIES)[number])
+    : undefined;
+  return {
+    subject: activity.subject,
+    type,
+    dueDate: due ? toDateInputValue(due) : "",
+    dueTime: due && hasTimeComponent(due) ? toTimeInputValue(due) : "",
+    priority,
+    notes: activity.notes ?? "",
+    assignedTo: activity.assignedToUserId
+      ? `user:${activity.assignedToUserId}`
+      : activity.assignedToContactId
+        ? `contact:${activity.assignedToContactId}`
+        : undefined,
+    contactId: activity.contactId ?? undefined,
+    organizationId: activity.organizationId ?? undefined,
+    pipelineItemId: activity.pipelineItemId ?? undefined,
+    notify: activity.notify,
   };
 }
 

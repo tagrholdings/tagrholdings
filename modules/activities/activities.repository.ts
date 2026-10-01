@@ -5,7 +5,7 @@ import { activitiesTable } from "./activities.schema";
 import { contactsTable } from "@/modules/contacts/contacts.schema";
 import { organizationsTable } from "@/modules/organizations/organizations.schema";
 import { pipelineItemsTable } from "@/modules/pipeline/pipeline.schema";
-import type { NewActivity } from "./activities.types";
+import type { ActivityUpdate, NewActivity } from "./activities.types";
 
 // aliased separately from contactsTable — `contactId` ("about this contact") and
 // `assignedToContactId` ("owned by this contact") can both point at contacts, so
@@ -67,6 +67,38 @@ export const activitiesRepository = {
         .returning()
     );
     return row;
+  },
+
+  /** Replaces every editable field (an empty one is cleared). A moved due date, or a reminder newly switched on, may fire again. */
+  async update(tenantId: string, data: ActivityUpdate) {
+    return withTenant(tenantId, async (tx) => {
+      const where = and(eq(activitiesTable.tenantId, tenantId), eq(activitiesTable.id, data.id));
+      const [existing] = await tx.select({ dueDate: activitiesTable.dueDate, notify: activitiesTable.notify }).from(activitiesTable).where(where);
+      if (!existing) return undefined;
+
+      const dueChanged = (existing.dueDate?.getTime() ?? null) !== (data.dueDate?.getTime() ?? null);
+      const notify = data.notify ?? false;
+      const [row] = await tx
+        .update(activitiesTable)
+        .set({
+          type: data.type,
+          subject: data.subject,
+          dueDate: data.dueDate ?? null,
+          priority: data.priority ?? null,
+          notes: data.notes ?? null,
+          contactId: data.contactId ?? null,
+          organizationId: data.organizationId ?? null,
+          pipelineItemId: data.pipelineItemId ?? null,
+          assignedToUserId: data.assignedToUserId ?? null,
+          assignedToContactId: data.assignedToContactId ?? null,
+          notify,
+          ...(dueChanged || (notify && !existing.notify) ? { notifiedAt: null } : {}),
+          updatedAt: new Date(),
+        })
+        .where(where)
+        .returning();
+      return row;
+    });
   },
 
   /** Detaches activities from pipeline items about to be deleted — the activities themselves stay. */

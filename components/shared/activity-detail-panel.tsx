@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { User, ArrowUpRight, Check, Link2 } from "lucide-react";
+import { User, ArrowUpRight, Check, Link2, Pencil } from "lucide-react";
 import { useIsMobile } from "@/hooks/ui/use-device";
 import { SidePanel } from "./side-panel";
 import { Vault, VaultContent, VaultHeader, VaultTitle, VaultBody } from "@/components/ui/vault";
@@ -10,14 +11,14 @@ import { cn } from "@/lib/utils";
 import { formatDateTimeUS } from "@/utils/date";
 import type { ActivityRow } from "@/modules/activities/activities.types";
 import { pipelineItemHref } from "@/components/pipeline/links";
-import type { PipelineItemSummary } from "@/components/pipeline/types";
 import { useWorkspacePath } from "@/hooks/ui/use-workspace-path";
+import type { ActivityLookups } from "./activity-form";
+import { ActivityEditForm } from "./activity-edit-form";
 
 interface ActivityDetailPanelProps {
   activity: ActivityRow | null;
-  members: { id: string; name: string | null; email: string }[];
-  /** To link to (and label) the lead/project this activity belongs to. */
-  pipelineItems: PipelineItemSummary[];
+  /** Feeds the edit form's pickers, and labels/links the lead or project this activity belongs to. */
+  lookups: ActivityLookups;
   onOpenChange: (open: boolean) => void;
   onSetDone: (id: string, done: boolean) => void;
 }
@@ -27,13 +28,17 @@ function DetailBody({
   members,
   pipelineItems,
   onSetDone,
+  onEdit,
 }: {
   activity: ActivityRow;
-  members: { id: string; name: string | null; email: string }[];
-  pipelineItems: PipelineItemSummary[];
+  members: ActivityLookups["members"];
+  pipelineItems: ActivityLookups["pipelineItems"];
   onSetDone: (id: string, done: boolean) => void;
+  onEdit: () => void;
 }) {
   const path = useWorkspacePath();
+  // An activity still being created has no server id yet, so there is nothing to edit.
+  const canEdit = !activity.id.startsWith("optimistic-");
   const linkedItem = pipelineItems.find((i) => i.id === activity.pipelineItemId);
   const assignee =
     activity.assignedToContactName ??
@@ -121,6 +126,13 @@ function DetailBody({
         </Button>
       )}
 
+      {canEdit && (
+        <Button variant="outline" className="w-full" onClick={onEdit}>
+          <Pencil />
+          Edit activity
+        </Button>
+      )}
+
       <button
         type="button"
         onClick={() => onSetDone(activity.id, !activity.done)}
@@ -138,8 +150,23 @@ function DetailBody({
   );
 }
 
+/** The panel's content: the read-only details, or — after "Edit activity" — the edit form. Keyed per activity by its caller, so it always opens on the details. */
+function PanelContent({ activity, lookups, onSetDone }: { activity: ActivityRow; lookups: ActivityLookups; onSetDone: (id: string, done: boolean) => void }) {
+  const [editing, setEditing] = useState(false);
+  if (editing) return <ActivityEditForm activity={activity} lookups={lookups} onDone={() => setEditing(false)} />;
+  return (
+    <DetailBody
+      activity={activity}
+      members={lookups.members}
+      pipelineItems={lookups.pipelineItems}
+      onSetDone={onSetDone}
+      onEdit={() => setEditing(true)}
+    />
+  );
+}
+
 /** /activities' detail view — same Vault(mobile)/SidePanel(desktop) dual pattern as the rest of the app. */
-export function ActivityDetailPanel({ activity, members, pipelineItems, onOpenChange, onSetDone }: ActivityDetailPanelProps) {
+export function ActivityDetailPanel({ activity, lookups, onOpenChange, onSetDone }: ActivityDetailPanelProps) {
   const isMobile = useIsMobile();
   const open = activity !== null;
 
@@ -153,7 +180,7 @@ export function ActivityDetailPanel({ activity, members, pipelineItems, onOpenCh
                 <VaultTitle>{activity.subject}</VaultTitle>
               </VaultHeader>
               <VaultBody>
-                <DetailBody activity={activity} members={members} pipelineItems={pipelineItems} onSetDone={onSetDone} />
+                <PanelContent key={activity.id} activity={activity} lookups={lookups} onSetDone={onSetDone} />
               </VaultBody>
             </>
           )}
@@ -164,7 +191,7 @@ export function ActivityDetailPanel({ activity, members, pipelineItems, onOpenCh
 
   return (
     <SidePanel open={open} onOpenChange={onOpenChange} title={activity?.subject ?? ""}>
-      {activity && <DetailBody activity={activity} members={members} pipelineItems={pipelineItems} onSetDone={onSetDone} />}
+      {activity && <PanelContent key={activity.id} activity={activity} lookups={lookups} onSetDone={onSetDone} />}
     </SidePanel>
   );
 }

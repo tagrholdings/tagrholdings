@@ -56,7 +56,7 @@ function declaredTargets(): Map<string, string[]> {
 describe("getPageHelp", () => {
   it("ignores the /w/<workspace> part of the URL", () => {
     expect(getPageHelp("/w/acme/leads-inbox", ctx)?.title).toBe("Leads Inbox");
-    expect(getPageHelp("/w/acme/contacts/123", ctx)?.title).toBe("Contacts");
+    expect(getPageHelp("/w/acme/contacts/123", ctx)?.title).toBe("Contact");
     expect(getPageHelp("/w/acme/settings/members", ctx)?.title).toBe("Members");
   });
 
@@ -66,8 +66,9 @@ describe("getPageHelp", () => {
     expect(getPageHelp("/leads", ctx)?.title).toBe("Leads");
   });
 
-  it("uses the parent page for a detail route and ignores a trailing slash", () => {
-    expect(getPageHelp("/contacts/123", ctx)?.title).toBe("Contacts");
+  it("gives a detail route its own help (a [param] folder matches any id), and ignores a trailing slash", () => {
+    expect(getPageHelp("/contacts/123", ctx)?.title).toBe("Contact");
+    expect(getPageHelp("/contacts", ctx)?.title).toBe("Contacts");
     expect(getPageHelp("/settings/inbox/", ctx)?.title).toBe("Inbox");
   });
 

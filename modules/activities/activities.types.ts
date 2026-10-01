@@ -16,7 +16,7 @@ export const updateActivityDateSchema = z.object({
   date: z.date(),
 });
 
-export const createActivitySchema = insertActivitySchema
+const activityFieldsSchema = insertActivitySchema
   .pick({
     type: true,
     subject: true,
@@ -33,17 +33,29 @@ export const createActivitySchema = insertActivitySchema
   .extend({
     type: z.enum(ACTIVITY_TYPES),
     priority: z.enum(ACTIVITY_PRIORITIES).nullish(),
-  })
-  .refine((data) => !(data.assignedToUserId && data.assignedToContactId), {
-    message: "Assign to either a team member or a contact, not both.",
-    path: ["assignedToUserId"],
-  })
-  .refine((data) => !data.notify || !!data.dueDate, {
-    message: "A notification needs a due date and time.",
-    path: ["notify"],
   });
 
+/** The rules both creating and editing an activity share. */
+function withActivityRules<T extends z.ZodType<{ assignedToUserId?: string | null; assignedToContactId?: string | null; notify?: boolean | null; dueDate?: Date | null }>>(schema: T) {
+  return schema
+    .refine((data) => !(data.assignedToUserId && data.assignedToContactId), {
+      message: "Assign to either a team member or a contact, not both.",
+      path: ["assignedToUserId"],
+    })
+    .refine((data) => !data.notify || !!data.dueDate, {
+      message: "A notification needs a due date and time.",
+      path: ["notify"],
+    });
+}
+
+export const createActivitySchema = withActivityRules(activityFieldsSchema);
+
 export type NewActivity = z.infer<typeof createActivitySchema>;
+
+/** Editing replaces every editable field: one the form left empty is cleared, not kept. */
+export const updateActivitySchema = withActivityRules(activityFieldsSchema.extend({ id: z.uuid() }));
+
+export type ActivityUpdate = z.infer<typeof updateActivitySchema>;
 
 export const ACTIVITY_TYPE_LABELS: Record<(typeof ACTIVITY_TYPES)[number], string> = {
   call: "Call",

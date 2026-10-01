@@ -36,7 +36,7 @@ function WeekActivityCard({ activity, onSelect }: { activity: ActivityRow; onSel
       >
         {activity.done && <CheckSquare className="size-3" />}
       </span>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className={cn("truncate text-sm font-medium", activity.done ? "text-muted-foreground line-through" : "text-foreground")}>
           {activity.subject}
         </p>
@@ -45,6 +45,16 @@ function WeekActivityCard({ activity, onSelect }: { activity: ActivityRow; onSel
             {activity.pipelineItemTitle && <Link2 className="size-3 shrink-0" />}
             <span className="truncate">{context}</span>
           </p>
+        )}
+        {activity.priority && !activity.done && (
+          <span
+            className={cn(
+              "mt-1.5 inline-block rounded-sm px-1.5 py-0.5 text-[10px] font-semibold uppercase",
+              activity.priority === "high" ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground"
+            )}
+          >
+            {activity.priority}
+          </span>
         )}
       </div>
     </button>
