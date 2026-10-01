@@ -20,6 +20,10 @@ import type { ActivityProgress, PipelineItemRow, PipelineBoardRow } from "./type
 
 type View = "board" | "list";
 
+// This toolbar's own sticky height on mobile (h-9 controls + the pt-2/pb-4 padding below) — used to work out
+// where the list's stage pills (see PipelineListView) must stick to, right underneath it.
+const TOOLBAR_HEIGHT_REM = 3.75;
+
 // Two mutation kinds (add, stage move) against one list — design.md's
 // documented exception to useOptimisticAction, same as the Activities board.
 type Patch = { kind: "add"; item: PipelineItemRow } | { kind: "move"; id: string; stage: string };
@@ -41,6 +45,7 @@ export function PipelineView({
   lookups,
   itemNoun = "item",
   initialSelectedId = null,
+  topOffsetRem = 3.5,
 }: {
   board: PipelineBoardRow;
   items: PipelineItemRow[];
@@ -48,6 +53,12 @@ export function PipelineView({
   lookups: ActivityLookups;
   itemNoun?: string;
   initialSelectedId?: string | null;
+  /**
+   * How much sticky chrome (rem) already sits above this view on mobile — just the `3.5rem` mobile header by
+   * default (used standalone on `/leads`). `/pipeline` (Projects) renders its own sticky project-tabs row above
+   * this component, so `ProjectsView` passes a bigger value to stack this toolbar underneath it instead of overlapping.
+   */
+  topOffsetRem?: number;
 }) {
   const isMobile = useIsMobile();
   const [view, setView] = useState<View | null>(null);
@@ -129,10 +140,15 @@ export function PipelineView({
     // side actually shrink when SidePanel opens.
     <div className="flex min-w-0 flex-1 gap-4">
       <div className="flex min-w-0 flex-1 flex-col gap-4">
-        {/* The toolbar (and the vault inside it) stays mounted even while the
-            board is empty, so creating the first item doesn't unmount the
-            vault mid-animation. */}
-        <div className="flex flex-wrap items-center gap-2">
+        {/*
+          The toolbar (and the vault inside it) stays mounted even while the board is empty, so creating the
+          first item doesn't unmount the vault mid-animation. Sticky + horizontal-scroll only where the page
+          scrolls (phones) — on desktop it just wraps, as before.
+        */}
+        <div
+          className="sticky z-10 flex shrink-0 items-center gap-2 overflow-x-auto no-scrollbar bg-background pb-2 pt-2 md:static md:flex-wrap md:overflow-visible md:pb-0 md:pt-0"
+          style={{ top: `${topOffsetRem}rem` }}
+        >
           <SearchInput
             placeholder="Filter by title, organization or contact"
             value={search}
@@ -180,7 +196,13 @@ export function PipelineView({
             onMoveStage={handleMoveStage}
           />
         ) : (
-          <PipelineListView columns={board.columns} items={filteredItems} progressByItem={progressByItem} onSelect={setSelectedId} />
+          <PipelineListView
+            columns={board.columns}
+            items={filteredItems}
+            progressByItem={progressByItem}
+            onSelect={setSelectedId}
+            stickyTopRem={topOffsetRem + TOOLBAR_HEIGHT_REM}
+          />
         )}
         </div>
       </div>

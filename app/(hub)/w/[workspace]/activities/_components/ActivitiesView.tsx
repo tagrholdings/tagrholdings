@@ -1,7 +1,7 @@
 "use client";
 
 import { useOptimistic, useState, useTransition } from "react";
-import { Bell, CheckSquare, ChevronLeft, ChevronRight, LayoutGrid, Link2, List, ListChecks } from "lucide-react";
+import { Bell, CalendarClock, CheckSquare, ChevronLeft, ChevronRight, LayoutGrid, Link2, List, ListChecks } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { dueBucket, formatDateUS, getCurrentWeekDays, type DueBucket } from "@/utils/date";
 import { useIsMobile } from "@/hooks/ui/use-device";
@@ -9,6 +9,14 @@ import { notify } from "@/components/ui/toaster";
 import { SearchInput } from "@/components/ui/search-input";
 import { useHeaderSearch } from "@/components/layout/header-search";
 import { SegmentedControl } from "@/components/shared/segmented-control";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from "@/components/ui/dropdown-menu";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
 import { CreateActivityVault } from "@/components/shared/create-activity-vault";
 import { ActivityDetailPanel } from "@/components/shared/activity-detail-panel";
@@ -195,8 +203,12 @@ export function ActivitiesView({
     // See components/shared/side-panel.tsx — this row is what lets opening
     // an activity's detail panel push/shrink the content instead of overlaying it.
     <div className="flex min-w-0 flex-1 gap-4">
-      <div className="flex min-w-0 flex-1 flex-col gap-4">
-        <div data-tour="activities-filters" className="flex flex-wrap items-center gap-2">
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* Sticky + horizontal-scroll only where the page scrolls (phones); on desktop it just wraps, as before. */}
+        <div
+          data-tour="activities-filters"
+          className="sticky top-14 z-10 flex shrink-0 items-center gap-2 overflow-x-auto no-scrollbar bg-background pb-4 pt-2 md:static md:flex-wrap md:overflow-visible md:pb-0 md:pt-0"
+        >
           <SearchInput
             placeholder="Filter by title, contact, lead or project"
             value={search}
@@ -234,14 +246,23 @@ export function ActivitiesView({
                 </button>
               </div>
 
-              <SegmentedControl
-                value={dateField}
-                onChange={setDateField}
-                options={[
-                  { value: "dueDate", label: "Due date" },
-                  { value: "createdAt", label: "Created date" },
-                ]}
-              />
+              {/* A binary, rarely-changed setting — a compact dropdown (the same `DropdownMenu` that already
+                  renders as a bottom-sheet Vault on mobile) frees up a lot more row width than a full
+                  segmented control, which matters here since the week nav sits right next to it. */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9">
+                    <CalendarClock />
+                    {dateField === "dueDate" ? "Due date" : "Created date"}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuRadioGroup value={dateField} onValueChange={(value) => setDateField(value as WeekDateField)}>
+                    <DropdownMenuRadioItem value="dueDate">Due date</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="createdAt">Created date</DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </>
           )}
 
@@ -281,10 +302,13 @@ export function ActivitiesView({
           <WeekBoard days={days} activities={searched} dateField={dateField} onSelect={setSelectedId} onMoveToDay={handleMoveToDay} />
         ) : (
           <>
-            {/* Horizontal scroll, not wrap — a row of 7 filters wrapping to
-                2-3 lines ate too much vertical space on mobile and made the
-                list itself the thing you had to scroll past. */}
-            <div className="no-scrollbar flex gap-2 overflow-x-auto pb-0.5">
+            {/* Horizontal scroll, not wrap — a row of 7 filters wrapping to 2-3 lines ate too much vertical
+                space on mobile and made the list itself the thing you had to scroll past. Sticky (mobile only,
+                right under the toolbar above — 3.5rem header + its ~3.75rem) so it stays reachable while
+                scrolling a long list. */}
+            <div
+              className="no-scrollbar sticky top-[7.25rem] z-10 flex gap-2 overflow-x-auto bg-background py-2 md:static md:bg-transparent md:py-0 md:pb-0.5"
+            >
               {FILTERS.map((f) => (
                 <button
                   key={f.id}

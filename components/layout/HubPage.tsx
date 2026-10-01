@@ -40,7 +40,7 @@ export function HubPage({ user, kicker, title, backHref, showSearch, primaryActi
       />
       <main
         className={cn(
-          "flex flex-1 flex-col gap-6 px-4 py-6 pb-24 md:px-6 md:pt-0 md:pb-8",
+          "flex flex-1 flex-col gap-6 px-4 py-2 pb-24 md:px-6 md:pt-0 md:pb-8",
           // Column = header (5rem) + gap (1rem) + main, so main takes the rest of the viewport.
           fitViewport && "md:h-[calc(100dvh-6rem)] md:min-h-0 md:flex-none md:gap-4 md:overflow-hidden md:pb-6"
         )}

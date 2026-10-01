@@ -20,6 +20,10 @@ import {
 import { CreateProjectVault } from "./CreateProjectVault";
 import { ManageProjectsVault } from "./ManageProjectsVault";
 
+// This tabs row's own sticky height on mobile (fixed at `h-[3.25rem]`) — PipelineView stacks its own
+// sticky toolbar right underneath it via `topOffsetRem` (3.5rem mobile header + this row).
+const TABS_HEIGHT_REM = 3.25;
+
 type Patch =
   | { kind: "add"; board: PipelineBoardRow }
   | { kind: "rename"; id: string; name: string }
@@ -166,12 +170,13 @@ export function ProjectsView({
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-4">
-      <div className="flex items-center gap-2">
+    <div className="flex flex-1 flex-col">
+      <div className="sticky top-14 z-10 flex h-[3.25rem] shrink-0 items-center gap-2 bg-background md:static md:h-auto">
         {/* Horizontal scroll, not wrap — with several projects (plus the
             archived toggle and "New project"), wrapping pushed the board
             itself below the fold on mobile. "Manage" stays outside the
-            scroller so it's always reachable without scrolling past the tabs. */}
+            scroller so it's always reachable without scrolling past the tabs.
+            Sticky (mobile only) so project switching stays reachable while scrolling a board. */}
         <div data-tour="projects-board" className="no-scrollbar flex min-w-0 flex-1 items-center gap-2 overflow-x-auto pb-0.5">
           {visibleBoards.map((board) => (
             <button
@@ -218,6 +223,7 @@ export function ProjectsView({
           lookups={lookups}
           itemNoun="item"
           initialSelectedId={selectedBoard.id === initialBoardId ? initialItemId : null}
+          topOffsetRem={3.5 + TABS_HEIGHT_REM}
         />
       ) : (
         <Empty className="border border-dashed border-divider">

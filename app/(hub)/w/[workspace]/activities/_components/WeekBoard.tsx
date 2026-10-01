@@ -125,7 +125,10 @@ export function WeekBoard({
   }
 
   return (
-    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+    // A fixed `id` keeps dnd-kit's generated `aria-describedby` stable between the server render and the
+    // client — without it the id is a module-level counter that drifts across navigations/hot-reloads and
+    // React flags a hydration mismatch (harmless, but noisy) on every page load. See PipelineBoard.tsx.
+    <DndContext id="week-board-dnd" sensors={sensors} onDragEnd={handleDragEnd}>
       <div className="kanban-scroll flex flex-1 gap-4 overflow-x-auto pb-2">
         {days.map((day) => (
           <DayColumn
