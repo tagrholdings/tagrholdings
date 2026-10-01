@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Archive, ArchiveRestore, Check, Columns3, Pencil, Settings2, Trash2, X } from "lucide-react";
+import { Archive, ArchiveRestore, Check, Columns3, Pencil, Plus, Settings2, Trash2, X } from "lucide-react";
 import { Vault, VaultTrigger, VaultContent, VaultHeader, VaultTitle, VaultDescription, VaultInput } from "@/components/ui/vault";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -19,7 +19,12 @@ interface ManageProjectsVaultProps {
   onRename: (id: string, name: string) => void;
   onSetArchived: (id: string, archived: boolean) => void;
   onDelete: (id: string) => void;
+  /** Called after this vault has closed — the caller opens its own "New project" vault (two vaults can't be nested). */
+  onNewProject: () => void;
 }
+
+/** How long the Manage vault takes to slide away; opening the next one before then looks like a glitch. */
+const VAULT_CLOSE_MS = 320;
 
 function IconButton({
   label,
@@ -60,7 +65,7 @@ function ProjectRow({
   board: PipelineBoardRow;
   itemCount: number;
   stageCounts: Record<string, number>;
-} & Omit<ManageProjectsVaultProps, "boards" | "itemCounts" | "stageCounts">) {
+} & Omit<ManageProjectsVaultProps, "boards" | "itemCounts" | "stageCounts" | "onNewProject">) {
   const [mode, setMode] = useState<"view" | "rename" | "stages" | "confirm-delete">("view");
   const [draft, setDraft] = useState(board.name);
   const archived = !!board.archivedAt;
@@ -173,7 +178,8 @@ function ProjectRow({
 }
 
 /** Rename, edit the stages of, archive/restore and delete projects. Renames/archives apply optimistically; stage edits wait for the server (they can move cards). */
-export function ManageProjectsVault({ boards, itemCounts, stageCounts, onSaveStages, onRename, onSetArchived, onDelete }: ManageProjectsVaultProps) {
+export function ManageProjectsVault({ boards, itemCounts, stageCounts, onSaveStages, onRename, onSetArchived, onDelete, onNewProject }: ManageProjectsVaultProps) {
+  const [open, setOpen] = useState(false);
   const active = boards.filter((b) => !b.archivedAt);
   const archived = boards.filter((b) => b.archivedAt);
 
@@ -191,10 +197,11 @@ export function ManageProjectsVault({ boards, itemCounts, stageCounts, onSaveSta
   );
 
   return (
-    <Vault>
+    <Vault open={open} onOpenChange={setOpen}>
       <VaultTrigger asChild>
         <button
           type="button"
+          data-tour="projects-manage"
           className="flex items-center gap-1 rounded-pill px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
           <Settings2 className="size-3.5" />
@@ -208,6 +215,17 @@ export function ManageProjectsVault({ boards, itemCounts, stageCounts, onSaveSta
         <VaultDescription className="mb-4">
           Edit stages to rename, reorder, add or remove them. Archiving hides a project&rsquo;s tab but keeps everything in it. Deleting removes the project and its items for good.
         </VaultDescription>
+
+        <Button
+          className="mb-4 w-full"
+          onClick={() => {
+            setOpen(false);
+            setTimeout(onNewProject, VAULT_CLOSE_MS);
+          }}
+        >
+          <Plus />
+          New project
+        </Button>
 
         <div className="space-y-5">
           <div className="space-y-2">

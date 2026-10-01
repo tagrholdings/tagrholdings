@@ -114,6 +114,9 @@ export function HeaderSearchBar() {
   }, [config, ctx]);
 
   return (
+    // The bar slides in from the right; this clipping layer keeps that slide from momentarily making the page wider
+    // than the screen (which flashed the browser's scrollbars). It lets clicks through while the bar is closed.
+    <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
     <AnimatePresence>
       {open && config && (
         <motion.div
@@ -121,7 +124,7 @@ export function HeaderSearchBar() {
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: 24 }}
           transition={{ duration: 0.18, ease: "easeOut" }}
-          className="absolute inset-0 z-10 flex items-center gap-2 bg-background px-4"
+          className="pointer-events-auto absolute inset-0 flex items-center gap-2 bg-background px-4"
         >
           <div className="relative min-w-0 flex-1">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -148,5 +151,6 @@ export function HeaderSearchBar() {
         </motion.div>
       )}
     </AnimatePresence>
+    </div>
   );
 }

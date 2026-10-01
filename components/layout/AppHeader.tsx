@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { PageHelp } from "./PageHelp";
 import { HeaderSearchBar, HeaderSearchButton } from "./header-search";
+import { PageSlot } from "./page-slots";
 import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AccountMenuContent, useDefaultSignOut } from "./AccountMenu";
 import { useWorkspace } from "./workspace-context";
@@ -46,8 +47,6 @@ function MobileHeader({
   title,
   backHref,
   primaryAction,
-  user,
-  onSignOut,
   className,
 }: AppHeaderProps & { className?: string }) {
   const { inboundAddress } = useWorkspace();
@@ -68,10 +67,8 @@ function MobileHeader({
         >
           <ChevronLeft className="size-5" />
         </Link>
-      ) : (
-        <div className="size-1" />
-      )}
-      <h1 className="flex-1 truncate font-serif text-base font-semibold text-foreground">
+      ) : null}
+      <h1 className="min-w-0 flex-1 truncate font-serif text-base font-semibold text-foreground">
         {title}
       </h1>
       {primaryAction && (
@@ -80,20 +77,9 @@ function MobileHeader({
         </Button>
       )}
       <PageHelp inboxAddress={inboundAddress} />
-      <ThemeToggle />
+      {/* Controls a page moves up here on a phone (view toggle, "New …") — see page-slots.tsx. */}
+      <PageSlot name="header" className="shrink-0 gap-1" />
       <HeaderSearchButton />
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            aria-label="Account menu"
-            className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground"
-          >
-            {user.initials}
-          </button>
-        </DropdownMenuTrigger>
-        <AccountMenuContent user={user} onSignOut={onSignOut} />
-      </DropdownMenu>
 
       {/* Collapsed, the page's filter is just the icon above; tapping it
           expands the input over this whole row so a phone spends no vertical

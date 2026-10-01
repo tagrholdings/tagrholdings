@@ -9,6 +9,8 @@ import { notify } from "@/components/ui/toaster";
 import { SearchInput } from "@/components/ui/search-input";
 import { useHeaderSearch } from "@/components/layout/header-search";
 import { SegmentedControl } from "@/components/shared/segmented-control";
+import { ViewToggleButton } from "@/components/shared/view-toggle-button";
+import { PageSlotContent } from "@/components/layout/page-slots";
 import { buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -204,10 +206,15 @@ export function ActivitiesView({
     // an activity's detail panel push/shrink the content instead of overlaying it.
     <div className="flex min-w-0 flex-1 gap-4">
       <div className="flex min-w-0 flex-1 flex-col sm:gap-4 gap-0">
-        {/* Sticky + horizontal-scroll only where the page scrolls (phones); on desktop it just wraps, as before. */}
+        {/* Sticky + horizontal-scroll only where the page scrolls (phones); on desktop it just wraps, as before. The
+            view toggle and "New" move up into the phone header (page-slots.tsx), so in the list view — where the
+            only things left are the search (also in the header) — this row would be empty on a phone. */}
         <div
           data-tour="activities-filters"
-          className="sticky top-14 z-10 flex shrink-0 items-center gap-2 overflow-x-auto no-scrollbar bg-background pb-4 pt-2 md:static md:flex-wrap md:overflow-visible md:pb-0 md:pt-0"
+          className={cn(
+            "self-center md:self-start sticky top-14 z-10 flex shrink-0 items-center gap-2 overflow-x-auto no-scrollbar bg-background pb-4 pt-2 md:static md:flex-wrap md:overflow-visible md:pb-0 md:pt-0",
+            resolvedView === "list" && "max-md:hidden"
+          )}
         >
           <SearchInput
             placeholder="Filter by title, contact, lead or project"
@@ -219,7 +226,7 @@ export function ActivitiesView({
 
           {resolvedView === "board" && (
             <>
-              <div className="flex shrink-0 items-center gap-1 rounded-pill border border-divider bg-surface px-1">
+              <div className="flex shrink-0 items-center gap-1 rounded-sm border border-divider bg-surface px-1 py-0.5">
                 <button
                   type="button"
                   aria-label="Previous week"
@@ -269,23 +276,30 @@ export function ActivitiesView({
             </>
           )}
 
-          <SegmentedControl
-            value={resolvedView}
-            onChange={setView}
-            options={[
-              { value: "board", ariaLabel: "Board view", icon: LayoutGrid },
-              { value: "list", ariaLabel: "List view", icon: List },
-            ]}
-          />
+          <PageSlotContent name="header">
+            {isMobile ? (
+              <ViewToggleButton tourId="activities-view" value={resolvedView} onChange={setView} />
+            ) : (
+              <SegmentedControl
+                tourId="activities-view"
+                value={resolvedView}
+                onChange={setView}
+                options={[
+                  { value: "board", ariaLabel: "Board view", icon: LayoutGrid },
+                  { value: "list", ariaLabel: "List view", icon: List },
+                ]}
+              />
+            )}
 
-          <CreateActivityVault
-            tourId="activities-create"
-            contacts={lookups.contacts}
-            organizations={lookups.organizations}
-            pipelineItems={lookups.pipelineItems}
-            members={lookups.members}
-            onCreate={handleCreate}
-          />
+            <CreateActivityVault
+              tourId="activities-create"
+              contacts={lookups.contacts}
+              organizations={lookups.organizations}
+              pipelineItems={lookups.pipelineItems}
+              members={lookups.members}
+              onCreate={handleCreate}
+            />
+          </PageSlotContent>
         </div>
 
         <div data-tour="activities-list" className="flex min-h-0 flex-1 flex-col gap-4">
@@ -310,7 +324,7 @@ export function ActivitiesView({
                 right under the toolbar above — 3.5rem header + its ~3.75rem) so it stays reachable while
                 scrolling a long list. */}
             <div
-              className="no-scrollbar sticky top-[7.25rem] z-10 flex gap-2 overflow-x-auto bg-background py-2 md:static md:bg-transparent md:py-0 md:pb-0.5"
+              className="no-scrollbar sticky top-[3.5rem] z-10 flex gap-2 overflow-x-auto bg-background py-2 md:static md:bg-transparent md:py-0 md:pb-0.5"
             >
               {FILTERS.map((f) => (
                 <button

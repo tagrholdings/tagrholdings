@@ -5,6 +5,7 @@ import { AlertTriangle, Building2, EyeOff, Plus, RotateCcw } from "lucide-react"
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { PageSlotContent, MOBILE_GHOST } from "@/components/layout/page-slots";
 import { Pagination } from "@/components/ui/pagination";
 import { useFitPageSize } from "@/hooks/ui/use-fit-page-size";
 import { paginate } from "@/utils/pagination";
@@ -52,10 +53,11 @@ export function ListingSitesView({ sites }: { sites: ListingSiteSummary[] }) {
   }
 
   const addButton = (
-    <Button data-tour="listing-sites-add" onClick={() => setAdding(true)}>
-      <Plus />
-      Add site
-    </Button>
+    <PageSlotContent name="tabs">
+      <Button data-tour="listing-sites-add" className={MOBILE_GHOST} onClick={() => setAdding(true)}>
+        <Plus />
+      </Button>
+    </PageSlotContent>
   );
   const vault = <ListingSiteVault open={adding} onOpenChange={setAdding} />;
   const detailSite = sites.find((s) => s.id === detailId) ?? null;
@@ -125,7 +127,7 @@ export function ListingSitesView({ sites }: { sites: ListingSiteSummary[] }) {
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
       {banner}
-      <div className="flex shrink-0 justify-end">{addButton}</div>
+      <div className="flex shrink-0 justify-end empty:hidden">{addButton}</div>
 
       <div ref={fitRef} className="flex min-h-0 flex-1 flex-col gap-4 md:overflow-hidden">
       <Table data-tour="listing-sites-table" className="md:min-h-0 md:overflow-y-auto">

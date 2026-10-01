@@ -2,9 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { BookOpen, Check, Loader2, LogOut, Settings, ShieldCheck } from "lucide-react";
+import { BookOpen, Check, Loader2, LogOut, Moon, Settings, ShieldCheck, Sun } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { notify } from "@/components/ui/toaster";
+import { useTheme } from "@/hooks/ui/use-theme";
 import { cn } from "@/lib/utils";
 import { switchWorkspacePath, workspacePath } from "@/lib/workspace-path";
 import {
@@ -135,6 +136,7 @@ export function AccountMenuContent({
   const router = useRouter();
   const workspace = useWorkspace();
   const defaultSignOut = useDefaultSignOut();
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <DropdownMenuContent align={align} side={side} className="sm:min-w-[90vw] md:min-w-64 min-w-[90vw]">
@@ -158,6 +160,17 @@ export function AccountMenuContent({
       <DropdownMenuItem className="gap-3 text-left" onSelect={() => router.push(workspacePath(workspace.slug, "/docs"))}>
         <BookOpen aria-hidden />
         Documentation
+      </DropdownMenuItem>
+      {/* On a phone the header has no room for its own theme button, so it lives here; desktop keeps the header one. */}
+      <DropdownMenuItem
+        className="gap-3 text-left md:hidden"
+        onSelect={(event) => {
+          event.preventDefault();
+          toggleTheme();
+        }}
+      >
+        {theme === "dark" ? <Sun aria-hidden /> : <Moon aria-hidden />}
+        {theme === "dark" ? "Light mode" : "Dark mode"}
       </DropdownMenuItem>
       <DropdownMenuSeparator />
       <DropdownMenuItem variant="destructive" className="gap-3 text-left" onSelect={onSignOut ?? defaultSignOut}>

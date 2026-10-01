@@ -63,7 +63,7 @@ export function HubChrome({ user, workspace, activeHref, badges, children }: Hub
         {children}
       </div>
 
-      <BottomNav activeHref={activeHref} badges={badges} />
+      <BottomNav activeHref={activeHref} badges={badges} user={user} />
       <PushSoundListener />
     </div>
     </WorkspaceProvider>

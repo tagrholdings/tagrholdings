@@ -184,7 +184,11 @@
 }
 
 html {
-  scroll-behavior: smooth;
+  scroll-behavior: smooth;  
+  scrollbar-width: none; /* Firefox */
+  &::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  } 
 }
 
 body {
@@ -194,6 +198,7 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
+
 
 .font-serif {
   font-family: var(--font-source-serif), Georgia, serif;
@@ -248,11 +253,13 @@ h1, h2, h3, h4, h5, h6 {
    app/(hub)/pipeline/loading.tsx), so it can't just be hidden, but the
    default OS scrollbar is visually heavy for a board's own footer. */
 .kanban-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: var(--divider) transparent;
+  scrollbar-width: none; /* Firefox */
+  &::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
 }
 
-.kanban-scroll:hover {
+/* .kanban-scroll:hover {
   scrollbar-color: var(--accent) transparent;
 }
 
@@ -265,7 +272,7 @@ h1, h2, h3, h4, h5, h6 {
 .kanban-scroll::-webkit-scrollbar-thumb {
   background: var(--divider);
   border-radius: var(--radius-pill);
-}
+} */
 
 @utility no-scrollbar {
   scrollbar-width: none; /* Firefox */

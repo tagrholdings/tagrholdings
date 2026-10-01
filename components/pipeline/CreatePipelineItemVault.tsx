@@ -22,6 +22,7 @@ import { CommandSelect } from "@/components/shared/command-select";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { MOBILE_ICON_ONLY, MOBILE_LABEL } from "@/components/layout/page-slots";
 import type { NewPipelineItem } from "@/modules/pipeline/pipeline.types";
 import type { BoardColumn } from "./types";
 
@@ -81,9 +82,9 @@ export function CreatePipelineItemVault({
   return (
     <Vault open={open} onOpenChange={setOpen}>
       <VaultTrigger asChild>
-        <Button data-tour={tourId}>
+        <Button variant="ghost" data-tour={tourId} aria-label={`New ${itemNoun}`} className={MOBILE_ICON_ONLY}>
           <Plus />
-          New {itemNoun}
+          <span className={MOBILE_LABEL}>New {itemNoun}</span>
         </Button>
       </VaultTrigger>
       <VaultContent aria-label={`New ${itemNoun}`}>

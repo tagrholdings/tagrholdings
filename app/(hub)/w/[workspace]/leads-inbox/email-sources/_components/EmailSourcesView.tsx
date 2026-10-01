@@ -5,6 +5,7 @@ import { AlertTriangle, ExternalLink, Mail, Plus, Trash2, Wand2 } from "lucide-r
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { PageSlotContent, MOBILE_GHOST } from "@/components/layout/page-slots";
 import { Pagination } from "@/components/ui/pagination";
 import { useFitPageSize } from "@/hooks/ui/use-fit-page-size";
 import { paginate } from "@/utils/pagination";
@@ -87,10 +88,11 @@ export function EmailSourcesView({ sources, inboxAddress }: { sources: EmailSour
   };
 
   const addButton = (
-    <Button data-tour="email-sources-add" onClick={() => setEditing(null)}>
-      <Plus />
-      Add site
-    </Button>
+    <PageSlotContent name="tabs">
+      <Button data-tour="email-sources-add" className={MOBILE_GHOST} onClick={() => setEditing(null)}>
+        <Plus />
+      </Button>
+    </PageSlotContent>
   );
   const vault = <EmailSourceVault open={editing !== undefined} onOpenChange={(open) => !open && setEditing(undefined)} source={editing ?? null} />;
 
@@ -145,7 +147,7 @@ export function EmailSourcesView({ sources, inboxAddress }: { sources: EmailSour
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
       {handoffBanner}
-      <div className="flex shrink-0 justify-end">{addButton}</div>
+      <div className="flex shrink-0 justify-end empty:hidden">{addButton}</div>
 
       <div ref={fitRef} className="flex min-h-0 flex-1 flex-col gap-4 md:overflow-hidden">
       <Table data-tour="email-sources-table" className="md:min-h-0 md:overflow-y-auto">

@@ -6,6 +6,7 @@ import { Pause, Play, Plus, Radar, Zap } from "lucide-react";
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
 import { Button } from "@/components/ui/button";
+import { PageSlotContent, MOBILE_GHOST } from "@/components/layout/page-slots";
 import { Pagination } from "@/components/ui/pagination";
 import { useFitPageSize } from "@/hooks/ui/use-fit-page-size";
 import { paginate } from "@/utils/pagination";
@@ -183,10 +184,11 @@ export function ProfilesView({ profiles }: { profiles: SearchProfileSummary[] })
   const paged = paginate(profiles, page, pageSize);
 
   const createButton = (
-    <Button data-tour="profiles-create" onClick={() => setEditing(null)}>
-      <Plus />
-      New profile
-    </Button>
+    <PageSlotContent name="tabs">
+      <Button data-tour="profiles-create" className={MOBILE_GHOST} onClick={() => setEditing(null)}>
+        <Plus />
+      </Button>
+    </PageSlotContent>
   );
 
   const vault = (
@@ -219,7 +221,7 @@ export function ProfilesView({ profiles }: { profiles: SearchProfileSummary[] })
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
-      <div className="flex shrink-0 justify-end">{createButton}</div>
+      <div className="flex shrink-0 justify-end empty:hidden">{createButton}</div>
 
       <LiveRunSection runs={runs} profileNames={profileNames} />
 

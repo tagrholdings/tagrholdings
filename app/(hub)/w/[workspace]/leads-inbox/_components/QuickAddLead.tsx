@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { notify } from "@/components/ui/toaster";
+import { MOBILE_GHOST } from "@/components/layout/page-slots";
 import {
   Vault,
   VaultContent,
@@ -85,9 +86,8 @@ export function QuickAddLead({
 
   return (
     <>
-      <Button data-tour="leads-inbox-add" onClick={() => setOpen(true)}>
+      <Button data-tour="leads-inbox-add" className={MOBILE_GHOST} onClick={() => setOpen(true)}>
         <Plus />
-        Add lead
       </Button>
 
       <Vault open={open} onOpenChange={setOpen}>

@@ -29,6 +29,7 @@ import { FIT_RANK } from "@/modules/search-profiles/fit";
 import { useFitPageSize } from "@/hooks/ui/use-fit-page-size";
 import { RawLeadDetailPanel } from "./RawLeadDetailPanel";
 import { QuickAddLead } from "./QuickAddLead";
+import { PageSlotContent } from "@/components/layout/page-slots";
 import { FitBadge } from "./FitBadge";
 import { LocationBadge } from "./LocationBadge";
 import { locationLine, text } from "./lead-fields";
@@ -184,20 +185,22 @@ export function RawLeadsView({
   const paged = paginate(visible, page, pageSize);
 
   const quickAdd = (
-    <QuickAddLead
-      initialValue={initialAdd}
-      onStart={(key, label) => {
-        changeFilter("new"); // the pending row sits at the top of page 1 of New
-        setPending((prev) => [{ key, label }, ...prev]);
-      }}
-      onFinish={(key) => setPending((prev) => prev.filter((p) => p.key !== key))}
-    />
+    <PageSlotContent name="tabs">
+      <QuickAddLead
+        initialValue={initialAdd}
+        onStart={(key, label) => {
+          changeFilter("new"); // the pending row sits at the top of page 1 of New
+          setPending((prev) => [{ key, label }, ...prev]);
+        }}
+        onFinish={(key) => setPending((prev) => prev.filter((p) => p.key !== key))}
+      />
+    </PageSlotContent>
   );
 
   if (leads.length === 0 && pending.length === 0) {
     return (
       <div className="flex min-w-0 flex-1 flex-col gap-4">
-        <div className="flex">{quickAdd}</div>
+        <div className="flex empty:hidden">{quickAdd}</div>
         <Empty>
           <EmptyHeader>
             <EmptyMedia variant="icon">

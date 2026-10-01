@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/vault";
 import { Button } from "@/components/ui/button";
 import { notify } from "@/components/ui/toaster";
+import { MOBILE_ICON_ONLY, MOBILE_LABEL } from "@/components/layout/page-slots";
 import { createActivityAction } from "@/modules/activities/activities.actions";
 import type { NewActivity } from "@/modules/activities/activities.types";
 import {
@@ -78,9 +79,9 @@ export function CreateActivityVault({
   return (
     <Vault open={open} onOpenChange={setOpen}>
       <VaultTrigger asChild>
-        <Button data-tour={tourId}>
+        <Button variant="ghost" data-tour={tourId} aria-label="New activity" className={MOBILE_ICON_ONLY}>
           <Plus />
-          New
+          <span className={MOBILE_LABEL}>New</span>
         </Button>
       </VaultTrigger>
       <VaultContent aria-label="New activity">

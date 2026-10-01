@@ -112,12 +112,12 @@ const ENTRIES: Entry[] = [
           target: "nav-bottom",
           only: "mobile",
           title: "Getting around",
-          text: "These icons switch between the main parts of the CRM: the inbox of new finds, the leads you are working, and more.",
+          text: "These icons switch between the main parts of the CRM: the inbox of new finds, the leads you are working, and more. Your avatar on the far right opens the account menu: settings, workspaces, dark mode and sign out.",
         },
         {
           target: "leads-inbox-tabs",
           title: "The lead engine's pages",
-          text: "Inbox is this list. Search profiles says what to look for and where; Listing sites and Email sources are where the businesses for sale come from.",
+          text: "Inbox is this list. Search profiles says what to look for and where; Listing sites and Email sources are where the businesses for sale come from. On a phone, each page's add button sits right beside these tabs.",
         },
         {
           target: "leads-inbox-table",
@@ -133,7 +133,7 @@ const ENTRIES: Entry[] = [
         {
           target: "leads-inbox-add",
           title: "Something you found yourself",
-          text: "Paste a link or some text and it is added as a lead, read by the AI like any other. On your phone you can also share a page straight into the CRM.",
+          text: "Paste a link or some text and it is added as a lead, read by the AI like any other. On a phone this is the + button beside the tabs, and you can also share a page straight into the CRM.",
           demo: { kind: "vault", fields: ["Link or text of the listing"], button: "Add" },
         },
         HELP_AGAIN,
@@ -168,7 +168,7 @@ const ENTRIES: Entry[] = [
         {
           target: "profiles-create",
           title: "Start with a profile",
-          text: "A profile is a saved search: the industries you want to buy, the city and radius, and how often to look. This is where you tell the engine what to do.",
+          text: "A profile is a saved search: the industries you want to buy, the city and radius, and how often to look. This is where you tell the engine what to do. On a phone it is the + button beside the tabs.",
           demo: { kind: "vault", fields: ["Category", "City", "Radius (miles)"], checkbox: "Broker listing sites", button: "Create profile" },
         },
         {
@@ -229,7 +229,7 @@ const ENTRIES: Entry[] = [
         {
           target: "listing-sites-add",
           title: "Add a broker yourself",
-          text: "Know a broker the engine missed? Add its address here. If you already know the page that lists the businesses, paste that too.",
+          text: "Know a broker the engine missed? Add its address here (on a phone, the + button beside the tabs). If you already know the page that lists the businesses, paste that too.",
           demo: { kind: "vault", fields: ["Website", "Name"], button: "Add site" },
         },
         HELP_AGAIN,
@@ -261,7 +261,7 @@ const ENTRIES: Entry[] = [
         {
           target: "email-sources-add",
           title: "Sites that deliver by email",
-          text: "Some brokers never let a program read their site, but will happily email you new listings. Add those sites here.",
+          text: "Some brokers never let a program read their site, but will happily email you new listings. Add those sites here (on a phone, the + button beside the tabs).",
           demo: { kind: "vault", fields: ["Site name", "Signup page URL"], button: "Add site" },
         },
         {
@@ -308,12 +308,12 @@ const ENTRIES: Entry[] = [
         {
           target: "pipeline-view",
           title: "Board or list",
-          text: "The board is good for seeing where everything stands; the list is better for sorting and scanning a lot of leads at once.",
+          text: "The board is good for seeing where everything stands; the list is better for sorting and scanning a lot of leads at once. On a phone this button is in the header and shows the view you would switch to.",
         },
         {
           target: "pipeline-create",
           title: "Add a lead directly",
-          text: "Already know who you want to pursue? Create it here instead of going through the inbox — you can set its stage, and attach a contact or organization right away.",
+          text: "Already know who you want to pursue? Create it here instead of going through the inbox — you can set its stage, and attach a contact or organization right away. On a phone it is the + button in the header, next to search.",
           demo: { kind: "vault", fields: ["Title"], button: "Create lead" },
         },
         HELP_AGAIN,
@@ -348,6 +348,23 @@ const ENTRIES: Entry[] = [
           text: "Create a board and name its stages yourself. Cards work the same as on the Leads board.",
           demo: { kind: "vault", fields: ["Name", "Stages"], button: "Create project" },
         },
+        {
+          target: "projects-manage",
+          title: "Manage your boards",
+          text: "Open Manage to create a new board — press New project and name its stages yourself — or to rename, reorder the stages of, archive or delete the ones you have. Cards work the same as on the Leads board.",
+          demo: { kind: "vault", fields: ["Name", "Stages"], button: "Create project" },
+        },
+        {
+          target: "pipeline-view",
+          title: "Board or list",
+          text: "Switch how the selected project is shown: columns you can drag cards across, or a list you can scan. On a phone this button is in the header and shows the view you would switch to.",
+        },
+        {
+          target: "projects-new-item",
+          title: "Add a card",
+          text: "Add an item to the selected project and pick the stage it starts in. On a phone it is the + button in the header, next to search.",
+          demo: { kind: "vault", fields: ["Title"], button: "Create item" },
+        },
         HELP_AGAIN,
       ],
     }),
@@ -368,7 +385,12 @@ const ENTRIES: Entry[] = [
         {
           target: "activities-filters",
           title: "Finding what needs doing",
-          text: "Search by title, contact or lead, and switch between the week board and a list you can filter by Overdue, Today or Next 7 days.",
+          text: "Search by title, contact or lead (on a phone, with the search icon in the header). On the week board you move between weeks and choose which date it follows here; the list can be filtered by Overdue, Today or Next 7 days.",
+        },
+        {
+          target: "activities-view",
+          title: "Board or list",
+          text: "Switch between the week board (one column per day) and a plain list. On a phone this button is in the header and shows the view you would switch to.",
         },
         {
           target: "activities-list",
@@ -379,7 +401,7 @@ const ENTRIES: Entry[] = [
         {
           target: "activities-create",
           title: "Add one",
-          text: "Log a call you just had, or plan the next step. Turn on “Enable notification” and the CRM reminds you when it's due. An activity can be attached to a lead, a contact or an organization.",
+          text: "Log a call you just had, or plan the next step. Turn on “Enable notification” and the CRM reminds you when it's due. An activity can be attached to a lead, a contact or an organization. On a phone it is the + button in the header.",
           demo: { kind: "vault", fields: ["Title", "Due date"], checkbox: "Enable notification", button: "Create activity" },
         },
         HELP_AGAIN,

@@ -36,13 +36,20 @@ const DEFAULT_VALUES: FormValues = { name: "", columns: [{ label: "To do" }, { l
 export function CreateProjectVault({
   variant,
   onCreate,
+  open: controlledOpen,
+  onOpenChange,
 }: {
-  /** "link" in the tab bar, "button" in the empty state. */
-  variant: "link" | "button";
+  /** "button" in the empty state; "none" has no trigger of its own — the caller opens it (from the Manage vault). */
+  variant: "button" | "none";
   /** Adds the project optimistically and runs the action — resolves on success, rejects on failure. */
   onCreate: (input: NewBoard) => Promise<void>;
+  /** Controlled open state, for a vault with no trigger of its own. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [innerOpen, setInnerOpen] = useState(false);
+  const open = controlledOpen ?? innerOpen;
+  const setOpen = onOpenChange ?? setInnerOpen;
   const { register, control, reset, trigger, getValues, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: DEFAULT_VALUES,
@@ -64,23 +71,14 @@ export function CreateProjectVault({
 
   return (
     <Vault open={open} onOpenChange={setOpen}>
-      <VaultTrigger asChild>
-        {variant === "button" ? (
-          <Button data-tour="projects-create">
+      {variant === "button" && (
+        <VaultTrigger asChild>
+          <Button className="text-primary" data-tour="projects-create">
             <Plus />
             New project
           </Button>
-        ) : (
-          <button
-            type="button"
-            data-tour="projects-create"
-            className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-pill px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <Plus className="size-3.5" />
-            New project
-          </button>
-        )}
-      </VaultTrigger>
+        </VaultTrigger>
+      )}
       <VaultContent aria-label="New project">
         <VaultHeader>
           <VaultTitle>New project</VaultTitle>

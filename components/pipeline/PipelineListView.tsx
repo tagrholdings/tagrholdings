@@ -20,7 +20,7 @@ export function PipelineListView({
   items: PipelineItemRow[];
   progressByItem: Record<string, ActivityProgress>;
   onSelect: (id: string) => void;
-  /** Where (rem) this pill row sticks on mobile, right under PipelineView's own sticky toolbar. See PipelineView. */
+  /** Where (rem) this pill row sticks on mobile, right under the header (and, on /projects, the project tabs). See PipelineView. */
   stickyTopRem?: number;
 }) {
   const [stageFilter, setStageFilter] = useState<string | "all">("all");

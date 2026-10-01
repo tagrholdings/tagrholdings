@@ -16,11 +16,14 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { AccountMenuContent, type AccountUser } from "./AccountMenu";
 
 interface BottomNavProps {
   /** Overrides the pathname match — mainly for previews/tests. */
   activeHref?: string;
   badges?: Record<string, number>;
+  /** Shows the account menu (avatar) as the last tab, at the right end. Left out of previews. */
+  user?: AccountUser;
   /**
    * "responsive" (default): fixed to the viewport, hidden at/above md — the
    * real app behavior. "static": always visible, positioned absolute
@@ -75,7 +78,7 @@ function NavIcon({
   );
 }
 
-export function BottomNav({ activeHref, badges, variant = "responsive", className }: BottomNavProps) {
+export function BottomNav({ activeHref, badges, user, variant = "responsive", className }: BottomNavProps) {
   const pathname = usePathname();
   const path = useWorkspacePath();
   const router = useRouter();
@@ -89,7 +92,7 @@ export function BottomNav({ activeHref, badges, variant = "responsive", classNam
     <nav
       data-tour="nav-bottom"
       className={cn(
-        "left-1/2 z-30 flex w-[90%] max-w-sm -translate-x-1/2 items-center justify-between gap-1 rounded-pill border border-sidebar-border bg-sidebar px-2 py-1.5",
+        "left-1/2 z-30 flex w-max -translate-x-1/2 items-center justify-between gap-1 rounded-pill border border-sidebar-border bg-sidebar px-2 py-1.5",
         variant === "responsive" ? "fixed md:hidden" : "absolute bottom-4",
         className
       )}
@@ -164,6 +167,22 @@ export function BottomNav({ activeHref, badges, variant = "responsive", classNam
               );
             })}
           </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+
+      {/* The account menu (settings, workspaces, theme, sign out) lives here on a phone, not in the header. */}
+      {user && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button" aria-label="Account menu" className="flex flex-1 items-center justify-center transition-all">
+              <span className="flex h-11 w-11 items-center justify-center">
+                <span className="flex size-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-sidebar-foreground">
+                  {user.initials}
+                </span>
+              </span>
+            </button>
+          </DropdownMenuTrigger>
+          <AccountMenuContent user={user} side="top" align="end" />
         </DropdownMenu>
       )}
     </nav>

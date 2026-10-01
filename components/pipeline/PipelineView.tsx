@@ -7,6 +7,8 @@ import { notify } from "@/components/ui/toaster";
 import { SearchInput } from "@/components/ui/search-input";
 import { useHeaderSearch } from "@/components/layout/header-search";
 import { SegmentedControl } from "@/components/shared/segmented-control";
+import { ViewToggleButton } from "@/components/shared/view-toggle-button";
+import { PageSlotContent } from "@/components/layout/page-slots";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
 import type { ActivityLookups } from "@/components/shared/activity-form";
 import { createPipelineItemAction, moveStageAction } from "@/modules/pipeline/pipeline.actions";
@@ -19,10 +21,6 @@ import { CreatePipelineItemVault } from "./CreatePipelineItemVault";
 import type { ActivityProgress, PipelineItemRow, PipelineBoardRow } from "./types";
 
 type View = "board" | "list";
-
-// This toolbar's own sticky height on mobile (h-9 controls + the pt-2/pb-4 padding below) — used to work out
-// where the list's stage pills (see PipelineListView) must stick to, right underneath it.
-const TOOLBAR_HEIGHT_REM = 3.75;
 
 // Two mutation kinds (add, stage move) against one list — design.md's
 // documented exception to useOptimisticAction, same as the Activities board.
@@ -57,7 +55,7 @@ export function PipelineView({
   /**
    * How much sticky chrome (rem) already sits above this view on mobile — just the `3.5rem` mobile header by
    * default (used standalone on `/leads`). `/projects` renders its own sticky project-tabs row above
-   * this component, so `ProjectsView` passes a bigger value to stack this toolbar underneath it instead of overlapping.
+   * this component, so `ProjectsView` passes a bigger value to stack the list's stage pills underneath it instead of overlapping.
    */
   topOffsetRem?: number;
   /** `data-tour` name for the "New …" button (see components/layout/page-help.ts) — only set on /leads. */
@@ -145,13 +143,11 @@ export function PipelineView({
       <div className="flex min-w-0 flex-1 flex-col gap-4">
         {/*
           The toolbar (and the vault inside it) stays mounted even while the board is empty, so creating the
-          first item doesn't unmount the vault mid-animation. Sticky + horizontal-scroll only where the page
-          scrolls (phones) — on desktop it just wraps, as before.
+          first item doesn't unmount the vault mid-animation. On a phone the view toggle and "New …" move up into
+          the app header (see page-slots.tsx) and the search is already there, so this row is hidden below `md`;
+          on desktop it just wraps.
         */}
-        <div
-          className="sticky z-10 flex shrink-0 items-center gap-2 overflow-x-auto no-scrollbar bg-background pb-2 pt-2 md:static md:flex-wrap md:overflow-visible md:pb-0 md:pt-0"
-          style={{ top: `${topOffsetRem}rem` }}
-        >
+        <div className="flex shrink-0 flex-wrap items-center gap-2 max-md:hidden">
           <SearchInput
             placeholder="Filter by title, organization or contact"
             value={search}
@@ -160,24 +156,30 @@ export function PipelineView({
             containerClassName="hidden min-w-0 md:block md:w-auto md:flex-1 md:max-w-xs"
           />
 
-          <SegmentedControl
-            tourId="pipeline-view"
-            value={resolvedView}
-            onChange={setView}
-            options={[
-              { value: "board", ariaLabel: "Board view", icon: LayoutGrid },
-              { value: "list", ariaLabel: "List view", icon: List },
-            ]}
-          />
-          <CreatePipelineItemVault
-            boardId={board.id}
-            columns={board.columns}
-            contacts={lookups.contacts}
-            organizations={lookups.organizations}
-            itemNoun={itemNoun}
-            onCreate={handleCreate}
-            tourId={tourId}
-          />
+          <PageSlotContent name="header">
+            {isMobile ? (
+              <ViewToggleButton tourId="pipeline-view" value={resolvedView} onChange={setView} />
+            ) : (
+              <SegmentedControl
+                tourId="pipeline-view"
+                value={resolvedView}
+                onChange={setView}
+                options={[
+                  { value: "board", ariaLabel: "Board view", icon: LayoutGrid },
+                  { value: "list", ariaLabel: "List view", icon: List },
+                ]}
+              />
+            )}
+            <CreatePipelineItemVault
+              boardId={board.id}
+              columns={board.columns}
+              contacts={lookups.contacts}
+              organizations={lookups.organizations}
+              itemNoun={itemNoun}
+              onCreate={handleCreate}
+              tourId={tourId}
+            />
+          </PageSlotContent>
         </div>
 
         <div data-tour="pipeline-board" className="flex min-h-0 flex-1 flex-col">
@@ -205,7 +207,7 @@ export function PipelineView({
             items={filteredItems}
             progressByItem={progressByItem}
             onSelect={setSelectedId}
-            stickyTopRem={topOffsetRem + TOOLBAR_HEIGHT_REM}
+            stickyTopRem={topOffsetRem}
           />
         )}
         </div>

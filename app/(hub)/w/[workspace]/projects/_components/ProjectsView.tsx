@@ -64,6 +64,7 @@ export function ProjectsView({
     () => !!initialBoardId && !!initialBoards.find((b) => b.id === initialBoardId)?.archivedAt
   );
   const [selectedId, setSelectedId] = useState<string | null>(initialBoardId);
+  const [creating, setCreating] = useState(false);
 
   const activeBoards = boards.filter((b) => !b.archivedAt);
   const archivedBoards = boards.filter((b) => b.archivedAt);
@@ -149,6 +150,7 @@ export function ProjectsView({
         run({ kind: "archive", id, archived }, () => setBoardArchivedAction({ id, archived }), "Couldn't update that project.")
       }
       onDelete={(id) => run({ kind: "delete", id }, () => deleteBoardAction({ id }), "Couldn't delete that project.")}
+      onNewProject={() => setCreating(true)}
     />
   );
 
@@ -205,9 +207,9 @@ export function ProjectsView({
               {showArchived ? "Hide archived" : `Show archived (${archivedBoards.length})`}
             </button>
           )}
-          <CreateProjectVault variant="link" onCreate={handleCreate} />
         </div>
         <div className="shrink-0">{manageVault}</div>
+        <CreateProjectVault variant="none" open={creating} onOpenChange={setCreating} onCreate={handleCreate} />
       </div>
 
       {selectedBoard ? (
@@ -224,6 +226,7 @@ export function ProjectsView({
           itemNoun="item"
           initialSelectedId={selectedBoard.id === initialBoardId ? initialItemId : null}
           topOffsetRem={3.5 + TABS_HEIGHT_REM}
+          tourId="projects-new-item"
         />
       ) : (
         <Empty className="border border-dashed border-divider">
