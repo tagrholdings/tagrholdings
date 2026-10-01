@@ -183,6 +183,14 @@
   --font-mono: var(--font-ibm-plex-mono);
 }
 
+/* The page itself never scrolls sideways (wide tables scroll inside their own card). `clip`, not `hidden`, so it
+   doesn't turn html/body into scroll containers — sticky headers keep working. html's scrollbar is hidden below, so a
+   stray overflowing element used to leave the page silently draggable sideways with no visible scrollbar. */
+html,
+body {
+  overflow-x: clip;
+}
+
 html {
   scroll-behavior: smooth;  
   scrollbar-width: none; /* Firefox */

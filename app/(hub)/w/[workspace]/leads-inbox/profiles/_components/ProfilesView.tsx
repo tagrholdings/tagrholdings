@@ -187,6 +187,7 @@ export function ProfilesView({ profiles }: { profiles: SearchProfileSummary[] })
     <PageSlotContent name="tabs">
       <Button data-tour="profiles-create" className={MOBILE_GHOST} onClick={() => setEditing(null)}>
         <Plus />
+        <span className="hidden sm:inline">Add profile</span>
       </Button>
     </PageSlotContent>
   );

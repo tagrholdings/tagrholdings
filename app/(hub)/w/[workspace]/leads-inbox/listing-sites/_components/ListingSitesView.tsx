@@ -56,6 +56,7 @@ export function ListingSitesView({ sites }: { sites: ListingSiteSummary[] }) {
     <PageSlotContent name="tabs">
       <Button data-tour="listing-sites-add" className={MOBILE_GHOST} onClick={() => setAdding(true)}>
         <Plus />
+        <span className="hidden sm:inline">Add site</span>
       </Button>
     </PageSlotContent>
   );

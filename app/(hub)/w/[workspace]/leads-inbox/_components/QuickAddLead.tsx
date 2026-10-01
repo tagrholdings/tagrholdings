@@ -88,6 +88,7 @@ export function QuickAddLead({
     <>
       <Button data-tour="leads-inbox-add" className={MOBILE_GHOST} onClick={() => setOpen(true)}>
         <Plus />
+        <span className="hidden sm:inline">Add lead</span>
       </Button>
 
       <Vault open={open} onOpenChange={setOpen}>
