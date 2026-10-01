@@ -20,16 +20,26 @@ export function LinkTabs<Id extends string>({
   tabs,
   active,
   tourId,
+  mobileSticky,
 }: {
   label: string;
   tabs: readonly LinkTab<Id>[];
   active: Id;
   /** `data-tour` name, so a guided tour can point at this particular tab strip (see components/layout/page-help.ts). */
   tourId?: string;
+  /** Pins the strip under the mobile header (same `top-14` offset as the toolbars beneath it) and centers it there — for a short tab list that's a page's main sub-navigation. Desktop is unaffected. */
+  mobileSticky?: boolean;
 }) {
   const path = useWorkspacePath();
   return (
-    <nav aria-label={label} data-tour={tourId} className="no-scrollbar -mb-2 flex max-w-full overflow-x-auto">
+    <nav
+      aria-label={label}
+      data-tour={tourId}
+      className={cn(
+        "no-scrollbar flex max-w-full overflow-x-auto",
+        mobileSticky ? "sticky top-14 z-10 -mb-2 w-full justify-center bg-background py-2.5 md:static md:-mb-2 md:w-auto md:justify-start md:bg-transparent md:py-0" : "-mb-2"
+      )}
+    >
       <div className="inline-flex h-9 shrink-0 items-center rounded-md border border-divider bg-surface p-0.5">
         {tabs.map((tab) => (
           <Link

@@ -2,13 +2,20 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Inbox, Loader2, Undo2, X, Plus } from "lucide-react";
+import { Inbox, Loader2, Undo2, X, Plus, ArrowUpDown, CalendarClock } from "lucide-react";
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
 import { SearchInput } from "@/components/ui/search-input";
 import { useHeaderSearch } from "@/components/layout/header-search";
 import { SegmentedControl } from "@/components/shared/segmented-control";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from "@/components/ui/dropdown-menu";
 import { Pagination } from "@/components/ui/pagination";
 import { notify } from "@/components/ui/toaster";
 import { formatDateUS } from "@/utils/date";
@@ -213,8 +220,17 @@ export function RawLeadsView({
     // Flex row so the detail panel pushes the table instead of overlaying it — see side-panel.tsx.
     <div className="flex min-h-0 min-w-0 flex-1 gap-4">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
-        {/* Sticky only where the page scrolls (phones); on desktop the page is one screen tall. */}
-        <div data-tour="leads-inbox-filters" className="sticky top-14 z-10 flex shrink-0 flex-wrap items-center gap-2 bg-background pb-4 pt-2 md:static md:pb-0 md:pt-0">
+        {/*
+          Sticky only where the page scrolls (phones); on desktop the page is one screen tall. On mobile this
+          stacks under the sticky `LeadsInboxTabs` strip (header 3.5rem + tabs row ~3.25rem), and the row itself
+          scrolls sideways instead of wrapping to several lines — Sort/Found are compact dropdown buttons (the
+          same `DropdownMenu` that already renders as a bottom-sheet Vault on mobile) rather than full segmented
+          bars, so the whole toolbar fits in one line on a phone.
+        */}
+        <div
+          data-tour="leads-inbox-filters"
+          className="sticky top-[6.75rem] z-10 flex shrink-0 items-center gap-2 overflow-x-auto no-scrollbar bg-background pb-4 pt-2 md:static md:flex-wrap md:overflow-visible md:pb-0 md:pt-0"
+        >
           <SegmentedControl
             value={filter}
             onChange={changeFilter}
@@ -232,19 +248,38 @@ export function RawLeadsView({
             containerClassName="hidden min-w-0 md:block md:w-auto md:flex-1 md:max-w-xs"
           />
           {hasFit && (
-            <SegmentedControl
-              value={sort}
-              onChange={changeSort}
-              options={[
-                { value: "newest", label: "Newest" },
-                { value: "fit", label: "Best fit" },
-              ]}
-            />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-9">
+                  <ArrowUpDown />
+                  {sort === "fit" ? "Best fit" : "Newest"}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuRadioGroup value={sort} onValueChange={(value) => changeSort(value as Sort)}>
+                  <DropdownMenuRadioItem value="newest">Newest</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="fit">Best fit</DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
-          <div className="flex items-center gap-2" role="group" aria-label="Filter by when the lead was found">
-            <span className="label-kicker">Found</span>
-            <SegmentedControl value={found} onChange={changeFound} options={FOUND_OPTIONS} />
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9" aria-label="Filter by when the lead was found">
+                <CalendarClock />
+                {FOUND_OPTIONS.find((o) => o.value === found)?.label}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuRadioGroup value={found} onValueChange={(value) => changeFound(value as FoundRange)}>
+                {FOUND_OPTIONS.map((option) => (
+                  <DropdownMenuRadioItem key={option.value} value={option.value}>
+                    {option.label}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {visible.length === 0 && !(filter === "new" && pending.length > 0) ? (

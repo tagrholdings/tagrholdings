@@ -111,7 +111,7 @@ const ENTRIES: Entry[] = [
         {
           target: "leads-inbox-filters",
           title: "Narrowing the list",
-          text: "Show only what is new, search by name or city, and sort the best matches first.",
+          text: "Search by name or city, then use the Sort and Found buttons to show the best matches first or only what showed up recently. On a phone this toolbar scrolls sideways if it doesn't all fit.",
         },
         {
           target: "leads-inbox-add",
