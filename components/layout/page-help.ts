@@ -30,6 +30,15 @@ export interface TourStep {
   text: string;
   /** Limits the step to one viewport — for controls that only exist there (the sidebar, the bottom nav). */
   only?: "desktop" | "mobile";
+  /**
+   * For a step that points at a button opening a Vault: a small looping illustration of its inputs being filled
+   * in and the button being pressed, shown above the step text. `fields` are plain labels, not the vault's real
+   * field names — this is a schematic ("you'll fill something in here"), not a preview, so it never goes stale
+   * when the vault's actual fields change. `checkbox` is optional — only use it for a checkbox that's actually a
+   * meaningful decision in that vault (e.g. which sources to search), not every minor "optional" tickbox. `button`
+   * is the primary button's label.
+   */
+  demo?: { fields: string[]; checkbox?: string; button: string };
 }
 
 export interface PageHelp {
@@ -117,6 +126,7 @@ const ENTRIES: Entry[] = [
           target: "leads-inbox-add",
           title: "Something you found yourself",
           text: "Paste a link or some text and it is added as a lead, read by the AI like any other. On your phone you can also share a page straight into the CRM.",
+          demo: { fields: ["Link or text of the listing"], button: "Add" },
         },
         HELP_AGAIN,
       ],
@@ -151,6 +161,7 @@ const ENTRIES: Entry[] = [
           target: "profiles-create",
           title: "Start with a profile",
           text: "A profile is a saved search: the industries you want to buy, the city and radius, and how often to look. This is where you tell the engine what to do.",
+          demo: { fields: ["Category", "City", "Radius (miles)"], checkbox: "Broker listing sites", button: "Create profile" },
         },
         {
           target: "profiles-table",
@@ -209,6 +220,7 @@ const ENTRIES: Entry[] = [
           target: "listing-sites-add",
           title: "Add a broker yourself",
           text: "Know a broker the engine missed? Add its address here. If you already know the page that lists the businesses, paste that too.",
+          demo: { fields: ["Website", "Name"], button: "Add site" },
         },
         HELP_AGAIN,
       ],
@@ -240,6 +252,7 @@ const ENTRIES: Entry[] = [
           target: "email-sources-add",
           title: "Sites that deliver by email",
           text: "Some brokers never let a program read their site, but will happily email you new listings. Add those sites here.",
+          demo: { fields: ["Site name", "Signup page URL"], button: "Add site" },
         },
         {
           target: "email-sources-table",
@@ -285,6 +298,12 @@ const ENTRIES: Entry[] = [
           title: "Board or list",
           text: "The board is good for seeing where everything stands; the list is better for sorting and scanning a lot of leads at once.",
         },
+        {
+          target: "pipeline-create",
+          title: "Add a lead directly",
+          text: "Already know who you want to pursue? Create it here instead of going through the inbox — you can set its stage, and attach a contact or organization right away.",
+          demo: { fields: ["Title"], button: "Create lead" },
+        },
         HELP_AGAIN,
       ],
     }),
@@ -314,6 +333,7 @@ const ENTRIES: Entry[] = [
           target: "projects-create",
           title: "Make a board",
           text: "Create a board and name its stages yourself. Cards work the same as on the Leads board.",
+          demo: { fields: ["Name", "Stages"], button: "Create project" },
         },
         HELP_AGAIN,
       ],
@@ -345,7 +365,8 @@ const ENTRIES: Entry[] = [
         {
           target: "activities-create",
           title: "Add one",
-          text: "Log a call you just had, or plan the next step. An activity can be attached to a lead, a contact or an organization.",
+          text: "Log a call you just had, or plan the next step. Turn on “Enable notification” and the CRM reminds you when it's due. An activity can be attached to a lead, a contact or an organization.",
+          demo: { fields: ["Title", "Due date"], checkbox: "Enable notification", button: "Create activity" },
         },
         HELP_AGAIN,
       ],
@@ -375,9 +396,16 @@ const ENTRIES: Entry[] = [
           text: "Open anyone to see their history in one place: the leads they are attached to and every call, meeting and email logged with them.",
         },
         {
+          target: "contacts-create-org",
+          title: "Add a company",
+          text: "For a company with no single contact yet, or to fill in its website and notes up front.",
+          demo: { fields: ["Name", "Website"], button: "Create organization" },
+        },
+        {
           target: "contacts-create",
           title: "Add someone",
           text: "Add a person or a company by hand. Promoting a lead from the inbox also creates these for you automatically.",
+          demo: { fields: ["Name", "Email"], button: "Create contact" },
         },
         HELP_AGAIN,
       ],
@@ -462,6 +490,7 @@ const ENTRIES: Entry[] = [
           target: "invites-create",
           title: "Invite a teammate",
           text: "Enter their email and they get a link to choose a password. There is no public sign-up — this is the only way in.",
+          demo: { fields: ["Email", "Role"], button: "Send invite" },
         },
         {
           target: "invites-table",

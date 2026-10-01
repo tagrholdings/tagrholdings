@@ -38,6 +38,7 @@ export default async function LeadsPage({ params, searchParams }: { params: Prom
         lookups={{ contacts, organizations, members, pipelineItems }}
         itemNoun="lead"
         initialSelectedId={item ?? null}
+        tourId="pipeline-create"
       />
     </HubPage>
   );

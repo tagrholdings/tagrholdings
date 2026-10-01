@@ -46,6 +46,7 @@ export function PipelineView({
   itemNoun = "item",
   initialSelectedId = null,
   topOffsetRem = 3.5,
+  tourId,
 }: {
   board: PipelineBoardRow;
   items: PipelineItemRow[];
@@ -59,6 +60,8 @@ export function PipelineView({
    * this component, so `ProjectsView` passes a bigger value to stack this toolbar underneath it instead of overlapping.
    */
   topOffsetRem?: number;
+  /** `data-tour` name for the "New …" button (see components/layout/page-help.ts) — only set on /leads. */
+  tourId?: string;
 }) {
   const isMobile = useIsMobile();
   const [view, setView] = useState<View | null>(null);
@@ -173,6 +176,7 @@ export function PipelineView({
             organizations={lookups.organizations}
             itemNoun={itemNoun}
             onCreate={handleCreate}
+            tourId={tourId}
           />
         </div>
 

@@ -66,7 +66,7 @@ export function CreateProjectVault({
     <Vault open={open} onOpenChange={setOpen}>
       <VaultTrigger asChild>
         {variant === "button" ? (
-          <Button>
+          <Button data-tour="projects-create">
             <Plus />
             New project
           </Button>

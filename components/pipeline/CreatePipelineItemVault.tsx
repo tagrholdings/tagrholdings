@@ -42,6 +42,7 @@ export function CreatePipelineItemVault({
   organizations,
   itemNoun,
   onCreate,
+  tourId,
 }: {
   boardId: string;
   columns: BoardColumn[];
@@ -51,6 +52,8 @@ export function CreatePipelineItemVault({
   itemNoun: string;
   /** Adds the item optimistically and runs the action — resolves on success, rejects on failure. */
   onCreate: (input: NewPipelineItem) => Promise<void>;
+  /** `data-tour` name for the trigger button (see components/layout/page-help.ts). */
+  tourId?: string;
 }) {
   const [open, setOpen] = useState(false);
   const { register, control, trigger, getValues, reset, formState: { errors } } = useForm<FormValues>({
@@ -78,7 +81,7 @@ export function CreatePipelineItemVault({
   return (
     <Vault open={open} onOpenChange={setOpen}>
       <VaultTrigger asChild>
-        <Button>
+        <Button data-tour={tourId}>
           <Plus />
           New {itemNoun}
         </Button>

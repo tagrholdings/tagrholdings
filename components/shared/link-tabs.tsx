@@ -36,8 +36,10 @@ export function LinkTabs<Id extends string>({
       aria-label={label}
       data-tour={tourId}
       className={cn(
-        "no-scrollbar flex max-w-full overflow-x-auto",
-        mobileSticky ? "sticky top-14 z-10 -mb-2 w-full justify-center bg-background py-2.5 md:static md:-mb-2 md:w-auto md:justify-start md:bg-transparent md:py-0" : "-mb-2"
+        // min-w-0 lets this shrink inside its flex parent (a column flex item's width otherwise defaults to its
+        // content's intrinsic size) — without it the tab strip pushes the page wider instead of scrolling in place.
+        "no-scrollbar flex w-full min-w-0 overflow-x-auto",
+        mobileSticky ? "sticky top-14 z-10 -mb-2 justify-center bg-background py-2.5 md:static md:-mb-2 md:w-auto md:justify-start md:bg-transparent md:py-0" : "-mb-2"
       )}
     >
       <div className="inline-flex h-9 shrink-0 items-center rounded-md border border-divider bg-surface p-0.5">

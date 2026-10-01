@@ -156,7 +156,7 @@ export function ContactsView({
   // Vault — CreateOrganizationVault is itself a Vault, and nesting one Drawer
   // inside another breaks (see design.md's "Relational pickers" section; the
   // picker's own inline "Create ‹name›" row is what covers that spot instead).
-  const createOrgVault = <CreateOrganizationVault variant="button" onCreated={registerOrganization} />;
+  const createOrgVault = <CreateOrganizationVault variant="button" tourId="contacts-create-org" onCreated={registerOrganization} />;
 
   if (contacts.length === 0 && organizations.length === 0) {
     return (

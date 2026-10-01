@@ -37,6 +37,8 @@ interface CreateOrganizationVaultProps {
   variant?: "button" | "link";
   /** Resolves once the organization exists, so a caller (e.g. a picker) can select it right away. */
   onCreated?: (organization: OrganizationSummary) => void;
+  /** `data-tour` name for the trigger (see components/layout/page-help.ts). */
+  tourId?: string;
 }
 
 /**
@@ -45,7 +47,7 @@ interface CreateOrganizationVaultProps {
  * see organizations.service.ts's `create`'s dedup-by-name) — both create the
  * same `organizations` row, this one just asks for more up front.
  */
-export function CreateOrganizationVault({ variant = "button", onCreated }: CreateOrganizationVaultProps) {
+export function CreateOrganizationVault({ variant = "button", onCreated, tourId }: CreateOrganizationVaultProps) {
   const [open, setOpen] = useState(false);
   const { register, trigger, getValues, reset, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -75,7 +77,7 @@ export function CreateOrganizationVault({ variant = "button", onCreated }: Creat
     <Vault open={open} onOpenChange={setOpen}>
       <VaultTrigger asChild>
         {variant === "button" ? (
-          <Button variant="outline">
+          <Button variant="outline" data-tour={tourId}>
             <Building2 />
             New organization
           </Button>
