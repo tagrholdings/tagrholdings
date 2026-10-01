@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronRight } from "lucide-react";
+import { ArrowUpRight, ChevronRight } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth-server";
 import { inboundAddressFor } from "@/lib/inbound-address";
 import { workspacePath } from "@/lib/workspace-path";
@@ -70,9 +70,9 @@ export default async function AdminPage() {
                 </Link>
                 <Link
                   href={workspacePath(workspace.slug, "/activities")}
-                  className="flex shrink-0 items-center rounded-lg border border-divider bg-surface px-3 text-xs font-medium text-accent-text transition-colors hover:border-accent hover:text-accent-hover"
+                  className="aspect-square px-6 flex shrink-0 items-center rounded-lg border border-divider bg-surface px-3 text-xs font-medium text-accent-text transition-colors hover:border-accent hover:text-accent-hover"
                 >
-                  Open
+                  <ArrowUpRight className="size-4" aria-hidden />
                 </Link>
               </div>
             );
