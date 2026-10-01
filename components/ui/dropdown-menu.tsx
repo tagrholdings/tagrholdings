@@ -233,7 +233,7 @@ function DropdownMenuItem({
                 aria-disabled={disabled}
                 disabled={disabled}
                 className={cn(
-                    "focus:bg-muted data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10 data-[variant=destructive]:focus:text-destructive data-[variant=destructive]:*:[svg]:text-destructive! [&_svg:not([class*='text-'])]:text-muted-foreground relative flex w-full cursor-default items-center gap-2 rounded-lg px-3 py-3 text-sm outline-hidden select-none disabled:pointer-events-none disabled:opacity-50 data-inset:pl-8 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 hover:bg-muted/60 transition-colors",
+                    "focus:bg-surface-alt data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10 data-[variant=destructive]:focus:text-destructive data-[variant=destructive]:*:[svg]:text-destructive! [&_svg:not([class*='text-'])]:text-muted-foreground relative flex w-full cursor-default items-center gap-2 rounded-lg px-3 py-3 text-sm outline-hidden select-none disabled:pointer-events-none disabled:opacity-50 data-inset:pl-8 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 hover:bg-surface-alt/60 transition-colors",
                     className
                 )}
                 onClick={(event) => {
@@ -258,7 +258,7 @@ function DropdownMenuItem({
             onClick={onClick}
             onSelect={onSelect}
             className={cn(
-                "focus:bg-muted data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10 data-[variant=destructive]:focus:text-destructive data-[variant=destructive]:*:[svg]:text-destructive! [&_svg:not([class*='text-'])]:text-muted-foreground relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-disabled:pointer-events-none data-disabled:opacity-50 data-inset:pl-8 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+                "focus:bg-surface-alt data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10 data-[variant=destructive]:focus:text-destructive data-[variant=destructive]:*:[svg]:text-destructive! [&_svg:not([class*='text-'])]:text-muted-foreground relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-disabled:pointer-events-none data-disabled:opacity-50 data-inset:pl-8 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
                 className
             )}
             {...props}
@@ -287,7 +287,7 @@ function DropdownMenuCheckboxItem({
                 aria-disabled={disabled}
                 disabled={disabled}
                 className={cn(
-                    "focus:bg-muted relative flex w-full cursor-default items-center gap-2 rounded-lg py-3 pr-3 pl-9 text-sm outline-hidden select-none disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 hover:bg-muted/60 transition-colors",
+                    "focus:bg-surface-alt relative flex w-full cursor-default items-center gap-2 rounded-lg py-3 pr-3 pl-9 text-sm outline-hidden select-none disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 hover:bg-surface-alt/60 transition-colors",
                     className
                 )}
                 onClick={(event) => {
@@ -314,7 +314,7 @@ function DropdownMenuCheckboxItem({
         <DropdownMenuPrimitive.CheckboxItem
             data-slot="dropdown-menu-checkbox-item"
             className={cn(
-                "focus:bg-muted relative flex cursor-default items-center gap-2 rounded-sm py-1.5 pr-2 pl-8 text-sm outline-hidden select-none data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+                "focus:bg-surface-alt relative flex cursor-default items-center gap-2 rounded-sm py-1.5 pr-2 pl-8 text-sm outline-hidden select-none data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
                 className
             )}
             checked={checked}
@@ -399,7 +399,7 @@ function DropdownMenuRadioItem({
                 aria-disabled={disabled}
                 disabled={disabled}
                 className={cn(
-                    "focus:bg-muted relative flex w-full cursor-default items-center gap-2 rounded-lg py-3 pr-3 pl-9 text-sm outline-hidden select-none disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 hover:bg-muted/60 transition-colors",
+                    "focus:bg-surface-alt relative flex w-full cursor-default items-center gap-2 rounded-lg py-3 pr-3 pl-9 text-sm outline-hidden select-none disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 hover:bg-surface-alt/60 transition-colors",
                     className
                 )}
                 onClick={(event) => {
@@ -427,7 +427,7 @@ function DropdownMenuRadioItem({
             onClick={onClick}
             onSelect={onSelect}
             className={cn(
-                "focus:bg-muted relative flex cursor-default items-center gap-2 rounded-sm py-1.5 pr-2 pl-8 text-sm outline-hidden select-none data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+                "focus:bg-surface-alt relative flex cursor-default items-center gap-2 rounded-sm py-1.5 pr-2 pl-8 text-sm outline-hidden select-none data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
                 className
             )}
             {...props}
@@ -568,7 +568,7 @@ function DropdownMenuSubTrigger({
                 aria-disabled={disabled}
                 disabled={disabled}
                 className={cn(
-                    "focus:bg-muted data-[state=open]:bg-muted [&_svg:not([class*='text-'])]:text-muted-foreground flex w-full cursor-default items-center gap-2 rounded-lg px-3 py-3 text-sm outline-hidden select-none disabled:pointer-events-none disabled:opacity-50 data-inset:pl-8 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 transition-colors",
+                    "focus:bg-surface-alt data-[state=open]:bg-surface-alt [&_svg:not([class*='text-'])]:text-muted-foreground flex w-full cursor-default items-center gap-2 rounded-lg px-3 py-3 text-sm outline-hidden select-none disabled:pointer-events-none disabled:opacity-50 data-inset:pl-8 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 transition-colors",
                     className
                 )}
                 data-state={sub?.open ? "open" : "closed"}
@@ -596,7 +596,7 @@ function DropdownMenuSubTrigger({
             disabled={disabled}
             onClick={onClick}
             className={cn(
-                "focus:bg-muted data-[state=open]:bg-muted [&_svg:not([class*='text-'])]:text-muted-foreground flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-inset:pl-8 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+                "focus:bg-surface-alt data-[state=open]:bg-surface-alt [&_svg:not([class*='text-'])]:text-muted-foreground flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-inset:pl-8 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
                 className
             )}
             {...props}
