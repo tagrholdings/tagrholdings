@@ -8,7 +8,7 @@ import {
   tractionRocksTable,
   tractionVtoTable,
 } from "./traction.schema";
-import type { EntryRow, IssueRow, MeasurableRow, MeetingRow, RockRow } from "./traction.types";
+import type { EntryRow, IssueRow, MeasurableRow, MeetingHistoryRow, MeetingRow, RockRow } from "./traction.types";
 
 const measurableSelection = {
   id: tractionMeasurablesTable.id,
@@ -321,6 +321,18 @@ export const tractionRepository = {
   async findMeetings(tenantId: string, limit: number): Promise<MeetingRow[]> {
     return withTenant(tenantId, (tx) =>
       tx.select(meetingSelection).from(tractionMeetingsTable).where(eq(tractionMeetingsTable.tenantId, tenantId)).orderBy(desc(tractionMeetingsTable.heldAt)).limit(limit)
+    );
+  },
+
+  /** Concluded meetings, newest first, with who rated what and the headlines — the L10 history page. */
+  async findMeetingHistory(tenantId: string, limit: number): Promise<MeetingHistoryRow[]> {
+    return withTenant(tenantId, (tx) =>
+      tx
+        .select({ ...meetingSelection, ratings: tractionMeetingsTable.ratings, headlines: tractionMeetingsTable.headlines, createdByUserId: tractionMeetingsTable.createdByUserId })
+        .from(tractionMeetingsTable)
+        .where(eq(tractionMeetingsTable.tenantId, tenantId))
+        .orderBy(desc(tractionMeetingsTable.heldAt))
+        .limit(limit)
     );
   },
 

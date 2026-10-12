@@ -284,6 +284,11 @@ export const tractionService = {
     return tractionRepository.findMeetings(tenantId, limit);
   },
 
+  /** The last year of weekly L10s (52), newest first. */
+  async getMeetingHistory(tenantId: string, limit = 52) {
+    return tractionRepository.findMeetingHistory(tenantId, limit);
+  },
+
   // ───────────── V/TO ─────────────
 
   /** Always a complete document — missing sections come back empty, so the page never has to guess. */

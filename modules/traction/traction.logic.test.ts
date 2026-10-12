@@ -13,6 +13,7 @@ import {
   periodLabel,
   periodStartFor,
   periodWindow,
+  planningQuarters,
   quarterLabel,
   quarterOf,
   quarterRange,
@@ -37,6 +38,18 @@ describe("quarters", () => {
     expect(shiftQuarter("2026-Q1", -1)).toBe("2025-Q4");
     expect(shiftQuarter("2026-Q2", -6)).toBe("2024-Q4");
     expect(quarterLabel("2026-Q3")).toBe("Q3 2026");
+  });
+});
+
+describe("planning quarters", () => {
+  it("shows the current year plus as many of next year as the current quarter's number", () => {
+    expect(planningQuarters("2026-Q1")).toEqual(["2026-Q1", "2026-Q2", "2026-Q3", "2026-Q4", "2027-Q1"]);
+    expect(planningQuarters("2026-Q3")).toEqual(["2026-Q1", "2026-Q2", "2026-Q3", "2026-Q4", "2027-Q1", "2027-Q2", "2027-Q3"]);
+    expect(planningQuarters("2026-Q4")).toHaveLength(8);
+  });
+
+  it("keeps older quarters that already have Rocks", () => {
+    expect(planningQuarters("2026-Q1", ["2025-Q4", "2026-Q2", "bad"])).toEqual(["2025-Q4", "2026-Q1", "2026-Q2", "2026-Q3", "2026-Q4", "2027-Q1"]);
   });
 });
 

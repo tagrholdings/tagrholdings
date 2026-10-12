@@ -55,6 +55,17 @@ export function quarterLabel(quarter: string): string {
   return `Q${q} ${year}`;
 }
 
+/**
+ * The quarters Rocks can be planned in: all four of the current year, plus as many of the next year as the current
+ * quarter's number (Q1 → Q1 next year; Q3 → Q1–Q3 next year), so there are always four quarters ahead. Any other
+ * quarter in `alsoInclude` (one that already has Rocks) is kept, so history never disappears. Oldest first.
+ */
+export function planningQuarters(currentQuarter: string, alsoInclude: string[] = []): string[] {
+  const { year, q } = parseQuarter(currentQuarter);
+  const window = [1, 2, 3, 4].map((n) => `${year}-Q${n}`).concat(Array.from({ length: q }, (_, i) => `${year + 1}-Q${i + 1}`));
+  return [...new Set([...window, ...alsoInclude.filter(isQuarter)])].sort();
+}
+
 // ───────────── Scorecard periods ─────────────
 
 /** The period a day falls in: the Monday of its week, or the 1st of its month. */

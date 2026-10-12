@@ -23,7 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { notify } from "@/components/ui/toaster";
 import { ChoicePills, OwnerPicker } from "@/components/traction/traction-ui";
 import { createRockAction, deleteRockAction, updateRockAction } from "@/modules/traction/traction.actions";
-import { quarterLabel, quarterRange, shiftQuarter } from "@/modules/traction/traction.logic";
+import { planningQuarters, quarterLabel, quarterRange } from "@/modules/traction/traction.logic";
 import { ROCK_STATUSES, ROCK_STATUS_LABELS, type RockRow, type TractionMember } from "@/modules/traction/traction.types";
 
 const formSchema = z.object({
@@ -48,13 +48,14 @@ function toForm(rock: RockRow | undefined, quarter: string): FormValues {
 }
 
 /** New Rock, or edit/delete one. A new Rock is due on the last day of its quarter unless changed. */
-export function RockVault({ members, rock, defaultQuarter, open, onOpenChange }: { members: TractionMember[]; rock?: RockRow; defaultQuarter: string; open: boolean; onOpenChange: (open: boolean) => void }) {
+export function RockVault({ members, rock, defaultQuarter, currentQuarter, open, onOpenChange }: { members: TractionMember[]; rock?: RockRow; defaultQuarter: string; currentQuarter: string; open: boolean; onOpenChange: (open: boolean) => void }) {
   const [deleting, startDelete] = useTransition();
   const { register, control, reset, trigger, getValues, setValue, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: toForm(rock, defaultQuarter),
   });
-  const quarterOptions = [-1, 0, 1, 2].map((n) => shiftQuarter(rock?.quarter ?? defaultQuarter, n));
+  // Same quarters as the Rocks page header — an edited Rock keeps its own quarter even if it is older.
+  const quarterOptions = planningQuarters(currentQuarter, [rock?.quarter ?? defaultQuarter]);
 
   const handleSave = async (e: MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();

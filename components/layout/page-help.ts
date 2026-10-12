@@ -914,19 +914,23 @@ const ENTRIES: Entry[] = [
       sections: [
         {
           heading: "What it's for",
-          body: "The operator runs the L10 every week, same day and time. Each step shows live data: the Scorecard, Rocks, To-Dos and Issues. Nothing is copied by hand.",
+          body: "The operator runs the L10 every week, same day and time, with the leadership team. Each step shows live data (the Scorecard, Rocks, To-Dos and Issues), so nothing is copied by hand. It is called a Level 10 because the goal is for everyone to rate it a 10.",
         },
         {
-          heading: "The agenda",
+          heading: "The agenda (90 minutes)",
           body: [
-            "Segue, Scorecard, Rock Review, Headlines and To-Dos: 5 minutes each.",
-            "IDS: 60 minutes to solve the top issues.",
-            "Conclude: recap, then everyone rates the meeting from 1 to 10.",
+            "Segue (5 min): each person shares one personal and one professional best from the week.",
+            "Scorecard (5 min): read each number; on goal or off. Off goes to Issues, no discussion here.",
+            "Rock Review (5 min): each owner says on track or off track. Off track goes to Issues.",
+            "Customer / Employee Headlines (5 min): one-line news. Anything that needs talking goes to Issues.",
+            "To-Do List (5 min): each To-Do is done or not done. The target is 90% done.",
+            "IDS (60 min): Identify, Discuss, Solve the top three issues, one at a time. Each solution becomes a To-Do.",
+            "Conclude (5 min): recap the new To-Dos, then everyone rates the meeting from 1 to 10.",
           ],
         },
         {
           heading: "After the meeting",
-          body: "Conclude records the meeting with this week's numbers. It shows on the Overview and in the owner's Portfolio.",
+          body: "Conclude records the meeting with this week's numbers. It shows on the Overview, in History and in the owner's Portfolio.",
         },
       ],
       tour: [
@@ -934,17 +938,83 @@ const ENTRIES: Entry[] = [
         {
           target: "l10-agenda",
           title: "The agenda",
-          text: "Go through it in order, or jump to any step. Each step has its own time box.",
+          text: "Seven steps, 90 minutes, in this order every week. Click a step to jump to it; the right side then shows what that step needs.",
         },
         {
           target: "l10-timer",
           title: "The timer",
-          text: "Start it when the step begins. It turns red when the step runs over its time.",
+          text: "Press Start when a step begins. Each step has its own time box, and the clock turns red when it runs over, so the meeting ends on time.",
+        },
+        {
+          target: "l10-agenda",
+          title: "1 · Segue (5 min)",
+          text: "Everyone shares one personal and one professional best from the past week. It moves the team from working in the business to working on it.",
+        },
+        {
+          target: "l10-agenda",
+          title: "2 · Scorecard (5 min)",
+          text: "Read each measurable's latest number against its goal. Say on or off, nothing more. Press Drop to Issues on a red one; it gets discussed in IDS, not now.",
+        },
+        {
+          target: "l10-agenda",
+          title: "3 · Rock Review (5 min)",
+          text: "Each owner says whether their Rock is on track or off track, and changes its status here. An off-track Rock goes to Issues with one click.",
+        },
+        {
+          target: "l10-agenda",
+          title: "4 · Headlines (5 min)",
+          text: "Quick good or bad news about customers and employees, one line each, typed into the box. Anything that needs a conversation becomes an issue.",
+        },
+        {
+          target: "l10-agenda",
+          title: "5 · To-Do List (5 min)",
+          text: "Go down last week's To-Dos: done or not done, tick the box. The percentage at the top should be 90% or more. New To-Dos can be added at the bottom.",
+        },
+        {
+          target: "l10-agenda",
+          title: "6 · IDS (60 min)",
+          text: "The heart of the meeting. Take the top three issues one at a time: Identify the real problem, Discuss it briefly, Solve it. Solve records the decision and creates the To-Do.",
+        },
+        {
+          target: "l10-agenda",
+          title: "7 · Conclude (5 min)",
+          text: "Recap the new To-Dos, then each person rates the meeting from 1 to 10. Conclude meeting saves it with this week's numbers.",
         },
         {
           target: "l10-section",
-          title: "Live data",
-          text: "Each step shows what it needs: numbers off goal, Rock statuses, this week's To-Dos, the top issues to solve.",
+          title: "The step's live data",
+          text: "Everything here is the real data from the Scorecard, Rocks, Activities and Issues. Changes you make during the meeting are saved right away.",
+        },
+        {
+          target: "l10-history",
+          title: "Past meetings",
+          text: "History lists every concluded L10: its rating, who rated what, the headlines and the week's numbers.",
+        },
+        HELP_AGAIN,
+      ],
+    }),
+  },
+  {
+    path: "/traction/l10/history",
+    build: () => ({
+      title: "Meeting history",
+      summary: "Every concluded L10, newest first.",
+      sections: [
+        {
+          heading: "What it's for",
+          body: "Each time a meeting is concluded, the CRM keeps a snapshot: the average rating and each person's, the headlines, and that week's numbers (To-Dos done, issues solved, Rocks off track, measurables off goal).",
+        },
+        {
+          heading: "Reading it",
+          body: "Look for trends: ratings dropping, To-Dos staying under 90%, the same Rocks off track week after week. Those are issues worth raising.",
+        },
+      ],
+      tour: [
+        NAV_SWITCH,
+        {
+          target: "l10-history-list",
+          title: "One card per meeting",
+          text: "The date and rating at the top, the week's numbers below (red when off), then who rated what and the headlines.",
         },
         HELP_AGAIN,
       ],

@@ -218,6 +218,13 @@ export interface MeetingRow {
   measurablesOffGoal: number;
 }
 
+/** One concluded L10 with its details, for the history page. */
+export interface MeetingHistoryRow extends MeetingRow {
+  ratings: Record<string, number>;
+  headlines: string | null;
+  createdByUserId: string | null;
+}
+
 /** A workspace member, as every owner picker shows them. */
 export interface TractionMember {
   id: string;

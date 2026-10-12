@@ -4,10 +4,12 @@ import { useEffect, useOptimistic, useState, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { CircleAlert, Pause, Play, Plus } from "lucide-react";
+import Link from "next/link";
+import { CircleAlert, History, Pause, Play, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { notify } from "@/components/ui/toaster";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { useWorkspacePath } from "@/hooks/ui/use-workspace-path";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { IssueList } from "@/components/traction/issue-list";
@@ -59,6 +61,7 @@ export function L10View({
   meetings: MeetingRow[];
   members: TractionMember[];
 }) {
+  const path = useWorkspacePath();
   const [step, setStep] = useState(0);
   const [running, setRunning] = useState(false);
   const [elapsed, setElapsed] = useState<number[]>(() => AGENDA.map(() => 0));
@@ -75,6 +78,16 @@ export function L10View({
   const over = elapsed[step] > current.minutes * 60;
 
   return (
+    <>
+    <div className="flex flex-wrap items-center gap-2">
+      <p className="flex-1 text-sm text-muted-foreground">
+        {meetings[0] ? `Last L10: ${formatDateUS(meetings[0].heldAt, { month: "short", day: "numeric" })} · rating ${meetings[0].averageRating ?? "—"}` : "No L10 recorded yet."}
+      </p>
+      <Link href={path("/traction/l10/history")} data-tour="l10-history" className={buttonVariants({ variant: "outline" })}>
+        <History />
+        History
+      </Link>
+    </div>
     <div className="grid items-start gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
       <div data-tour="l10-agenda" className="overflow-hidden rounded-lg border border-divider bg-surface">
         <div className="flex items-center justify-between border-b border-divider px-4 py-3">
@@ -148,6 +161,7 @@ export function L10View({
         </div>
       </div>
     </div>
+    </>
   );
 }
 

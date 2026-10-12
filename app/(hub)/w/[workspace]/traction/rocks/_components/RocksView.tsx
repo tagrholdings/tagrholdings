@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
 import { OwnerBadge, RockBar, RockStatusMenu } from "@/components/traction/traction-ui";
 import { createIssueAction, setRockStatusAction } from "@/modules/traction/traction.actions";
-import { quarterLabel, shiftQuarter } from "@/modules/traction/traction.logic";
+import { planningQuarters, quarterLabel } from "@/modules/traction/traction.logic";
 import type { RockRow, RockStatus, TractionMember } from "@/modules/traction/traction.types";
 import { formatDateUS } from "@/utils/date";
 import { RockVault } from "./RockVault";
@@ -21,8 +21,7 @@ export function RocksView({ rocks: initialRocks, quarter, currentQuarter, member
   const [, startTransition] = useTransition();
   const [vault, setVault] = useState<{ open: boolean; rock?: RockRow }>({ open: false });
 
-  // Every quarter that has Rocks, plus this one and the next (where new Rocks usually go), newest first.
-  const quarters = [...new Set([...rocks.map((r) => r.quarter), currentQuarter, shiftQuarter(currentQuarter, 1), quarter])].sort().reverse();
+  const quarters = planningQuarters(currentQuarter, [...rocks.map((r) => r.quarter), quarter]);
   const visible = rocks.filter((r) => r.quarter === quarter);
   const counted = visible.filter((r) => r.status !== "dropped");
   const count = (s: RockStatus) => counted.filter((r) => r.status === s).length;
@@ -125,7 +124,7 @@ export function RocksView({ rocks: initialRocks, quarter, currentQuarter, member
         )}
       </div>
 
-      <RockVault members={members} rock={vault.rock} defaultQuarter={quarter} open={vault.open} onOpenChange={(open) => setVault((v) => ({ ...v, open }))} />
+      <RockVault members={members} rock={vault.rock} defaultQuarter={quarter} currentQuarter={currentQuarter} open={vault.open} onOpenChange={(open) => setVault((v) => ({ ...v, open }))} />
     </>
   );
 }
