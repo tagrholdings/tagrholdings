@@ -12,12 +12,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { IssueList } from "@/components/traction/issue-list";
 import { IssueVault } from "@/components/traction/issue-vaults";
-import { OwnerBadge, OwnerPicker, RockStatusMenu, memberName } from "@/components/traction/traction-ui";
+import { OwnerBadge, OwnerPicker, RockStatusMenu } from "@/components/traction/traction-ui";
 import { setActivityDoneAction } from "@/modules/activities/activities.actions";
 import { concludeMeetingAction, createIssueAction, createTodoAction, setRockStatusAction } from "@/modules/traction/traction.actions";
-import { formatGoal, formatValue, goalMet, percent, periodLabel, quarterLabel } from "@/modules/traction/traction.logic";
+import { formatGoal, formatValue, goalMet, memberName, percent, periodLabel, quarterLabel } from "@/modules/traction/traction.logic";
 import type { EntryRow, IssueRow, MeasurableRow, MeetingRow, RockRow, RockStatus, TodoRow, TractionMember } from "@/modules/traction/traction.types";
 import { formatDateUS } from "@/utils/date";
+import { paginate } from "@/utils/pagination";
+import { Pagination } from "@/components/ui/pagination";
 
 const AGENDA = [
   { key: "segue", name: "Segue", minutes: 5 },
@@ -29,6 +31,9 @@ const AGENDA = [
   { key: "conclude", name: "Conclude", minutes: 5 },
 ] as const;
 type StepKey = (typeof AGENDA)[number]["key"];
+
+/** Rows per page in the To-Do step — fills its fixed-height list. */
+const TODOS_PER_PAGE = 8;
 
 /** An L10 To-Do is a one-week commitment. */
 const oneWeekFromNow = () => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -97,7 +102,8 @@ export function L10View({
         </ol>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-divider bg-surface">
+      {/* Not overflow-hidden: the To-Do owner picker opens below the card's edge and must not be clipped. */}
+      <div className="rounded-lg border border-divider bg-surface">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-divider px-4 py-3">
           <div>
             <p className="label-kicker text-muted-foreground">
@@ -316,6 +322,8 @@ function TodosStep({ todos: initialTodos, members }: SectionProps) {
   const [, startTransition] = useTransition();
   const { register, control, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<TodoFormValues>({ resolver: zodResolver(todoFormSchema), defaultValues: { subject: "", owner: null } });
   const done = todos.filter((t) => t.done).length;
+  const [page, setPage] = useState(1);
+  const slice = paginate(todos, page, TODOS_PER_PAGE);
 
   function toggle(todo: TodoRow) {
     startTransition(async () => {
@@ -336,9 +344,10 @@ function TodosStep({ todos: initialTodos, members }: SectionProps) {
       <p className="px-4 pt-3 text-sm text-muted-foreground">
         Done or not done, nothing in between. <span className="font-medium text-foreground tabular-nums">{percent(done, todos.length)}%</span> this week · EOS target is 90%.
       </p>
-      <ul className="py-1">
+      {/* Fixed height (one page of rows), so the add form and the agenda buttons never move as the list grows. */}
+      <ul className="h-[22rem] overflow-y-auto py-1">
         {todos.length === 0 && <li className="px-4 py-4 text-sm text-muted-foreground">No To-Dos yet.</li>}
-        {todos.map((todo) => (
+        {slice.items.map((todo) => (
           <li key={todo.id}>
             <label className="flex cursor-pointer items-center gap-3 px-4 py-2 hover:bg-muted/50">
               <input type="checkbox" checked={todo.done} onChange={() => toggle(todo)} className="size-4 accent-[var(--accent)]" />
@@ -349,6 +358,7 @@ function TodosStep({ todos: initialTodos, members }: SectionProps) {
           </li>
         ))}
       </ul>
+      <Pagination slice={slice} onPageChange={setPage} noun="To-Dos" className="border-t border-divider px-4 py-2" />
       <form onSubmit={add} className="flex flex-wrap items-start gap-2 border-t border-divider px-4 py-3">
         <div className="min-w-0 flex-1 basis-56">
           <Input aria-label="New To-Do" placeholder="New To-Do (due in 7 days)" {...register("subject")} aria-invalid={!!errors.subject} />

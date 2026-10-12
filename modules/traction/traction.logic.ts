@@ -136,3 +136,48 @@ export function latestEntry(entries: { periodStart: string; value: number }[]): 
 export function percent(part: number, total: number): number {
   return total === 0 ? 0 : Math.round((part / total) * 100);
 }
+
+// ───────────── People and V/TO values ─────────────
+
+/** A member's display name (name, else email), or null when the id is empty or not a member. */
+export function memberName(members: { id: string; name: string | null; email: string }[], userId: string | null | undefined): string | null {
+  if (!userId) return null;
+  const member = members.find((m) => m.id === userId);
+  return member ? member.name || member.email : null;
+}
+
+/** "$3M", "$600K", "$1.5M" — the V/TO's revenue/profit, written the way people say them. */
+export function formatCompactCurrency(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "";
+  const abs = Math.abs(value);
+  const [divisor, suffix] = abs >= 1e9 ? [1e9, "B"] : abs >= 1e6 ? [1e6, "M"] : abs >= 1e3 ? [1e3, "K"] : [1, ""];
+  const scaled = Math.round((value / divisor) * 100) / 100;
+  return `$${scaled.toLocaleString("en-US", { maximumFractionDigits: 2 })}${suffix}`;
+}
+
+/** "$3M" / "600K" / "1,250,000" / 2500000 → a number; anything else (or empty) → null. */
+export function parseMoney(input: unknown): number | null {
+  if (typeof input === "number") return Number.isFinite(input) ? input : null;
+  if (typeof input !== "string") return null;
+  const match = input.trim().replace(/[$,\s]/g, "").match(/^(-?\d+(?:\.\d+)?)([kmb])?$/i);
+  if (!match) return null;
+  const multiplier = { k: 1e3, m: 1e6, b: 1e9 }[match[2]?.toLowerCase() as "k" | "m" | "b"] ?? 1;
+  return Number(match[1]) * multiplier;
+}
+
+/** A calendar date as "YYYY-MM-DD": kept when already ISO, parsed from text like "Jan 30, 2036", else "". */
+export function parseCalendarDate(input: unknown): string {
+  if (typeof input !== "string" || input.trim() === "") return "";
+  const value = input.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return `${parsed.getFullYear()}-${pad(parsed.getMonth() + 1)}-${pad(parsed.getDate())}`;
+}
+
+/** "2036-01-30" → "Jan 30, 2036". */
+export function formatCalendarDate(iso: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "";
+  const d = fromIso(iso);
+  return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
+}

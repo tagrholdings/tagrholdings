@@ -1,10 +1,10 @@
 "use client";
 
-import { Fragment, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion, type PanInfo } from "framer-motion";
-import { ChevronsUpDown, MoreHorizontal } from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_SECTIONS, BOTTOM_NAV_MAX_PRIMARY, isNavItemActive, sectionForPath, type NavSectionId } from "@/lib/navigation";
 import { useWorkspacePath } from "@/hooks/ui/use-workspace-path";
@@ -84,7 +84,7 @@ function NavIcon({
 
 /**
  * The phone's floating pill nav. It shows ONE section at a time (CRM or Traction — lib/navigation.ts): pull the bar
- * down to switch to the other one, or tap the small label above it. Landing on a page shows that page's section;
+ * down to switch to the other one (explained in the page tours). Landing on a page shows that page's section;
  * switching only swaps the tabs, it doesn't navigate.
  */
 export function BottomNav({ activeHref, badges, user, variant = "responsive", className }: BottomNavProps) {
@@ -125,20 +125,13 @@ export function BottomNav({ activeHref, badges, user, variant = "responsive", cl
       )}
       style={variant === "responsive" ? { bottom: "calc(1rem + env(safe-area-inset-bottom))" } : undefined}
     >
-      {/* Which section is showing, and the way to the other one without the gesture (screen readers, keyboards). */}
+      {/* The gesture is the way to switch; this is the same switch for keyboards and screen readers — invisible until focused. */}
       <button
         type="button"
         onClick={switchSection}
-        aria-label={`Showing ${section.label}. Switch to ${nextSection.label}`}
-        className="pointer-events-auto flex items-center gap-1 rounded-pill border border-sidebar-border bg-sidebar px-2.5 py-0.5 font-mono text-[10px] tracking-[0.12em] text-sidebar-foreground-muted uppercase"
+        className="pointer-events-auto sr-only rounded-pill bg-sidebar px-3 py-1 text-xs text-sidebar-foreground focus:not-sr-only"
       >
-        {NAV_SECTIONS.map((s, i) => (
-          <Fragment key={s.id}>
-            {i > 0 && <span aria-hidden>·</span>}
-            <span className={cn("transition-colors", s.id === sectionId && "text-accent")}>{s.label}</span>
-          </Fragment>
-        ))}
-        <ChevronsUpDown className="size-3" aria-hidden />
+        Switch to {nextSection.label}
       </button>
 
       <motion.nav

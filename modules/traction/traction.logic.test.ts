@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   aggregate,
+  formatCalendarDate,
+  formatCompactCurrency,
   formatGoal,
   formatValue,
   goalMet,
   latestEntry,
+  memberName,
+  parseCalendarDate,
+  parseMoney,
   periodLabel,
   periodStartFor,
   periodWindow,
@@ -89,5 +94,35 @@ describe("roll-ups", () => {
   it("finds the latest entered period", () => {
     expect(latestEntry([{ periodStart: "2026-08-01", value: 396 }, { periodStart: "2026-09-01", value: 421 }, { periodStart: "2026-07-01", value: 378 }])).toEqual({ periodStart: "2026-09-01", value: 421 });
     expect(latestEntry([])).toBeNull();
+  });
+});
+
+describe("V/TO values", () => {
+  it("writes money the way people say it, and reads it back", () => {
+    expect(formatCompactCurrency(3_000_000)).toBe("$3M");
+    expect(formatCompactCurrency(600_000)).toBe("$600K");
+    expect(formatCompactCurrency(1_500_000)).toBe("$1.5M");
+    expect(formatCompactCurrency(null)).toBe("");
+    expect(parseMoney("$20M")).toBe(20_000_000);
+    expect(parseMoney("600k")).toBe(600_000);
+    expect(parseMoney("1,250,000")).toBe(1_250_000);
+    expect(parseMoney("lots")).toBeNull();
+    expect(parseMoney("")).toBeNull();
+  });
+
+  it("accepts only real dates", () => {
+    expect(parseCalendarDate("Jan 30, 2036")).toBe("2036-01-30");
+    expect(parseCalendarDate("2029-01-30")).toBe("2029-01-30");
+    expect(parseCalendarDate("Jan 30, jkhjkhj")).toBe("");
+    expect(formatCalendarDate("2027-01-30")).toBe("Jan 30, 2027");
+    expect(formatCalendarDate("")).toBe("");
+  });
+
+  it("names a member, or nobody", () => {
+    const members = [{ id: "u1", name: "Jay", email: "jay@x.test" }, { id: "u2", name: null, email: "kody@x.test" }];
+    expect(memberName(members, "u1")).toBe("Jay");
+    expect(memberName(members, "u2")).toBe("kody@x.test");
+    expect(memberName(members, "nope")).toBeNull();
+    expect(memberName(members, null)).toBeNull();
   });
 });

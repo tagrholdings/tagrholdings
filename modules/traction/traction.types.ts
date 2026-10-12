@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Aggregation, Cadence, GoalOperator, Unit } from "./traction.logic";
+import { parseCalendarDate, parseMoney, type Aggregation, type Cadence, type GoalOperator, type Unit } from "./traction.logic";
 
 export const CADENCES = ["weekly", "monthly"] as const;
 export const GOAL_OPERATORS = ["gte", "lte", "eq"] as const;
@@ -127,21 +127,25 @@ export type NewTodo = z.infer<typeof createTodoSchema>;
 
 const line = z.string().max(500);
 const lines = z.array(line).max(30);
+/** A calendar date "YYYY-MM-DD" or "" — anything that isn't a real date (old free text included) becomes "". */
+const calendarDate = z.preprocess((v) => parseCalendarDate(v), z.string());
+/** Dollars as a number, or null. Old text like "$3M" or "600K" is read as the number it names. */
+const money = z.preprocess((v) => parseMoney(v), z.number().nullable());
 
 export const vtoContentSchema = z.object({
   coreValues: lines.default([]),
   purpose: line.default(""),
   niche: line.default(""),
-  tenYear: z.object({ date: line.default(""), revenue: line.default(""), picture: line.default("") }).default({ date: "", revenue: "", picture: "" }),
+  tenYear: z.object({ date: calendarDate, revenue: money, picture: line.default("") }).default({ date: "", revenue: null, picture: "" }),
   marketing: z
-    .object({ targetMarket: line.default(""), uniques: lines.default([]), provenProcess: line.default(""), guarantee: line.default("") })
+    .object({ targetMarket: line.default(""), uniques: z.array(line).max(3).default([]), provenProcess: line.default(""), guarantee: line.default("") })
     .default({ targetMarket: "", uniques: [], provenProcess: "", guarantee: "" }),
   threeYear: z
-    .object({ date: line.default(""), revenue: line.default(""), profit: line.default(""), measurables: line.default(""), picture: lines.default([]) })
-    .default({ date: "", revenue: "", profit: "", measurables: "", picture: [] }),
+    .object({ date: calendarDate, revenue: money, profit: money, measurables: line.default(""), picture: lines.default([]) })
+    .default({ date: "", revenue: null, profit: null, measurables: "", picture: [] }),
   oneYear: z
-    .object({ date: line.default(""), revenue: line.default(""), profit: line.default(""), measurables: line.default(""), goals: lines.default([]) })
-    .default({ date: "", revenue: "", profit: "", measurables: "", goals: [] }),
+    .object({ date: calendarDate, revenue: money, profit: money, measurables: line.default(""), goals: lines.default([]) })
+    .default({ date: "", revenue: null, profit: null, measurables: "", goals: [] }),
 });
 export type VtoContent = z.infer<typeof vtoContentSchema>;
 export const saveVtoSchema = z.object({ content: vtoContentSchema });

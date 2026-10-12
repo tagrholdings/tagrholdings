@@ -24,7 +24,7 @@ import {
 
 /** Every Traction page reads a bit of everything (the Overview and the L10 read all of it), so a change refreshes them all. */
 function revalidateTraction(slug: string) {
-  revalidateWorkspace(slug, "/traction", "/traction/scorecard", "/traction/rocks", "/traction/issues", "/traction/l10", "/traction/vto");
+  revalidateWorkspace(slug, "/traction", "/traction/scorecard", "/traction/rocks", "/traction/issues", "/traction/l10");
 }
 
 // ───────────── Scorecard ─────────────

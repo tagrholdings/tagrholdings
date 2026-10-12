@@ -74,6 +74,14 @@ const HELP_AGAIN: TourStep = {
   text: "This button explains whatever page you are on, and starts this tour again. Nothing here changes your data.",
 };
 
+/** Mobile only: the bottom bar shows one group of pages at a time, and a pull-down swaps CRM ⇄ Traction. */
+const NAV_SWITCH: TourStep = {
+  target: "nav-bottom",
+  only: "mobile",
+  title: "Switch between CRM and Traction",
+  text: "This bar shows one group of pages at a time. Pull it down (drag it toward the bottom of the screen) to swap between the CRM and Traction; pull again to come back.",
+};
+
 const ENTRIES: Entry[] = [
   {
     path: "/leads-inbox",
@@ -113,7 +121,7 @@ const ENTRIES: Entry[] = [
           target: "nav-bottom",
           only: "mobile",
           title: "Getting around",
-          text: "These icons switch between the main parts of the CRM: the inbox of new finds, the leads you are working, and more. Pull the bar down (or tap the small CRM · Traction label above it) to switch to Traction's pages. Your avatar on the far right opens the account menu: settings, workspaces, dark mode and sign out.",
+          text: "These icons switch between the main parts of the CRM: the inbox of new finds, the leads you are working, and more. Pull the bar down (drag it toward the bottom of the screen) to switch to Traction's pages, and again to come back. Your avatar on the far right opens the account menu: settings, workspaces, dark mode and sign out.",
         },
         {
           target: "leads-inbox-tabs",
@@ -719,11 +727,11 @@ const ENTRIES: Entry[] = [
     path: "/traction",
     build: () => ({
       title: "Traction",
-      summary: "The company's operating system (EOS) on one screen: Scorecard, Rocks, Issues and the weekly L10.",
+      summary: "The company's operating system (EOS) on one page: this week's numbers and the Vision/Traction Organizer.",
       sections: [
         {
           heading: "What it's for",
-          body: "Every company in the portfolio runs the same system. This page shows where this one stands this week, and each tile opens the page behind it.",
+          body: "Every company in the portfolio runs the same system. The top of this page shows where this one stands this week; below it, the V/TO says where it's going.",
         },
         {
           heading: "How the pieces connect",
@@ -735,23 +743,37 @@ const ENTRIES: Entry[] = [
             "To-Dos: each solution becomes a 7-day To-Do, kept in Activities.",
           ],
         },
+        {
+          heading: "The V/TO",
+          body: "Blank parts show as dashed gaps on purpose: they are work still to do. Dates only take real dates and money only takes amounts (600000 or 3M). Its Rocks and Issues sections come live from their own pages.",
+        },
       ],
       tour: [
-        {
-          target: "nav-bottom",
-          only: "mobile",
-          title: "CRM and Traction",
-          text: "The bar shows one group of pages at a time. Pull it down, or tap the small CRM · Traction label above it, to switch between the CRM and Traction.",
-        },
+        NAV_SWITCH,
         {
           target: "traction-tiles",
           title: "This week at a glance",
           text: "The Scorecard's latest numbers, this quarter's Rocks, open issues and how many L10 To-Dos are done. Tap a tile to open its page.",
         },
         {
-          target: "traction-loop",
-          title: "How it all connects",
-          text: "A red number or an off-track Rock becomes an issue, the L10 solves it, and the solution becomes a To-Do. That loop is the whole system.",
+          target: "traction-next-l10",
+          title: "The next L10",
+          text: "The top three issues the next meeting will solve, when the last one happened, and the button to start it.",
+        },
+        {
+          target: "vto-vision",
+          title: "Vision",
+          text: "Who the company is and where it's going: core values, focus, the 10-year target and the marketing strategy.",
+        },
+        {
+          target: "vto-traction",
+          title: "Traction",
+          text: "The 3-year picture and the 1-year plan, plus this quarter's Rocks and the long-term issues, taken live from their pages.",
+        },
+        {
+          target: "vto-edit",
+          title: "Edit the V/TO",
+          text: "Update it at each quarterly. Dates use a date picker; revenue and profit take an amount like 600000 or 3M.",
         },
         HELP_AGAIN,
       ],
@@ -778,6 +800,7 @@ const ENTRIES: Entry[] = [
         },
       ],
       tour: [
+        NAV_SWITCH,
         {
           target: "scorecard-cadence",
           title: "Weekly or monthly",
@@ -819,6 +842,7 @@ const ENTRIES: Entry[] = [
         },
       ],
       tour: [
+        NAV_SWITCH,
         {
           target: "rocks-quarters",
           title: "Pick a quarter",
@@ -860,6 +884,7 @@ const ENTRIES: Entry[] = [
         },
       ],
       tour: [
+        NAV_SWITCH,
         {
           target: "issues-horizon",
           title: "Short or long term",
@@ -905,6 +930,7 @@ const ENTRIES: Entry[] = [
         },
       ],
       tour: [
+        NAV_SWITCH,
         {
           target: "l10-agenda",
           title: "The agenda",
@@ -919,41 +945,6 @@ const ENTRIES: Entry[] = [
           target: "l10-section",
           title: "Live data",
           text: "Each step shows what it needs: numbers off goal, Rock statuses, this week's To-Dos, the top issues to solve.",
-        },
-        HELP_AGAIN,
-      ],
-    }),
-  },
-  {
-    path: "/traction/vto",
-    build: () => ({
-      title: "Vision / Traction Organizer",
-      summary: "The company's vision and plan on one page.",
-      sections: [
-        {
-          heading: "What it's for",
-          body: "Where the company is going (core values, focus, the 10-year target, the marketing strategy) and how it gets there (the 3-year picture, the 1-year plan, this quarter's Rocks).",
-        },
-        {
-          heading: "Good to know",
-          body: "Blank sections show as dashed gaps on purpose: they are work still to do. The Rocks and Issues sections are live, taken from their own pages.",
-        },
-      ],
-      tour: [
-        {
-          target: "vto-vision",
-          title: "Vision",
-          text: "Who the company is and where it's going. These change rarely, so revisit them at the annual planning.",
-        },
-        {
-          target: "vto-traction",
-          title: "Traction",
-          text: "The 3-year picture and the 1-year plan, plus this quarter's Rocks and the long-term issues, taken live from their pages.",
-        },
-        {
-          target: "vto-edit",
-          title: "Edit",
-          text: "Update the V/TO at each quarterly. Lists take one item per line.",
         },
         HELP_AGAIN,
       ],

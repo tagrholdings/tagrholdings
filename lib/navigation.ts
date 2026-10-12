@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { stripWorkspacePrefix } from "@/lib/workspace-path";
-import { FolderKanban, Users, ListChecks, Inbox, Target, LayoutDashboard, LineChart, Gem, CircleAlert, Timer, ScrollText } from "lucide-react";
+import { FolderKanban, Users, ListChecks, Inbox, Target, LayoutDashboard, LineChart, Gem, CircleAlert, Timer } from "lucide-react";
 
 export interface NavItem {
   label: string;
@@ -35,12 +35,11 @@ export const NAV_ITEMS: NavItem[] = [
 
 /** Traction — the EOS operating system (see .agents/docs/EOS_PLAN.md), in the order a week uses it. */
 export const TRACTION_NAV_ITEMS: NavItem[] = [
-  { label: "Overview", href: "/traction", icon: LayoutDashboard, exact: true },
+  { label: "Overview", href: "/traction", icon: LayoutDashboard, exact: true }, // the week at a glance + the V/TO
   { label: "Scorecard", href: "/traction/scorecard", icon: LineChart },
   { label: "Rocks", href: "/traction/rocks", icon: Gem },
   { label: "Issues", href: "/traction/issues", icon: CircleAlert },
   { label: "L10 Meeting", href: "/traction/l10", icon: Timer },
-  { label: "V/TO", href: "/traction/vto", icon: ScrollText },
 ];
 
 /**

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { BookOpen, Check, Loader2, LogOut, Moon, Settings, ShieldCheck, Sun } from "lucide-react";
+import { BookOpen, Briefcase, Check, Loader2, LogOut, Moon, Settings, ShieldCheck, Sun } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { notify } from "@/components/ui/toaster";
 import { useTheme } from "@/hooks/ui/use-theme";
@@ -114,6 +114,15 @@ function WorkspaceSwitcherItems() {
             <ShieldCheck className="size-4" />
           </span>
           Manage workspaces
+        </DropdownMenuItem>
+      )}
+      {/* The super admin's view across every workspace's Traction — outside any one workspace, so a plain path. */}
+      {workspace.isSuperAdmin && (
+        <DropdownMenuItem className="gap-3 text-left md:py-2" onSelect={() => router.push("/admin/portfolio")}>
+          <span aria-hidden className="flex size-8 shrink-0 items-center justify-center rounded-md border border-dashed border-divider">
+            <Briefcase className="size-4" />
+          </span>
+          Portfolio
         </DropdownMenuItem>
       )}
       <DropdownMenuSeparator />

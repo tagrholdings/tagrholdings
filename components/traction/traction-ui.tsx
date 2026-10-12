@@ -4,13 +4,8 @@ import { ChevronDown } from "lucide-react";
 import { cn, initialsFor } from "@/lib/utils";
 import { CommandSelect } from "@/components/shared/command-select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { memberName } from "@/modules/traction/traction.logic";
 import { ROCK_STATUSES, ROCK_STATUS_LABELS, type RockStatus, type TractionMember } from "@/modules/traction/traction.types";
-
-export function memberName(members: TractionMember[], userId: string | null | undefined): string | null {
-  if (!userId) return null;
-  const member = members.find((m) => m.id === userId);
-  return member ? member.name || member.email : null;
-}
 
 /** An owner: initials + name, or a muted "No owner". Every Traction row shows one — EOS's "everyone has a number". */
 export function OwnerBadge({ members, userId, compact = false, className }: { members: TractionMember[]; userId: string | null | undefined; compact?: boolean; className?: string }) {

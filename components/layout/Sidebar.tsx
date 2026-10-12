@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Briefcase, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_SECTIONS, isNavItemActive, type NavItem } from "@/lib/navigation";
 import { AnimatedWaves } from "@/components/shared/animated-waves";
@@ -126,19 +126,6 @@ export function Sidebar({
             </div>
           ))}
         </nav>
-
-        {/* The super admin's view across every workspace — outside any one workspace, so a plain path. */}
-        {workspace.isSuperAdmin && (
-          <div className="px-3 pt-3">
-            <SidebarLink
-              item={{ label: "Portfolio", href: "/admin/portfolio", icon: Briefcase }}
-              href="/admin/portfolio"
-              isActive={false}
-              collapsed={collapsed}
-            />
-          </div>
-        )}
-
         <div className={cn("mt-auto border-t border-sidebar-border py-4", collapsed ? "px-2" : "px-3")}>
           {/* The avatar is the account menu — it also holds the workspace switcher (same menu as the header's avatar). */}
           <DropdownMenu>

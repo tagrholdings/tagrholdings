@@ -1,39 +1,34 @@
 import Link from "next/link";
 import { getWorkspace } from "@/lib/auth-server";
 import { HubPage } from "@/components/layout/HubPage";
-import { RockBar, RockStatusPill, memberName } from "@/components/traction/traction-ui";
+import { RockBar } from "@/components/traction/traction-ui";
 import { tractionService } from "@/modules/traction/traction.service";
 import { tenancyService } from "@/modules/tenancy/tenancy.service";
 import { percent, quarterLabel } from "@/modules/traction/traction.logic";
 import { workspacePath } from "@/lib/workspace-path";
 import { initialsFor } from "@/lib/utils";
 import { formatDateUS } from "@/utils/date";
+import { VtoView } from "./_components/VtoView";
 
 export const dynamic = "force-dynamic";
 
-const LOOP = [
-  { label: "Scorecard", title: "A number misses its goal", text: "The cell turns red." },
-  { label: "Rocks", title: "A Rock goes off track", text: "Its owner flips the status." },
-  { label: "Issues", title: "One click drops it to Issues", text: "Linked to where it came from." },
-  { label: "IDS", title: "The L10 solves the top 3", text: "Identify, Discuss, Solve." },
-  { label: "To-Do", title: "Each solution becomes a To-Do", text: "A 7-day commitment, in Activities." },
-];
-
-/** Traction's landing page: the company's state on one screen, and how the pieces feed each other. */
+/**
+ * Traction's landing page: where the company stands this week (the tiles and the next L10) and where it's going (the
+ * V/TO, editable in place). One page, so the plan and the weekly numbers are always read together.
+ */
 export default async function TractionOverviewPage({ params }: { params: Promise<{ workspace: string }> }) {
   const { workspace: slug } = await params;
   const { user } = await getWorkspace(slug);
-  const [summary, rocksData, issues, meetings, members] = await Promise.all([
+  const [summary, vto, rocksData, issues, members] = await Promise.all([
     tractionService.getSummary(user.tenantId),
+    tractionService.getVto(user.tenantId),
     tractionService.getRocks(user.tenantId),
     tractionService.getIssues(user.tenantId),
-    tractionService.getMeetings(user.tenantId, 3),
     tenancyService.listMembers(user.tenantId),
   ]);
   const href = (path: string) => workspacePath(slug, path);
-  const offTrack = rocksData.rocks.filter((r) => r.quarter === summary.rocks.quarter && r.status === "off_track");
   const topIssues = issues.filter((i) => i.status === "open" && i.horizon === "short_term").slice(0, 3);
-  const { scorecard, rocks, todos } = summary;
+  const { scorecard, rocks, todos, lastMeeting } = summary;
 
   return (
     <HubPage user={{ name: user.name || user.email, initials: initialsFor(user.name || user.email) }} kicker="Traction" title="Overview">
@@ -63,85 +58,38 @@ export default async function TractionOverviewPage({ params }: { params: Promise
         </Tile>
       </div>
 
-      <section data-tour="traction-loop" className="rounded-lg border border-divider bg-surface">
-        <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-divider px-4 py-3">
-          <h2 className="font-serif text-lg font-semibold">How the pieces connect</h2>
-          <span className="text-xs text-muted-foreground">Every weekly L10 runs this loop</span>
-        </div>
-        <ol className="grid gap-px overflow-hidden bg-divider/50 sm:grid-cols-5">
-          {LOOP.map((step, i) => (
-            <li key={step.label} className="bg-surface px-4 py-3">
-              <p className="label-kicker text-accent-text">
-                {i + 1} · {step.label}
-              </p>
-              <p className="mt-1 text-sm font-medium">{step.title}</p>
-              <p className="text-xs text-muted-foreground">{step.text}</p>
-            </li>
-          ))}
-        </ol>
-      </section>
-
-      <div className="grid items-start gap-4 lg:grid-cols-2">
-        <section className="rounded-lg border border-divider bg-surface">
-          <div className="flex items-center justify-between border-b border-divider px-4 py-3">
-            <h2 className="font-serif text-lg font-semibold">Off track this quarter</h2>
-            <Link href={href("/traction/rocks")} className="text-sm font-medium text-accent-text hover:text-accent-hover">
-              All Rocks
-            </Link>
-          </div>
-          {offTrack.length === 0 ? (
-            <p className="px-4 py-6 text-sm text-muted-foreground">Nothing off track. Keep going.</p>
+      <section data-tour="traction-next-l10" className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-lg border border-divider bg-surface px-4 py-3">
+        <div className="min-w-0 flex-1 basis-64">
+          <p className="label-kicker text-muted-foreground">Next L10 · top issues</p>
+          {topIssues.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No open issues.</p>
           ) : (
-            <ul>
-              {offTrack.map((r) => (
-                <li key={r.id} className="flex items-center justify-between gap-3 border-b border-divider/50 px-4 py-2.5 last:border-0">
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-medium">{r.title}</span>
-                    <span className="block text-xs text-muted-foreground">{memberName(members, r.ownerUserId) ?? "No owner"}</span>
-                  </span>
-                  <RockStatusPill status={r.status} />
+            <ol className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+              {topIssues.map((issue, i) => (
+                <li key={issue.id}>
+                  <span className="mr-1.5 font-semibold tabular-nums">{i + 1}.</span>
+                  {issue.title}
                 </li>
               ))}
-            </ul>
+            </ol>
           )}
-        </section>
+        </div>
+        <p className="text-sm text-muted-foreground tabular-nums">
+          {lastMeeting ? `Last L10 ${formatDateUS(lastMeeting.heldAt, { month: "short", day: "numeric" })} · rating ${lastMeeting.averageRating ?? "—"}` : "No L10 recorded yet"}
+        </p>
+        <Link href={href("/traction/l10")} className="rounded-pill bg-accent px-4 py-2 text-sm font-medium text-ink hover:bg-accent-hover">
+          Start meeting
+        </Link>
+      </section>
 
-        <section className="rounded-lg border border-divider bg-surface">
-          <div className="flex items-center justify-between border-b border-divider px-4 py-3">
-            <h2 className="font-serif text-lg font-semibold">Next L10</h2>
-            <Link href={href("/traction/l10")} className="rounded-pill bg-accent px-3 py-1.5 text-sm font-medium text-ink hover:bg-accent-hover">
-              Start meeting
-            </Link>
-          </div>
-          <div className="space-y-3 px-4 py-3 text-sm">
-            <div>
-              <p className="label-kicker text-muted-foreground">Top issues</p>
-              {topIssues.length === 0 ? <p className="text-muted-foreground">No open issues.</p> : (
-                <ol className="list-decimal pl-5">
-                  {topIssues.map((i) => (
-                    <li key={i.id}>{i.title}</li>
-                  ))}
-                </ol>
-              )}
-            </div>
-            <div>
-              <p className="label-kicker text-muted-foreground">Recent meetings</p>
-              {meetings.length === 0 ? <p className="text-muted-foreground">No L10 recorded yet.</p> : (
-                <ul className="space-y-0.5">
-                  {meetings.map((m) => (
-                    <li key={m.id} className="flex justify-between gap-3 tabular-nums">
-                      <span>{formatDateUS(m.heldAt)}</span>
-                      <span className="text-muted-foreground">
-                        rating {m.averageRating ?? "—"} · To-Dos {percent(m.todosDone, m.todosTotal)}%
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        </section>
-      </div>
+      <VtoView
+        content={vto.content}
+        updatedAt={vto.updatedAt}
+        quarter={rocksData.focusQuarter}
+        rocks={rocksData.rocks.filter((r) => r.quarter === rocksData.focusQuarter)}
+        longTermIssues={issues.filter((i) => i.horizon === "long_term" && i.status === "open")}
+        members={members}
+      />
     </HubPage>
   );
 }

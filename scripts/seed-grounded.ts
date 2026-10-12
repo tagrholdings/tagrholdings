@@ -141,10 +141,10 @@ const VTO = {
   coreValues: [],
   purpose: "",
   niche: "Grounded In Trust",
-  tenYear: { date: "Jan 30, 2036", revenue: "$20M", picture: "60–70 techs, multiple markets" },
+  tenYear: { date: "2036-01-30", revenue: 20_000_000, picture: "60–70 techs, multiple markets" },
   marketing: { targetMarket: "", uniques: [], provenProcess: "Onboarding", guarantee: "" },
-  threeYear: { date: "Jan 30, 2029", revenue: "$3M", profit: "", measurables: "", picture: ["8–10 trucks", "Office", "Team / staff"] },
-  oneYear: { date: "Jan 30, 2027", revenue: "$600K", profit: "", measurables: "", goals: ["4–5 trucks", "Conex"] },
+  threeYear: { date: "2029-01-30", revenue: 3_000_000, profit: null, measurables: "", picture: ["8–10 trucks", "Office", "Team / staff"] },
+  oneYear: { date: "2027-01-30", revenue: 600_000, profit: null, measurables: "", goals: ["4–5 trucks", "Conex"] },
 };
 
 // ───────────────────────────── Run ─────────────────────────────
