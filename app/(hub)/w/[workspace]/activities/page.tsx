@@ -10,8 +10,8 @@ import { ActivitiesView } from "./_components/ActivitiesView";
 
 export const dynamic = "force-dynamic";
 
-export default async function ActivitiesPage({ params, searchParams }: { params: Promise<{ workspace: string }>; searchParams: Promise<{ activity?: string }> }) {
-  const [{ activity }, { workspace: slug }] = await Promise.all([searchParams, params]);
+export default async function ActivitiesPage({ params, searchParams }: { params: Promise<{ workspace: string }>; searchParams: Promise<{ activity?: string; filter?: string }> }) {
+  const [{ activity, filter }, { workspace: slug }] = await Promise.all([searchParams, params]);
   const { user } = await getWorkspace(slug);
   const [activities, contacts, organizations, pipelineItems, members] = await Promise.all([
     activitiesService.listForTenant(user.tenantId),
@@ -31,6 +31,7 @@ export default async function ActivitiesPage({ params, searchParams }: { params:
         activities={activities}
         lookups={{ contacts, organizations, members, pipelineItems }}
         initialSelectedId={activity ?? null}
+        initialFilter={filter}
       />
     </HubPage>
   );

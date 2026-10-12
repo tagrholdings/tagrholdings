@@ -5,6 +5,7 @@ import { tenantsTable, tenantIsolationPolicy } from "@/modules/tenancy/tenancy.s
 import { contactsTable } from "@/modules/contacts/contacts.schema";
 import { organizationsTable } from "@/modules/organizations/organizations.schema";
 import { pipelineItemsTable } from "@/modules/pipeline/pipeline.schema";
+import { tractionIssuesTable } from "@/modules/traction/traction.schema";
 
 // type: "call" | "meeting" | "task" | "email" | "follow_up" — free text, not a DB enum.
 // priority: "low" | "medium" | "high" — also free text, same reasoning.
@@ -39,6 +40,10 @@ export const activitiesTable = pgTable(
     notify: boolean("notify").notNull().default(false),
     /** Set when the reminder went out (claimed by the reminder job) so it fires once; cleared when `dueDate` moves. */
     notifiedAt: timestamp("notified_at"),
+    /** An L10 To-Do — a 7-day commitment made in the weekly meeting (Traction). Shown under the "L10 To-Dos" filter. */
+    l10Todo: boolean("l10_todo").notNull().default(false),
+    /** The Issue this To-Do came out of, when it was created by solving one. */
+    issueId: uuid("issue_id"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
@@ -62,6 +67,11 @@ export const activitiesTable = pgTable(
       name: "activities_assigned_contact_same_tenant_fk",
       columns: [t.tenantId, t.assignedToContactId],
       foreignColumns: [contactsTable.tenantId, contactsTable.id],
+    }),
+    foreignKey({
+      name: "activities_issue_same_tenant_fk",
+      columns: [t.tenantId, t.issueId],
+      foreignColumns: [tractionIssuesTable.tenantId, tractionIssuesTable.id],
     }),
     tenantIsolationPolicy("activities"),
   ]

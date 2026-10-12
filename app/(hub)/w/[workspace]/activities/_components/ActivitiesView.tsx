@@ -29,13 +29,14 @@ import { WeekBoard, type WeekDateField } from "./WeekBoard";
 
 type View = "board" | "list";
 
-const FILTERS: { id: DueBucket | "all" | "open" | "done"; label: string }[] = [
+const FILTERS: { id: DueBucket | "all" | "open" | "done" | "l10"; label: string }[] = [
   { id: "open", label: "Open" },
   { id: "overdue", label: "Overdue" },
   { id: "today", label: "Today" },
   { id: "tomorrow", label: "Tomorrow" },
   { id: "this_week", label: "Next 7 days" },
   { id: "done", label: "Done" },
+  { id: "l10", label: "L10 To-Dos" },
   { id: "all", label: "All" },
 ];
 
@@ -64,6 +65,8 @@ function applyPatch(state: ActivityRow[], patch: Patch): ActivityRow[] {
 
 function matchesFilter(activity: ActivityRow, filter: (typeof FILTERS)[number]["id"]) {
   if (filter === "all") return true;
+  // The weekly meeting's commitments (Traction), open and done — done ones still count in the week's completion rate.
+  if (filter === "l10") return activity.l10Todo;
   if (filter === "done") return activity.done;
   if (filter === "open") return !activity.done;
   if (activity.done) return false;
@@ -83,20 +86,24 @@ export function ActivitiesView({
   activities: initialActivities,
   lookups,
   initialSelectedId,
+  initialFilter = "open",
 }: {
   activities: ActivityRow[];
   lookups: ActivityLookups;
   initialSelectedId: string | null;
+  /** `?filter=` from the URL — e.g. "l10" when Traction links to the week's To-Dos. */
+  initialFilter?: string;
 }) {
   const isMobile = useIsMobile();
-  const [view, setView] = useState<View | null>(null);
+  // A filter in the link (e.g. Traction's "L10 To-Dos") is a list filter, so it opens the List view.
+  const [view, setView] = useState<View | null>(initialFilter !== "open" ? "list" : null);
   // Until the user picks one, the default follows the device: List on
   // mobile, Board elsewhere (no effect needed — just derived).
   const resolvedView: View = view ?? (isMobile ? "list" : "board");
 
   const [dateField, setDateField] = useState<WeekDateField>("dueDate");
   const [weekOffset, setWeekOffset] = useState(0);
-  const [filter, setFilter] = useState<(typeof FILTERS)[number]["id"]>("open");
+  const [filter, setFilter] = useState<(typeof FILTERS)[number]["id"]>(() => FILTERS.find((f) => f.id === initialFilter)?.id ?? "open");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
 

@@ -1,7 +1,7 @@
 import { UserFacingError } from "@/lib/errors";
 import { tenancyService } from "@/modules/tenancy/tenancy.service";
 import { activitiesRepository } from "./activities.repository";
-import type { ActivityUpdate, NewActivity } from "./activities.types";
+import type { ActivityLink, ActivityUpdate, NewActivity } from "./activities.types";
 
 const REMINDER_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
@@ -10,14 +10,15 @@ export const activitiesService = {
     return activitiesRepository.findAllWithRelations(tenantId);
   },
 
-  async create(tenantId: string, data: NewActivity, createdByUserId: string | null = null) {
+  /** `link` marks an L10 To-Do (Traction) and the issue it came from — set by tractionService, never by the activity form. */
+  async create(tenantId: string, data: NewActivity, createdByUserId: string | null = null, link: ActivityLink = {}) {
     // contact/organization/pipeline-item links are enforced by composite
     // (tenant_id, x_id) foreign keys; the assignee is a Neon Auth user id with
     // no FK possible, so its tenant membership is checked here.
     if (data.assignedToUserId && !(await tenancyService.isMember(tenantId, data.assignedToUserId))) {
       throw new UserFacingError("That team member isn't part of this workspace.");
     }
-    return activitiesRepository.create(tenantId, data, createdByUserId);
+    return activitiesRepository.create(tenantId, data, createdByUserId, link);
   },
 
   async update(tenantId: string, data: ActivityUpdate) {
@@ -42,6 +43,14 @@ export const activitiesService = {
   /** Reminders due now, marked as sent. Anything more than a day overdue is dropped rather than sent late. */
   async claimDueReminders(tenantId: string, now: Date = new Date()) {
     return activitiesRepository.claimDueReminders(tenantId, now, new Date(now.getTime() - REMINDER_MAX_AGE_MS));
+  },
+
+  async listL10Todos(tenantId: string, doneSince: Date) {
+    return activitiesRepository.findL10Todos(tenantId, doneSince);
+  },
+
+  async unlinkIssue(tenantId: string, issueId: string) {
+    await activitiesRepository.unlinkIssue(tenantId, issueId);
   },
 
   async unlinkPipelineItems(tenantId: string, pipelineItemIds: string[]) {

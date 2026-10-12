@@ -3,9 +3,9 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Briefcase, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { NAV_ITEMS, isNavItemActive } from "@/lib/navigation";
+import { NAV_SECTIONS, isNavItemActive, type NavItem } from "@/lib/navigation";
 import { AnimatedWaves } from "@/components/shared/animated-waves";
 import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { workspacePath } from "@/lib/workspace-path";
@@ -104,42 +104,40 @@ export function Sidebar({
           )}
         </div>
 
-        <nav className="flex-1 space-y-0.5 px-3">
-        {NAV_ITEMS.map((item) => {
-          const isActive = isNavItemActive(currentHref, item.href);
-          const badgeCount = item.badgeKey ? badges?.[item.badgeKey] : undefined;
-          const Icon = item.icon;
-
-          return (
-            <Link
-              key={item.href}
-              href={workspacePath(workspace.slug, item.href)}
-              aria-current={isActive ? "page" : undefined}
-              title={collapsed ? item.label : undefined}
-              className={cn(
-                "flex items-center rounded-md py-2.5 text-sm transition-colors",
-                collapsed ? "justify-center px-0" : "gap-3 px-3",
-                isActive
-                  ? "text-accent font-medium"
-                  : "text-sidebar-foreground-muted hover:bg-sidebar-hover hover:text-sidebar-foreground"
+        <nav className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-3">
+          {NAV_SECTIONS.map((section, index) => (
+            <div key={section.id} className={cn("space-y-0.5", index > 0 && "mt-4")}>
+              {/* Collapsed, a section's label shrinks to a hairline so the groups still read as two. */}
+              {collapsed ? (
+                index > 0 && <div className="mx-2 mb-3 border-t border-sidebar-border" aria-hidden />
+              ) : (
+                <p className="label-kicker px-3 pb-1 text-sidebar-foreground-muted">{section.label}</p>
               )}
-            >
-              <span className="relative flex shrink-0 items-center justify-center">
-                <Icon className="size-4" aria-hidden />
-                {collapsed && !!badgeCount && (
-                  <span className="absolute -top-1 -right-1 size-2 rounded-full bg-accent" />
-                )}
-              </span>
-              {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
-              {!collapsed && !!badgeCount && (
-                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-semibold text-ink">
-                  {badgeCount > 99 ? "99+" : badgeCount}
-                </span>
-              )}
-            </Link>
-          );
-        })}
+              {section.items.map((item) => (
+                <SidebarLink
+                  key={item.href}
+                  item={item}
+                  href={workspacePath(workspace.slug, item.href)}
+                  isActive={isNavItemActive(currentHref, item.href, item.exact)}
+                  badgeCount={item.badgeKey ? badges?.[item.badgeKey] : undefined}
+                  collapsed={collapsed}
+                />
+              ))}
+            </div>
+          ))}
         </nav>
+
+        {/* The super admin's view across every workspace — outside any one workspace, so a plain path. */}
+        {workspace.isSuperAdmin && (
+          <div className="px-3 pt-3">
+            <SidebarLink
+              item={{ label: "Portfolio", href: "/admin/portfolio", icon: Briefcase }}
+              href="/admin/portfolio"
+              isActive={false}
+              collapsed={collapsed}
+            />
+          </div>
+        )}
 
         <div className={cn("mt-auto border-t border-sidebar-border py-4", collapsed ? "px-2" : "px-3")}>
           {/* The avatar is the account menu — it also holds the workspace switcher (same menu as the header's avatar). */}
@@ -170,5 +168,46 @@ export function Sidebar({
         </div>
       </div>
     </aside>
+  );
+}
+
+function SidebarLink({
+  item,
+  href,
+  isActive,
+  badgeCount,
+  collapsed,
+}: {
+  item: NavItem;
+  href: string;
+  isActive: boolean;
+  badgeCount?: number;
+  collapsed: boolean;
+}) {
+  const Icon = item.icon;
+  return (
+    <Link
+      href={href}
+      aria-current={isActive ? "page" : undefined}
+      title={collapsed ? item.label : undefined}
+      className={cn(
+        "flex items-center rounded-md py-2.5 text-sm transition-colors",
+        collapsed ? "justify-center px-0" : "gap-3 px-3",
+        isActive
+          ? "text-accent font-medium"
+          : "text-sidebar-foreground-muted hover:bg-sidebar-hover hover:text-sidebar-foreground"
+      )}
+    >
+      <span className="relative flex shrink-0 items-center justify-center">
+        <Icon className="size-4" aria-hidden />
+        {collapsed && !!badgeCount && <span className="absolute -top-1 -right-1 size-2 rounded-full bg-accent" />}
+      </span>
+      {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
+      {!collapsed && !!badgeCount && (
+        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-semibold text-ink">
+          {badgeCount > 99 ? "99+" : badgeCount}
+        </span>
+      )}
+    </Link>
   );
 }

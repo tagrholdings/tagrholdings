@@ -30,9 +30,14 @@ export default async function AdminPage() {
             <p className="label-kicker text-muted-foreground">Platform</p>
             <h1 className="font-serif text-2xl font-semibold text-foreground">Workspaces</h1>
           </div>
-          <Link href="/home" className="text-sm font-medium text-accent-text hover:text-accent-hover">
-            Back to the CRM
-          </Link>
+          <div className="flex gap-4 text-sm font-medium">
+            <Link href="/admin/portfolio" className="text-accent-text hover:text-accent-hover">
+              Portfolio
+            </Link>
+            <Link href="/home" className="text-accent-text hover:text-accent-hover">
+              Back to the CRM
+            </Link>
+          </div>
         </header>
 
         <section className="rounded-lg border border-divider bg-surface p-5">

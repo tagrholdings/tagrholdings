@@ -155,6 +155,7 @@ export function buildOptimisticActivity(input: NewActivity, lookups: ActivityLoo
     assignedToContactId: input.assignedToContactId ?? null,
     assignedToContactName: nameOf(lookups.contacts, input.assignedToContactId),
     notify: input.notify ?? false,
+    l10Todo: false,
   };
 }
 

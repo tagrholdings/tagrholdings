@@ -107,13 +107,13 @@ const ENTRIES: Entry[] = [
           target: "nav-sidebar",
           only: "desktop",
           title: "Getting around",
-          text: "Everything starts here: the Leads Inbox for new finds, Leads for deals you are working, and Settings at the bottom.",
+          text: "Everything starts here, in two groups: CRM (the Leads Inbox for new finds, Leads for deals you are working, and more) and Traction (the company's operating system: Scorecard, Rocks, Issues, the weekly L10 and the V/TO).",
         },
         {
           target: "nav-bottom",
           only: "mobile",
           title: "Getting around",
-          text: "These icons switch between the main parts of the CRM: the inbox of new finds, the leads you are working, and more. Your avatar on the far right opens the account menu: settings, workspaces, dark mode and sign out.",
+          text: "These icons switch between the main parts of the CRM: the inbox of new finds, the leads you are working, and more. Pull the bar down (or tap the small CRM · Traction label above it) to switch to Traction's pages. Your avatar on the far right opens the account menu: settings, workspaces, dark mode and sign out.",
         },
         {
           target: "leads-inbox-tabs",
@@ -710,6 +710,250 @@ const ENTRIES: Entry[] = [
           target: "spend-runs",
           title: "Run by run",
           text: "Each search run shows what it cost and what it brought back. If a profile costs more than it is worth, lower its cap or how often it runs.",
+        },
+        HELP_AGAIN,
+      ],
+    }),
+  },
+  {
+    path: "/traction",
+    build: () => ({
+      title: "Traction",
+      summary: "The company's operating system (EOS) on one screen: Scorecard, Rocks, Issues and the weekly L10.",
+      sections: [
+        {
+          heading: "What it's for",
+          body: "Every company in the portfolio runs the same system. This page shows where this one stands this week, and each tile opens the page behind it.",
+        },
+        {
+          heading: "How the pieces connect",
+          body: [
+            "Scorecard: a number that misses its goal turns red.",
+            "Rocks: a 90-day priority that slips is marked off track.",
+            "Issues: either one goes to the Issues List in one click.",
+            "L10: the weekly meeting solves the top three issues.",
+            "To-Dos: each solution becomes a 7-day To-Do, kept in Activities.",
+          ],
+        },
+      ],
+      tour: [
+        {
+          target: "nav-bottom",
+          only: "mobile",
+          title: "CRM and Traction",
+          text: "The bar shows one group of pages at a time. Pull it down, or tap the small CRM · Traction label above it, to switch between the CRM and Traction.",
+        },
+        {
+          target: "traction-tiles",
+          title: "This week at a glance",
+          text: "The Scorecard's latest numbers, this quarter's Rocks, open issues and how many L10 To-Dos are done. Tap a tile to open its page.",
+        },
+        {
+          target: "traction-loop",
+          title: "How it all connects",
+          text: "A red number or an off-track Rock becomes an issue, the L10 solves it, and the solution becomes a To-Do. That loop is the whole system.",
+        },
+        HELP_AGAIN,
+      ],
+    }),
+  },
+  {
+    path: "/traction/scorecard",
+    build: () => ({
+      title: "Scorecard",
+      summary: "The handful of numbers that tell you how the company is doing, entered every week or month.",
+      sections: [
+        {
+          heading: "What it's for",
+          body: "Each measurable has one owner and one goal. Enter the number each period and the cell turns green (on goal) or red (off goal) on its own.",
+        },
+        {
+          heading: "What you can do",
+          body: [
+            "Click a cell to type the number. Empty it to clear it.",
+            "Click a red cell and choose Drop to Issues, so the L10 deals with it.",
+            "Click a measurable's name to change its owner, goal or unit, or to archive it.",
+            "Use the arrows to look further back. The quarter column rolls up the whole quarter.",
+          ],
+        },
+      ],
+      tour: [
+        {
+          target: "scorecard-cadence",
+          title: "Weekly or monthly",
+          text: "Each measurable is entered either every week or every month. Switch here to see one group or the other.",
+        },
+        {
+          target: "scorecard-grid",
+          title: "The grid",
+          text: "One row per number, one column per week or month. Click a cell to enter the number; a red one can be dropped to Issues.",
+          demo: { kind: "table", columns: ["Measurable", "Goal", "Jul", "Aug", "Sep"] },
+        },
+        {
+          target: "scorecard-add",
+          title: "Add a measurable",
+          text: "Give it a name, an owner and a goal. Without a goal the cells stay neutral, never red or green.",
+          demo: { kind: "vault", fields: ["Name", "Owner", "Goal"], button: "Add measurable" },
+        },
+        HELP_AGAIN,
+      ],
+    }),
+  },
+  {
+    path: "/traction/rocks",
+    build: () => ({
+      title: "Rocks",
+      summary: "The company's 90-day priorities, one quarter at a time.",
+      sections: [
+        {
+          heading: "What it's for",
+          body: "A Rock is something that must get done this quarter, with one owner, a due date and a clear finish line. EOS recommends 3 to 7 per quarter.",
+        },
+        {
+          heading: "What you can do",
+          body: [
+            "Change a Rock's status from its pill: on track, off track, complete or dropped.",
+            "When a Rock is off track, drop it to Issues so the L10 can solve it.",
+            "Click a Rock to edit it, move it to another quarter or delete it.",
+          ],
+        },
+      ],
+      tour: [
+        {
+          target: "rocks-quarters",
+          title: "Pick a quarter",
+          text: "Each quarter has its own Rocks. The current one is marked now; past quarters keep their history.",
+        },
+        {
+          target: "rocks-list",
+          title: "The quarter's Rocks",
+          text: "Each Rock shows its owner, due date and status. The bar on top shows how the quarter is going.",
+          demo: { kind: "table", columns: ["Rock", "Owner", "Status"] },
+        },
+        {
+          target: "rocks-add",
+          title: "Add a Rock",
+          text: "Write it so anyone could check whether it's done, and give it a single owner.",
+          demo: { kind: "vault", fields: ["Rock", "Owner", "Done when"], button: "Add Rock" },
+        },
+        HELP_AGAIN,
+      ],
+    }),
+  },
+  {
+    path: "/traction/issues",
+    build: () => ({
+      title: "Issues",
+      summary: "Everything in the way, ranked, so the L10 solves what matters most first.",
+      sections: [
+        {
+          heading: "What it's for",
+          body: "An issue can be a problem, an idea or an opportunity. The weekly L10 ranks the list and solves the top three, one at a time.",
+        },
+        {
+          heading: "The two lists",
+          body: ["This week (L10): solved in the weekly meeting.", "Long term (V/TO): bigger topics, worked at the quarterly."],
+        },
+        {
+          heading: "Solving",
+          body: "Solve asks for the decision and, usually, the To-Do that carries it out. That To-Do lands in Activities and in the next L10.",
+        },
+      ],
+      tour: [
+        {
+          target: "issues-horizon",
+          title: "Short or long term",
+          text: "Weekly issues are solved in the L10. Long-term ones belong to the V/TO and the quarterly meeting.",
+        },
+        {
+          target: "issues-list",
+          title: "Ranked list",
+          text: "The top three (dark numbers) are what the next L10 works on. Use the menu to move an issue up or down, edit, drop or delete it.",
+          demo: { kind: "table", columns: ["#", "Issue", "Owner"] },
+        },
+        {
+          target: "issues-add",
+          title: "Add an issue",
+          text: "Anyone can add one. Red Scorecard cells and off-track Rocks arrive here when someone drops them.",
+          demo: { kind: "vault", fields: ["Issue", "Details", "Owner"], button: "Add issue" },
+        },
+        HELP_AGAIN,
+      ],
+    }),
+  },
+  {
+    path: "/traction/l10",
+    build: () => ({
+      title: "L10 Meeting",
+      summary: "The weekly leadership meeting, run step by step from the CRM.",
+      sections: [
+        {
+          heading: "What it's for",
+          body: "The operator runs the L10 every week, same day and time. Each step shows live data: the Scorecard, Rocks, To-Dos and Issues. Nothing is copied by hand.",
+        },
+        {
+          heading: "The agenda",
+          body: [
+            "Segue, Scorecard, Rock Review, Headlines and To-Dos: 5 minutes each.",
+            "IDS: 60 minutes to solve the top issues.",
+            "Conclude: recap, then everyone rates the meeting from 1 to 10.",
+          ],
+        },
+        {
+          heading: "After the meeting",
+          body: "Conclude records the meeting with this week's numbers. It shows on the Overview and in the owner's Portfolio.",
+        },
+      ],
+      tour: [
+        {
+          target: "l10-agenda",
+          title: "The agenda",
+          text: "Go through it in order, or jump to any step. Each step has its own time box.",
+        },
+        {
+          target: "l10-timer",
+          title: "The timer",
+          text: "Start it when the step begins. It turns red when the step runs over its time.",
+        },
+        {
+          target: "l10-section",
+          title: "Live data",
+          text: "Each step shows what it needs: numbers off goal, Rock statuses, this week's To-Dos, the top issues to solve.",
+        },
+        HELP_AGAIN,
+      ],
+    }),
+  },
+  {
+    path: "/traction/vto",
+    build: () => ({
+      title: "Vision / Traction Organizer",
+      summary: "The company's vision and plan on one page.",
+      sections: [
+        {
+          heading: "What it's for",
+          body: "Where the company is going (core values, focus, the 10-year target, the marketing strategy) and how it gets there (the 3-year picture, the 1-year plan, this quarter's Rocks).",
+        },
+        {
+          heading: "Good to know",
+          body: "Blank sections show as dashed gaps on purpose: they are work still to do. The Rocks and Issues sections are live, taken from their own pages.",
+        },
+      ],
+      tour: [
+        {
+          target: "vto-vision",
+          title: "Vision",
+          text: "Who the company is and where it's going. These change rarely, so revisit them at the annual planning.",
+        },
+        {
+          target: "vto-traction",
+          title: "Traction",
+          text: "The 3-year picture and the 1-year plan, plus this quarter's Rocks and the long-term issues, taken live from their pages.",
+        },
+        {
+          target: "vto-edit",
+          title: "Edit",
+          text: "Update the V/TO at each quarterly. Lists take one item per line.",
         },
         HELP_AGAIN,
       ],

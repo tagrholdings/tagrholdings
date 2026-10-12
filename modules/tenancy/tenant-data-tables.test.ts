@@ -60,5 +60,9 @@ describe("TENANT_DATA_TABLES", () => {
     before("pipeline_items", "pipeline_boards");
     before("pipeline_items", "contacts");
     before("contacts", "organizations");
+    before("activities", "traction_issues");
+    before("traction_issues", "traction_measurables");
+    before("traction_issues", "traction_rocks");
+    before("traction_entries", "traction_measurables");
   });
 });

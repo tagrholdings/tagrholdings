@@ -1,11 +1,11 @@
 import { withTenant } from "@/lib/db";
-import { and, eq, gt, inArray, isNull, lte } from "drizzle-orm";
+import { and, asc, eq, gt, gte, inArray, isNull, lte, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { activitiesTable } from "./activities.schema";
 import { contactsTable } from "@/modules/contacts/contacts.schema";
 import { organizationsTable } from "@/modules/organizations/organizations.schema";
 import { pipelineItemsTable } from "@/modules/pipeline/pipeline.schema";
-import type { ActivityUpdate, NewActivity } from "./activities.types";
+import type { ActivityLink, ActivityUpdate, NewActivity } from "./activities.types";
 
 // aliased separately from contactsTable — `contactId` ("about this contact") and
 // `assignedToContactId` ("owned by this contact") can both point at contacts, so
@@ -30,6 +30,7 @@ const withRelationsSelection = {
   assignedToContactId: activitiesTable.assignedToContactId,
   assignedToContactName: assignedContactsTable.name,
   notify: activitiesTable.notify,
+  l10Todo: activitiesTable.l10Todo,
   createdAt: activitiesTable.createdAt,
 };
 
@@ -48,11 +49,11 @@ export const activitiesRepository = {
     );
   },
 
-  async create(tenantId: string, data: NewActivity, createdByUserId: string | null) {
+  async create(tenantId: string, data: NewActivity, createdByUserId: string | null, link: ActivityLink = {}) {
     const [row] = await withTenant(tenantId, (tx) =>
       tx
         .insert(activitiesTable)
-        .values({ ...data, tenantId, createdByUserId })
+        .values({ ...data, ...link, tenantId, createdByUserId })
         .returning()
     );
     return row;
@@ -99,6 +100,40 @@ export const activitiesRepository = {
         .returning();
       return row;
     });
+  },
+
+  /** Open L10 To-Dos, plus the ones finished since `doneSince` (they still count for this week's completion rate). */
+  async findL10Todos(tenantId: string, doneSince: Date) {
+    return withTenant(tenantId, (tx) =>
+      tx
+        .select({
+          id: activitiesTable.id,
+          subject: activitiesTable.subject,
+          done: activitiesTable.done,
+          dueDate: activitiesTable.dueDate,
+          assignedToUserId: activitiesTable.assignedToUserId,
+          updatedAt: activitiesTable.updatedAt,
+        })
+        .from(activitiesTable)
+        .where(
+          and(
+            eq(activitiesTable.tenantId, tenantId),
+            eq(activitiesTable.l10Todo, true),
+            or(eq(activitiesTable.done, false), gte(activitiesTable.updatedAt, doneSince))
+          )
+        )
+        .orderBy(asc(activitiesTable.done), asc(activitiesTable.createdAt))
+    );
+  },
+
+  /** Detaches To-Dos from an issue about to be deleted — the To-Dos themselves stay. */
+  async unlinkIssue(tenantId: string, issueId: string) {
+    await withTenant(tenantId, (tx) =>
+      tx
+        .update(activitiesTable)
+        .set({ issueId: null, updatedAt: new Date() })
+        .where(and(eq(activitiesTable.tenantId, tenantId), eq(activitiesTable.issueId, issueId)))
+    );
   },
 
   /** Detaches activities from pipeline items about to be deleted — the activities themselves stay. */

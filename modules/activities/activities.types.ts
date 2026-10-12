@@ -52,6 +52,12 @@ export const createActivitySchema = withActivityRules(activityFieldsSchema);
 
 export type NewActivity = z.infer<typeof createActivitySchema>;
 
+/** Traction's links on an activity: an L10 To-Do, and the issue it was created from. */
+export interface ActivityLink {
+  l10Todo?: boolean;
+  issueId?: string | null;
+}
+
 /** Editing replaces every editable field: one the form left empty is cleared, not kept. */
 export const updateActivitySchema = withActivityRules(activityFieldsSchema.extend({ id: z.uuid() }));
 
@@ -92,4 +98,6 @@ export interface ActivityRow {
   assignedToContactName: string | null;
   /** A push reminder is set for the due date/time. */
   notify: boolean;
+  /** An L10 To-Do (Traction). */
+  l10Todo: boolean;
 }
