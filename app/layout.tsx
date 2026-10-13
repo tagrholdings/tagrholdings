@@ -70,9 +70,15 @@ export const metadata: Metadata = {
 // chrome color has to follow the active theme (which the user can flip at any
 // time). The <meta name="theme-color"> is rendered by hand in <head> below and
 // kept in sync by the script + use-theme.ts — see lib/theme-colors.ts.
+//
+// No zoom: the CRM (and its installed PWA) behaves like a native app — no pinch zoom, and iOS doesn't zoom in on a
+// focused input. iOS ignores `userScalable` for pinches, so globals.css adds `touch-action` for the installed app.
+// The marketing page (app/page.tsx) turns zoom back on.
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
 };
 

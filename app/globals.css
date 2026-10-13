@@ -212,6 +212,14 @@ html {
   }
 }
 
+/* The installed app never zooms: iOS ignores the viewport's user-scalable=no for pinches, but honours touch-action
+   (pan only — no pinch-zoom, no double-tap zoom). Scrolling and drags are unaffected. */
+@media (display-mode: standalone) {
+  html {
+    touch-action: pan-x pan-y;
+  }
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
