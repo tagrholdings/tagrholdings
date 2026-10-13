@@ -2,29 +2,31 @@
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
-import { useForm, type FieldError, type UseFormRegister } from "react-hook-form";
+import { useFieldArray, useForm, type Control, type FieldErrors, type UseFormRegister } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Pencil } from "lucide-react";
+import { Pencil, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { notify } from "@/components/ui/toaster";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { RockStatusPill } from "@/components/traction/traction-ui";
+import { RuleChecks } from "@/components/traction/rule-checks";
 import { useWorkspacePath } from "@/hooks/ui/use-workspace-path";
 import { saveVtoAction } from "@/modules/traction/traction.actions";
-import { formatCalendarDate, formatCompactCurrency, memberName, parseMoney, quarterLabel } from "@/modules/traction/traction.logic";
+import { formatCalendarDate, formatCompactCurrency, memberName, parseMoney, quarterLabel, type RuleCheck } from "@/modules/traction/traction.logic";
 import type { IssueRow, RockRow, TractionMember, VtoContent } from "@/modules/traction/traction.types";
 import { formatDateUS } from "@/utils/date";
 
 const dateField = z.string().regex(/^(\d{4}-\d{2}-\d{2})?$/, "Pick a date.");
 const moneyField = z.string().refine((v) => v.trim() === "" || parseMoney(v) !== null, "Type an amount, like 600000 or 3M.");
+const countField = z.string().refine((v) => v.trim() === "" || /^\d+$/.test(v.trim()), "A whole number.");
 const text = (max = 500) => z.string().max(max);
 
-/** Lists edit as one textarea (one item per line), except the three uniques, which get a field each. */
+/** Lists edit as one textarea (one item per line); core values and 1-Year goals are rows of their own. */
 const formSchema = z.object({
-  coreValues: text(5000),
+  coreValues: z.array(z.object({ name: text(), behaviors: text(2000) })).max(10),
   purpose: text(),
   niche: text(),
   tenYearDate: dateField,
@@ -39,24 +41,28 @@ const formSchema = z.object({
   threeYearDate: dateField,
   threeYearRevenue: moneyField,
   threeYearProfit: moneyField,
+  threeYearHeadcount: countField,
+  threeYearCustomers: countField,
   threeYearMeasurables: text(),
   threeYearPicture: text(5000),
   oneYearDate: dateField,
   oneYearRevenue: moneyField,
   oneYearProfit: moneyField,
   oneYearMeasurables: text(),
-  oneYearGoals: text(5000),
+  oneYearBudget: text(),
+  oneYearGoals: z.array(z.object({ id: z.string(), text: text() })).max(10),
 });
 type FormValues = z.input<typeof formSchema>;
-type FieldName = keyof FormValues;
+type FieldName = Exclude<keyof FormValues, "coreValues" | "oneYearGoals">;
 
 const toLines = (value: string) => value.split("\n").map((s) => s.trim()).filter(Boolean);
 const moneyText = (n: number | null) => (n === null ? "" : String(n));
 const toMoney = (v: string) => (v.trim() === "" ? null : parseMoney(v));
+const toCount = (v: string) => (v.trim() === "" ? null : Number(v.trim()));
 
 function toForm(c: VtoContent): FormValues {
   return {
-    coreValues: c.coreValues.join("\n"),
+    coreValues: c.coreValues.map((v) => ({ name: v.name, behaviors: v.behaviors.join("\n") })),
     purpose: c.purpose,
     niche: c.niche,
     tenYearDate: c.tenYear.date,
@@ -71,26 +77,51 @@ function toForm(c: VtoContent): FormValues {
     threeYearDate: c.threeYear.date,
     threeYearRevenue: moneyText(c.threeYear.revenue),
     threeYearProfit: moneyText(c.threeYear.profit),
+    threeYearHeadcount: c.threeYear.headcount === null ? "" : String(c.threeYear.headcount),
+    threeYearCustomers: c.threeYear.customers === null ? "" : String(c.threeYear.customers),
     threeYearMeasurables: c.threeYear.measurables,
     threeYearPicture: c.threeYear.picture.join("\n"),
     oneYearDate: c.oneYear.date,
     oneYearRevenue: moneyText(c.oneYear.revenue),
     oneYearProfit: moneyText(c.oneYear.profit),
     oneYearMeasurables: c.oneYear.measurables,
-    oneYearGoals: c.oneYear.goals.join("\n"),
+    oneYearBudget: c.oneYear.budget,
+    oneYearGoals: c.oneYear.goals.map((g) => ({ id: g.id, text: g.text })),
   };
 }
 
 function fromForm(v: FormValues): VtoContent {
   return {
-    coreValues: toLines(v.coreValues),
+    coreValues: v.coreValues.map((cv) => ({ name: cv.name.trim(), behaviors: toLines(cv.behaviors) })).filter((cv) => cv.name),
     purpose: v.purpose.trim(),
     niche: v.niche.trim(),
     tenYear: { date: v.tenYearDate, revenue: toMoney(v.tenYearRevenue), picture: v.tenYearPicture.trim() },
     marketing: { targetMarket: v.targetMarket.trim(), uniques: [v.unique1, v.unique2, v.unique3].map((u) => u.trim()).filter(Boolean), provenProcess: v.provenProcess.trim(), guarantee: v.guarantee.trim() },
-    threeYear: { date: v.threeYearDate, revenue: toMoney(v.threeYearRevenue), profit: toMoney(v.threeYearProfit), measurables: v.threeYearMeasurables.trim(), picture: toLines(v.threeYearPicture) },
-    oneYear: { date: v.oneYearDate, revenue: toMoney(v.oneYearRevenue), profit: toMoney(v.oneYearProfit), measurables: v.oneYearMeasurables.trim(), goals: toLines(v.oneYearGoals) },
+    threeYear: {
+      date: v.threeYearDate,
+      revenue: toMoney(v.threeYearRevenue),
+      profit: toMoney(v.threeYearProfit),
+      headcount: toCount(v.threeYearHeadcount),
+      customers: toCount(v.threeYearCustomers),
+      measurables: v.threeYearMeasurables.trim(),
+      picture: toLines(v.threeYearPicture),
+    },
+    oneYear: {
+      date: v.oneYearDate,
+      revenue: toMoney(v.oneYearRevenue),
+      profit: toMoney(v.oneYearProfit),
+      measurables: v.oneYearMeasurables.trim(),
+      budget: v.oneYearBudget.trim(),
+      // A new goal has no id yet; the server gives it one and keeps existing ones, so Rocks stay linked.
+      goals: v.oneYearGoals.map((g) => ({ id: g.id, text: g.text.trim() })).filter((g) => g.text),
+    },
   };
+}
+
+/** Profit as a share of revenue, when both are set — "$450K (15%)". */
+function profitText(profit: number | null, revenue: number | null) {
+  if (profit === null) return "";
+  return revenue ? `${formatCompactCurrency(profit)} (${Math.round((profit / revenue) * 100)}%)` : formatCompactCurrency(profit);
 }
 
 /** The V/TO, read-only until "Edit". Its Rocks and Issues sections are live (from their pages), never copies. */
@@ -101,6 +132,7 @@ export function VtoView({
   rocks,
   longTermIssues,
   members,
+  checks,
 }: {
   content: VtoContent;
   updatedAt: Date | null;
@@ -108,10 +140,11 @@ export function VtoView({
   rocks: RockRow[];
   longTermIssues: IssueRow[];
   members: TractionMember[];
+  checks: RuleCheck[];
 }) {
   const path = useWorkspacePath();
   const [editing, setEditing] = useState(false);
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormValues>({ resolver: zodResolver(formSchema), defaultValues: toForm(content) });
+  const { register, control, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormValues>({ resolver: zodResolver(formSchema), defaultValues: toForm(content) });
   const f = { register, errors };
 
   const save = handleSubmit(async (values) => {
@@ -124,15 +157,14 @@ export function VtoView({
     setEditing(false);
   });
 
+  const rocksFor = (goalId: string) => rocks.filter((r) => r.oneYearGoalId === goalId).length;
+
   return (
     <section className="flex flex-col gap-3">
       <div className="flex flex-wrap items-end gap-2">
-        <div className="min-w-0 flex-1">
-          <h2 className="font-serif text-lg font-semibold">Vision / Traction Organizer</h2>
-          <p className="text-sm text-muted-foreground">
-            {updatedAt ? `Last updated ${formatDateUS(updatedAt)}.` : "Not filled in yet."} Revisit it at every quarterly.
-          </p>
-        </div>
+        <p className="min-w-0 flex-1 text-sm text-muted-foreground">
+          {updatedAt ? `Last updated ${formatDateUS(updatedAt)}.` : "Not filled in yet."} Share it with the whole company; revisit it at every quarterly.
+        </p>
         {editing ? (
           <>
             <Button variant="outline" onClick={() => { reset(toForm(content)); setEditing(false); }}>
@@ -150,12 +182,37 @@ export function VtoView({
         )}
       </div>
 
+      <RuleChecks checks={checks} />
+
       <form onSubmit={save} className="grid items-start gap-4 lg:grid-cols-2">
         <Panel title="Vision" data-tour="vto-vision">
-          <Row label="Core values">{editing ? <Area {...f} name="coreValues" label="Core values" hint="One per line" /> : <List items={content.coreValues} />}</Row>
+          <Row label="Core values">
+            {editing ? (
+              <CoreValuesEditor control={control} register={register} />
+            ) : content.coreValues.length === 0 ? (
+              <Text value="" />
+            ) : (
+              <ul className="space-y-2 text-sm">
+                {content.coreValues.map((v) => (
+                  <li key={v.name}>
+                    <span className="font-medium">{v.name}</span>
+                    {v.behaviors.length > 0 ? (
+                      <ul className="list-disc pl-5 text-muted-foreground">
+                        {v.behaviors.map((b, i) => (
+                          <li key={i}>{b}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <span className="block text-xs text-muted-foreground italic">No behaviors written yet. Write 2–3, so it can be used to hire, review and fire.</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Row>
           <Row label="Core focus">
             <Pair label="Purpose / cause / passion">{editing ? <Field {...f} name="purpose" label="Purpose" /> : <Text value={content.purpose} />}</Pair>
-            <Pair label="Niche">{editing ? <Field {...f} name="niche" label="Niche" /> : <Text value={content.niche} />}</Pair>
+            <Pair label="Niche">{editing ? <Field {...f} name="niche" label="Niche" placeholder="What you're the best at" /> : <Text value={content.niche} />}</Pair>
           </Row>
           <Row label="10-year target">
             <Pair label="Date">{editing ? <DateField {...f} name="tenYearDate" label="10-year target date" /> : <Text value={formatCalendarDate(content.tenYear.date)} />}</Pair>
@@ -163,7 +220,7 @@ export function VtoView({
             <Pair label="Picture">{editing ? <Field {...f} name="tenYearPicture" label="10-year picture" /> : <Text value={content.tenYear.picture} />}</Pair>
           </Row>
           <Row label="Marketing strategy">
-            <Pair label="Target market">{editing ? <Field {...f} name="targetMarket" label="Target market" /> : <Text value={content.marketing.targetMarket} />}</Pair>
+            <Pair label="Target market">{editing ? <Field {...f} name="targetMarket" label="Target market" placeholder="Who, where, and the list of ideal customers" /> : <Text value={content.marketing.targetMarket} />}</Pair>
             <Pair label="Three uniques">
               {editing ? (
                 <div className="flex flex-col gap-2">
@@ -175,7 +232,7 @@ export function VtoView({
                 <List items={content.marketing.uniques} ordered />
               )}
             </Pair>
-            <Pair label="Proven process">{editing ? <Field {...f} name="provenProcess" label="Proven process" /> : <Text value={content.marketing.provenProcess} />}</Pair>
+            <Pair label="Proven process">{editing ? <Field {...f} name="provenProcess" label="Proven process" placeholder="Its name — the steps live in EOS → Process" /> : <Text value={content.marketing.provenProcess} />}</Pair>
             <Pair label="Guarantee">{editing ? <Field {...f} name="guarantee" label="Guarantee" /> : <Text value={content.marketing.guarantee} />}</Pair>
           </Row>
         </Panel>
@@ -184,16 +241,39 @@ export function VtoView({
           <Row label="3-year picture">
             <Pair label="Date">{editing ? <DateField {...f} name="threeYearDate" label="3-year picture date" /> : <Text value={formatCalendarDate(content.threeYear.date)} />}</Pair>
             <Pair label="Revenue">{editing ? <MoneyField {...f} name="threeYearRevenue" label="3-year revenue" /> : <Text value={formatCompactCurrency(content.threeYear.revenue)} />}</Pair>
-            <Pair label="Profit">{editing ? <MoneyField {...f} name="threeYearProfit" label="3-year profit" /> : <Text value={formatCompactCurrency(content.threeYear.profit)} />}</Pair>
+            <Pair label="Profit">{editing ? <MoneyField {...f} name="threeYearProfit" label="3-year profit" /> : <Text value={profitText(content.threeYear.profit, content.threeYear.revenue)} />}</Pair>
+            <Pair label="People">{editing ? <CountField {...f} name="threeYearHeadcount" label="3-year headcount" /> : <Text value={content.threeYear.headcount === null ? "" : String(content.threeYear.headcount)} />}</Pair>
+            <Pair label="Customers">{editing ? <CountField {...f} name="threeYearCustomers" label="3-year customers" /> : <Text value={content.threeYear.customers === null ? "" : content.threeYear.customers.toLocaleString("en-US")} />}</Pair>
             <Pair label="Measurables">{editing ? <Field {...f} name="threeYearMeasurables" label="3-year measurables" /> : <Text value={content.threeYear.measurables} />}</Pair>
             <Pair label="What it looks like">{editing ? <Area {...f} name="threeYearPicture" label="3-year picture" hint="One per line" /> : <List items={content.threeYear.picture} />}</Pair>
           </Row>
           <Row label="1-year plan">
             <Pair label="Date">{editing ? <DateField {...f} name="oneYearDate" label="1-year plan date" /> : <Text value={formatCalendarDate(content.oneYear.date)} />}</Pair>
             <Pair label="Revenue">{editing ? <MoneyField {...f} name="oneYearRevenue" label="1-year revenue" /> : <Text value={formatCompactCurrency(content.oneYear.revenue)} />}</Pair>
-            <Pair label="Profit">{editing ? <MoneyField {...f} name="oneYearProfit" label="1-year profit" /> : <Text value={formatCompactCurrency(content.oneYear.profit)} />}</Pair>
+            <Pair label="Profit">{editing ? <MoneyField {...f} name="oneYearProfit" label="1-year profit" /> : <Text value={profitText(content.oneYear.profit, content.oneYear.revenue)} />}</Pair>
             <Pair label="Measurables">{editing ? <Field {...f} name="oneYearMeasurables" label="1-year measurables" /> : <Text value={content.oneYear.measurables} />}</Pair>
-            <Pair label="Goals for the year">{editing ? <Area {...f} name="oneYearGoals" label="Goals for the year" hint="One per line" /> : <List items={content.oneYear.goals} />}</Pair>
+            <Pair label="Budget">{editing ? <Field {...f} name="oneYearBudget" label="1-year budget" /> : <Text value={content.oneYear.budget} />}</Pair>
+            <Pair label="Goals for the year (3–7)">
+              {editing ? (
+                <GoalsEditor control={control} register={register} />
+              ) : content.oneYear.goals.length === 0 ? (
+                <Text value="" />
+              ) : (
+                <ol data-tour="vto-goals" className="list-decimal space-y-1 pl-5 text-sm">
+                  {content.oneYear.goals.map((g) => {
+                    const count = rocksFor(g.id);
+                    return (
+                      <li key={g.id}>
+                        {g.text}{" "}
+                        <span className={cn("text-xs", count ? "text-muted-foreground" : "text-destructive")}>
+                          · {count ? `${count} Rock${count === 1 ? "" : "s"} this quarter` : "no Rock moving it"}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ol>
+              )}
+            </Pair>
           </Row>
           <Row label={`Rocks · ${quarterLabel(quarter)}`}>
             {rocks.length === 0 ? (
@@ -203,7 +283,7 @@ export function VtoView({
                 {rocks.map((r) => (
                   <li key={r.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                     <span className="min-w-0">
-                      {r.title} <span className="text-xs text-muted-foreground">· {memberName(members, r.ownerUserId) ?? "No owner"}</span>
+                      {r.title} <span className="text-xs text-muted-foreground">· {memberName(members, r.ownerPersonId) ?? "No owner"}</span>
                     </span>
                     <RockStatusPill status={r.status} />
                   </li>
@@ -215,7 +295,7 @@ export function VtoView({
             </Link>
           </Row>
           <Row label="Issues list">
-            {longTermIssues.length === 0 ? <Text value="" empty="No long-term issues" /> : <List items={longTermIssues.map((i) => i.title)} />}
+            {longTermIssues.length === 0 ? <Text value="" empty="No long-term issues" /> : <List items={longTermIssues.map((i) => i.rootCause || i.title)} />}
             <Link href={path("/traction/issues?list=long_term")} className="text-sm font-medium text-accent-text hover:text-accent-hover">
               Open long-term issues
             </Link>
@@ -223,6 +303,57 @@ export function VtoView({
         </Panel>
       </form>
     </section>
+  );
+}
+
+function CoreValuesEditor({ control, register }: { control: Control<FormValues>; register: UseFormRegister<FormValues> }) {
+  const { fields, append, remove } = useFieldArray({ control, name: "coreValues" });
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-xs text-muted-foreground">3 to 7 values, each with 2–3 behaviors you can see — so they can be used to hire, review and fire.</p>
+      {fields.map((field, index) => (
+        <div key={field.id} className="space-y-2 rounded-md border border-divider p-3">
+          <div className="flex items-center gap-2">
+            <Input aria-label={`Core value ${index + 1}`} placeholder="e.g. Own the outcome" {...register(`coreValues.${index}.name` as const)} />
+            <RemoveButton label="Remove core value" onClick={() => remove(index)} />
+          </div>
+          <Textarea aria-label={`Behaviors for value ${index + 1}`} placeholder="Behaviors, one per line" className="min-h-16" {...register(`coreValues.${index}.behaviors` as const)} />
+        </div>
+      ))}
+      {fields.length < 10 && <AddButton label="Add core value" onClick={() => append({ name: "", behaviors: "" })} />}
+    </div>
+  );
+}
+
+function GoalsEditor({ control, register }: { control: Control<FormValues>; register: UseFormRegister<FormValues> }) {
+  const { fields, append, remove } = useFieldArray({ control, name: "oneYearGoals" });
+  return (
+    <div className="flex flex-col gap-2">
+      {fields.map((field, index) => (
+        <div key={field.id} className="flex items-center gap-2">
+          <Input aria-label={`Goal ${index + 1}`} placeholder="Specific and measurable, e.g. 750 active customers" {...register(`oneYearGoals.${index}.text` as const)} />
+          <RemoveButton label="Remove goal" onClick={() => remove(index)} />
+        </div>
+      ))}
+      {fields.length < 10 && <AddButton label="Add goal" onClick={() => append({ id: "", text: "" })} />}
+    </div>
+  );
+}
+
+function RemoveButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} aria-label={label} className="flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+      <X className="size-4" />
+    </button>
+  );
+}
+
+function AddButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className="inline-flex items-center gap-1 self-start text-sm font-medium text-accent-text transition-colors hover:text-accent-hover">
+      <Plus className="size-4" />
+      {label}
+    </button>
   );
 }
 
@@ -273,20 +404,20 @@ function List({ items, ordered = false }: { items: string[]; ordered?: boolean }
 
 interface FieldProps {
   register: UseFormRegister<FormValues>;
-  errors: Partial<Record<FieldName, FieldError>>;
+  errors: FieldErrors<FormValues>;
   name: FieldName;
   label: string;
 }
 
-function ErrorText({ error }: { error?: FieldError }) {
-  return error?.message ? <p className="mt-1 text-xs text-destructive">{error.message}</p> : null;
+function ErrorText({ message }: { message?: string }) {
+  return message ? <p className="mt-1 text-xs text-destructive">{message}</p> : null;
 }
 
 function Field({ register, errors, name, label, placeholder }: FieldProps & { placeholder?: string }) {
   return (
     <>
       <Input aria-label={label} placeholder={placeholder} aria-invalid={!!errors[name]} {...register(name)} />
-      <ErrorText error={errors[name]} />
+      <ErrorText message={errors[name]?.message} />
     </>
   );
 }
@@ -296,7 +427,7 @@ function DateField({ register, errors, name, label }: FieldProps) {
   return (
     <>
       <Input type="date" aria-label={label} aria-invalid={!!errors[name]} className="w-48" {...register(name)} />
-      <ErrorText error={errors[name]} />
+      <ErrorText message={errors[name]?.message} />
     </>
   );
 }
@@ -309,7 +440,16 @@ function MoneyField({ register, errors, name, label }: FieldProps) {
         <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-muted-foreground">$</span>
         <Input inputMode="decimal" placeholder="600000 or 3M" aria-label={label} aria-invalid={!!errors[name]} className="pl-7" {...register(name)} />
       </div>
-      <ErrorText error={errors[name]} />
+      <ErrorText message={errors[name]?.message} />
+    </>
+  );
+}
+
+function CountField({ register, errors, name, label }: FieldProps) {
+  return (
+    <>
+      <Input inputMode="numeric" aria-label={label} aria-invalid={!!errors[name]} className="w-32" {...register(name)} />
+      <ErrorText message={errors[name]?.message} />
     </>
   );
 }
@@ -318,7 +458,7 @@ function Area({ register, errors, name, label, hint }: FieldProps & { hint: stri
   return (
     <>
       <Textarea aria-label={label} placeholder={hint} aria-invalid={!!errors[name]} {...register(name)} />
-      <ErrorText error={errors[name]} />
+      <ErrorText message={errors[name]?.message} />
     </>
   );
 }

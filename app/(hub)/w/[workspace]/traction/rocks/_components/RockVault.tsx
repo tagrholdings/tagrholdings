@@ -24,15 +24,20 @@ import { notify } from "@/components/ui/toaster";
 import { ChoicePills, OwnerPicker } from "@/components/traction/traction-ui";
 import { createRockAction, deleteRockAction, updateRockAction } from "@/modules/traction/traction.actions";
 import { planningQuarters, quarterLabel, quarterRange } from "@/modules/traction/traction.logic";
-import { ROCK_STATUSES, ROCK_STATUS_LABELS, type RockRow, type TractionMember } from "@/modules/traction/traction.types";
+import { SETTABLE_ROCK_STATUSES, ROCK_STATUS_LABELS, type RockRow, type TractionMember } from "@/modules/traction/traction.types";
+import { CommandSelect } from "@/components/shared/command-select";
+
+const NO_GOAL = "__none__";
 
 const formSchema = z.object({
   title: z.string().trim().min(1, "Title is required.").max(200),
   quarter: z.string().regex(/^\d{4}-Q[1-4]$/),
-  ownerUserId: z.string().nullable(),
+  ownerPersonId: z.string({ message: "A Rock has exactly one owner." }).min(1, "A Rock has exactly one owner."),
   dueDate: z.string(),
-  successCriteria: z.string().max(2000),
-  status: z.enum(ROCK_STATUSES),
+  successCriteria: z.string().trim().min(1, "Write what done looks like, so anyone can check it.").max(2000),
+  status: z.enum(SETTABLE_ROCK_STATUSES),
+  isCompany: z.enum(["company", "individual"]),
+  oneYearGoalId: z.string().nullable(),
 });
 type FormValues = z.input<typeof formSchema>;
 
@@ -40,15 +45,34 @@ function toForm(rock: RockRow | undefined, quarter: string): FormValues {
   return {
     title: rock?.title ?? "",
     quarter: rock?.quarter ?? quarter,
-    ownerUserId: rock?.ownerUserId ?? null,
+    ownerPersonId: rock?.ownerPersonId ?? "",
     dueDate: rock?.dueDate ?? quarterRange(quarter).end,
     successCriteria: rock?.successCriteria ?? "",
-    status: rock?.status ?? "on_track",
+    status: rock && rock.status !== "rolled_over" ? rock.status : "on_track",
+    isCompany: rock && !rock.isCompany ? "individual" : "company",
+    oneYearGoalId: rock?.oneYearGoalId ?? null,
   };
 }
 
 /** New Rock, or edit/delete one. A new Rock is due on the last day of its quarter unless changed. */
-export function RockVault({ members, rock, defaultQuarter, currentQuarter, open, onOpenChange }: { members: TractionMember[]; rock?: RockRow; defaultQuarter: string; currentQuarter: string; open: boolean; onOpenChange: (open: boolean) => void }) {
+export function RockVault({
+  members,
+  goals,
+  rock,
+  defaultQuarter,
+  currentQuarter,
+  open,
+  onOpenChange,
+}: {
+  members: TractionMember[];
+  /** The V/TO's 1-Year Plan goals — a Rock should move one of them. */
+  goals: { id: string; text: string }[];
+  rock?: RockRow;
+  defaultQuarter: string;
+  currentQuarter: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const [deleting, startDelete] = useTransition();
   const { register, control, reset, trigger, getValues, setValue, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -61,7 +85,16 @@ export function RockVault({ members, rock, defaultQuarter, currentQuarter, open,
     e.preventDefault();
     if (!(await trigger())) return false;
     const v = getValues();
-    const payload = { title: v.title, quarter: v.quarter, ownerUserId: v.ownerUserId, dueDate: v.dueDate || null, successCriteria: v.successCriteria || null, status: v.status };
+    const payload = {
+      title: v.title,
+      quarter: v.quarter,
+      ownerPersonId: v.ownerPersonId,
+      dueDate: v.dueDate || null,
+      successCriteria: v.successCriteria,
+      status: v.status,
+      isCompany: v.isCompany === "company",
+      oneYearGoalId: v.oneYearGoalId,
+    };
     const result = rock ? await updateRockAction({ id: rock.id, ...payload }) : await createRockAction(payload);
     if (result?.serverError || result?.validationErrors) {
       notify.error(result.serverError ?? "Couldn't save the Rock.");
@@ -92,8 +125,43 @@ export function RockVault({ members, rock, defaultQuarter, currentQuarter, open,
           <VaultField label="Rock" required error={errors.title?.message}>
             <VaultInput placeholder="e.g. 500 customers by July" {...register("title")} />
           </VaultField>
-          <VaultField label="Owner">
-            <Controller control={control} name="ownerUserId" render={({ field }) => <OwnerPicker members={members} value={field.value} onChange={field.onChange} />} />
+          <VaultField label="Owner" required error={errors.ownerPersonId?.message}>
+            <Controller control={control} name="ownerPersonId" render={({ field }) => <OwnerPicker members={members} value={field.value || null} onChange={(id) => field.onChange(id ?? "")} required />} />
+          </VaultField>
+          <VaultField label="Rock of">
+            <Controller
+              control={control}
+              name="isCompany"
+              render={({ field }) => (
+                <ChoicePills
+                  ariaLabel="Company or individual"
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={[
+                    { value: "company", label: "The company" },
+                    { value: "individual", label: "Its owner (individual)" },
+                  ]}
+                />
+              )}
+            />
+          </VaultField>
+          <VaultField label="Moves this 1-Year goal">
+            {goals.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Add goals to the 1-Year Plan (EOS → Vision) to link Rocks to them.</p>
+            ) : (
+              <Controller
+                control={control}
+                name="oneYearGoalId"
+                render={({ field }) => (
+                  <CommandSelect
+                    value={field.value ?? undefined}
+                    onChange={(v) => field.onChange(!v || v === NO_GOAL ? null : v)}
+                    placeholder="Which goal does it move?"
+                    options={[{ value: NO_GOAL, label: "None" }, ...goals.map((g) => ({ value: g.id, label: g.text }))]}
+                  />
+                )}
+              />
+            )}
           </VaultField>
           <VaultField label="Quarter">
             <Controller
@@ -115,11 +183,11 @@ export function RockVault({ members, rock, defaultQuarter, currentQuarter, open,
           <VaultField label="Due">
             <VaultInput type="date" {...register("dueDate")} />
           </VaultField>
-          <VaultField label="Done when">
+          <VaultField label="Done when" required error={errors.successCriteria?.message}>
             <Textarea placeholder="e.g. 500 active customers in FieldRoutes" {...register("successCriteria")} />
           </VaultField>
           <VaultField label="Status">
-            <Controller control={control} name="status" render={({ field }) => <ChoicePills ariaLabel="Status" value={field.value} onChange={field.onChange} options={ROCK_STATUSES.map((s) => ({ value: s, label: ROCK_STATUS_LABELS[s] }))} />} />
+            <Controller control={control} name="status" render={({ field }) => <ChoicePills ariaLabel="Status" value={field.value} onChange={field.onChange} options={SETTABLE_ROCK_STATUSES.map((s) => ({ value: s, label: ROCK_STATUS_LABELS[s] }))} />} />
           </VaultField>
           {rock && (
             <Button type="button" variant="destructive" size="sm" onClick={handleDelete} loading={deleting} className="self-start">

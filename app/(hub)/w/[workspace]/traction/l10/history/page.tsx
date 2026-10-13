@@ -4,7 +4,7 @@ import { getWorkspace } from "@/lib/auth-server";
 import { HubPage } from "@/components/layout/HubPage";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
 import { tractionService } from "@/modules/traction/traction.service";
-import { tenancyService } from "@/modules/tenancy/tenancy.service";
+import { teamService } from "@/modules/team/team.service";
 import { memberName, percent } from "@/modules/traction/traction.logic";
 import { workspacePath } from "@/lib/workspace-path";
 import { cn, initialsFor } from "@/lib/utils";
@@ -16,7 +16,9 @@ export const dynamic = "force-dynamic";
 export default async function L10HistoryPage({ params }: { params: Promise<{ workspace: string }> }) {
   const { workspace: slug } = await params;
   const { user } = await getWorkspace(slug);
-  const [meetings, members] = await Promise.all([tractionService.getMeetingHistory(user.tenantId), tenancyService.listMembers(user.tenantId)]);
+  // Ratings are keyed by team person; archived people still name the ratings they gave.
+  const [meetings, people] = await Promise.all([tractionService.getMeetingHistory(user.tenantId), teamService.listPeople(user.tenantId)]);
+  const members = people.map((p) => ({ id: p.id, name: p.name, email: p.email ?? "" }));
   const rated = meetings.filter((m) => m.averageRating !== null);
   const overall = rated.length ? Math.round((rated.reduce((sum, m) => sum + (m.averageRating ?? 0), 0) / rated.length) * 10) / 10 : null;
 
@@ -64,7 +66,7 @@ export default async function L10HistoryPage({ params }: { params: Promise<{ wor
                   <Stat label="Rocks off track" value={String(m.rocksOffTrack)} tone={m.rocksOffTrack > 0 ? "bad" : undefined} />
                   <Stat label="Off goal" value={String(m.measurablesOffGoal)} tone={m.measurablesOffGoal > 0 ? "bad" : undefined} />
                 </dl>
-                {(Object.keys(m.ratings).length > 0 || m.headlines) && (
+                {(Object.keys(m.ratings).length > 0 || m.headlines || m.improvement) && (
                   <div className="flex flex-col gap-2 border-t border-divider/50 px-4 py-3 text-sm">
                     {Object.keys(m.ratings).length > 0 && (
                       <p className="flex flex-wrap gap-x-4 gap-y-1">
@@ -76,6 +78,12 @@ export default async function L10HistoryPage({ params }: { params: Promise<{ wor
                       </p>
                     )}
                     {m.headlines && <p className="whitespace-pre-line text-muted-foreground">{m.headlines}</p>}
+                    {m.improvement && (
+                      <p>
+                        <span className="text-muted-foreground">To make it a 10: </span>
+                        {m.improvement}
+                      </p>
+                    )}
                   </div>
                 )}
               </li>

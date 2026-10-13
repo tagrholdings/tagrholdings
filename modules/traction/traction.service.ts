@@ -1,33 +1,49 @@
+import { randomUUID } from "node:crypto";
 import { UserFacingError } from "@/lib/errors";
 import { activitiesService } from "@/modules/activities/activities.service";
+import { teamService } from "@/modules/team/team.service";
 import { tenancyService } from "@/modules/tenancy/tenancy.service";
 import { tractionRepository } from "./traction.repository";
 import {
+  eosRuleChecks,
   goalMet,
   latestEntry,
+  nextMeetingAt,
+  percent,
   periodStartFor,
   periodWindow,
   quarterOf,
   quarterRange,
   shiftPeriod,
+  shiftQuarter,
   todayIso,
   type Cadence,
 } from "./traction.logic";
 import {
+  OUTCOMES_BY_TYPE,
   vtoContentSchema,
   type ConcludeMeetingInput,
   type EntryInput,
+  type IssueOutcome,
+  type IssueType,
   type IssueUpdate,
+  type L10ScheduleInput,
   type MeasurableRow,
   type MeasurableUpdate,
   type NewIssue,
   type NewMeasurable,
+  type NewProcess,
   type NewRock,
+  type NewSeat,
   type NewTodo,
+  type ProcessUpdate,
+  type ResolveIssueInput,
+  type ReviewInput,
   type RockRow,
   type RockStatus,
   type RockUpdate,
-  type SolveIssueInput,
+  type SeatRow,
+  type SeatUpdate,
   type TractionSummary,
   type VtoContent,
 } from "./traction.types";
@@ -35,23 +51,36 @@ import {
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** A finished To-Do or a closed issue stays visible this long — "this week" in the L10. */
 const RECENT_MS = 7 * DAY_MS;
+/** The L10 reminder goes out this long before the meeting. */
+const REMINDER_LEAD_MINUTES = 60;
 
-/** An owner must be a member of the workspace — the id is a Neon Auth user id with no FK possible. */
-async function assertMember(tenantId: string, userId: string | null | undefined) {
-  if (userId && !(await tenancyService.isMember(tenantId, userId))) {
-    throw new UserFacingError("That person isn't a member of this workspace.");
-  }
-}
+/** Every owner is a team person (modules/team) — active, and of this workspace. */
+const assertPerson = (tenantId: string, personId: string | null | undefined) => teamService.assertActivePerson(tenantId, personId);
 
 function measurableValues(data: NewMeasurable): Omit<MeasurableRow, "id" | "sortOrder"> {
+  const between = data.goalOperator === "between";
   return {
     name: data.name.trim(),
-    ownerUserId: data.ownerUserId ?? null,
+    ownerPersonId: data.ownerPersonId,
     cadence: data.cadence,
     unit: data.unit,
     aggregation: data.aggregation,
     goalOperator: data.goalOperator ?? null,
     goalValue: data.goalValue ?? null,
+    goalValueMax: between ? (data.goalValueMax ?? null) : null,
+  };
+}
+
+function rockValues(data: NewRock) {
+  return {
+    title: data.title.trim(),
+    quarter: data.quarter,
+    ownerPersonId: data.ownerPersonId,
+    dueDate: data.dueDate ?? null,
+    successCriteria: data.successCriteria.trim(),
+    status: data.status,
+    isCompany: data.isCompany,
+    oneYearGoalId: data.oneYearGoalId || null,
   };
 }
 
@@ -63,7 +92,34 @@ function focusQuarter(rocks: RockRow[], today: string): string {
   return past.at(-1) ?? current;
 }
 
+/** EOS scores Rocks binary: the share that were completed (rolled over and dropped count as not done). Null with none. */
+export function rockCompletionRate(rocks: RockRow[], quarter: string): number | null {
+  const inQuarter = rocks.filter((r) => r.quarter === quarter);
+  return inQuarter.length ? percent(inQuarter.filter((r) => r.status === "complete").length, inQuarter.length) : null;
+}
+
+/** How an outcome changes an issue: closed (solved/dropped), or kept open on the long-term list. */
+function outcomeEffect(outcome: IssueOutcome): { status: "solved" | "dropped" | "open"; horizon?: "long_term"; allowsTodos: boolean } {
+  if (outcome === "no") return { status: "dropped", allowsTodos: false };
+  if (outcome === "later" || outcome === "escalated") return { status: "open", horizon: "long_term", allowsTodos: false };
+  return { status: "solved", allowsTodos: true };
+}
+
+/** The seats a person's seat(s) sit directly above — their direct reports in the Accountability Chart. */
+function directReports(seats: SeatRow[], personId: string): string[] {
+  const mySeats = new Set(seats.filter((s) => s.personId === personId).map((s) => s.id));
+  return [...new Set(seats.filter((s) => s.parentSeatId && mySeats.has(s.parentSeatId) && s.personId).map((s) => s.personId!))];
+}
+
 export const tractionService = {
+  /** The team as owner pickers show it on Traction/EOS pages: each active person with their seat(s). */
+  async listOwners(tenantId: string) {
+    const [people, seats] = await Promise.all([teamService.listPeople(tenantId), tractionRepository.findSeats(tenantId)]);
+    return people
+      .filter((p) => !p.archivedAt)
+      .map((p) => ({ id: p.id, name: p.name, email: p.email ?? "", seat: seats.filter((s) => s.personId === p.id).map((s) => s.name).join(", ") || null }));
+  },
+
   // ───────────── Scorecard ─────────────
 
   /**
@@ -80,14 +136,20 @@ export const tractionService = {
     return { measurables, entries, periods, counts: { weekly: all.filter((m) => m.cadence === "weekly").length, monthly: all.filter((m) => m.cadence === "monthly").length } };
   },
 
+  /** The cadence the Scorecard opens on: weekly (the EOS default) unless the workspace only has monthly numbers. */
+  async defaultCadence(tenantId: string): Promise<Cadence> {
+    const all = await tractionRepository.findMeasurables(tenantId);
+    return all.length > 0 && all.every((m) => m.cadence === "monthly") ? "monthly" : "weekly";
+  },
+
   async createMeasurable(tenantId: string, data: NewMeasurable) {
-    await assertMember(tenantId, data.ownerUserId);
+    await assertPerson(tenantId, data.ownerPersonId);
     const sortOrder = await tractionRepository.nextMeasurableSortOrder(tenantId);
     return tractionRepository.insertMeasurable(tenantId, { ...measurableValues(data), sortOrder });
   },
 
   async updateMeasurable(tenantId: string, data: MeasurableUpdate) {
-    await assertMember(tenantId, data.ownerUserId);
+    await assertPerson(tenantId, data.ownerPersonId);
     const updated = await tractionRepository.updateMeasurable(tenantId, data.id, measurableValues(data));
     if (!updated) throw new UserFacingError("Measurable not found.");
     return updated;
@@ -116,34 +178,48 @@ export const tractionService = {
   },
 
   async createRock(tenantId: string, data: NewRock) {
-    await assertMember(tenantId, data.ownerUserId);
-    return tractionRepository.insertRock(tenantId, {
-      title: data.title.trim(),
-      quarter: data.quarter,
-      ownerUserId: data.ownerUserId ?? null,
-      dueDate: data.dueDate ?? null,
-      successCriteria: data.successCriteria?.trim() || null,
-      status: data.status,
-    });
+    await assertPerson(tenantId, data.ownerPersonId);
+    return tractionRepository.insertRock(tenantId, rockValues(data));
   },
 
   async updateRock(tenantId: string, data: RockUpdate) {
-    await assertMember(tenantId, data.ownerUserId);
-    const updated = await tractionRepository.updateRock(tenantId, data.id, {
-      title: data.title.trim(),
-      quarter: data.quarter,
-      ownerUserId: data.ownerUserId ?? null,
-      dueDate: data.dueDate ?? null,
-      successCriteria: data.successCriteria?.trim() || null,
-      status: data.status,
-    });
-    if (!updated) throw new UserFacingError("Rock not found.");
-    return updated;
+    await assertPerson(tenantId, data.ownerPersonId);
+    const existing = await tractionRepository.findRock(tenantId, data.id);
+    if (!existing) throw new UserFacingError("Rock not found.");
+    // A rolled-over Rock is history: its copy in the next quarter is the one to edit.
+    if (existing.status === "rolled_over") throw new UserFacingError("This Rock was carried into the next quarter. Edit it there.");
+    return tractionRepository.updateRock(tenantId, data.id, rockValues(data));
   },
 
   async setRockStatus(tenantId: string, id: string, status: RockStatus) {
-    const updated = await tractionRepository.updateRock(tenantId, id, { status });
-    if (!updated) throw new UserFacingError("Rock not found.");
+    const existing = await tractionRepository.findRock(tenantId, id);
+    if (!existing) throw new UserFacingError("Rock not found.");
+    if (existing.status === "rolled_over") throw new UserFacingError("This Rock was carried into the next quarter. Update it there.");
+    await tractionRepository.updateRock(tenantId, id, { status });
+  },
+
+  /**
+   * Quarter end for an unfinished Rock (EOS: done is binary — not done is carried forward or dropped). "carry" makes
+   * a fresh copy in the next quarter, due on its last day, and marks this one rolled over so history stays honest.
+   */
+  async closeOutRock(tenantId: string, id: string, action: "complete" | "carry" | "drop") {
+    const rock = await tractionRepository.findRock(tenantId, id);
+    if (!rock) throw new UserFacingError("Rock not found.");
+    if (rock.status === "complete" || rock.status === "dropped" || rock.status === "rolled_over") throw new UserFacingError("That Rock is already closed out.");
+    if (action === "complete") return tractionRepository.updateRock(tenantId, id, { status: "complete" });
+    if (action === "drop") return tractionRepository.updateRock(tenantId, id, { status: "dropped" });
+    const next = shiftQuarter(rock.quarter, 1);
+    await tractionRepository.insertRock(tenantId, {
+      title: rock.title,
+      quarter: next,
+      ownerPersonId: rock.ownerPersonId,
+      dueDate: quarterRange(next).end,
+      status: "on_track",
+      successCriteria: rock.successCriteria,
+      isCompany: rock.isCompany,
+      oneYearGoalId: rock.oneYearGoalId,
+    });
+    return tractionRepository.updateRock(tenantId, id, { status: "rolled_over" });
   },
 
   async deleteRock(tenantId: string, id: string) {
@@ -157,42 +233,57 @@ export const tractionService = {
     return tractionRepository.findIssues(tenantId, new Date(now.getTime() - RECENT_MS));
   },
 
-  async createIssue(tenantId: string, data: NewIssue, raisedByUserId: string) {
-    await assertMember(tenantId, data.ownerUserId);
+  /** `userId` is whoever added it; it is recorded as their team person (when they are one). */
+  async createIssue(tenantId: string, data: NewIssue, userId: string) {
+    await assertPerson(tenantId, data.ownerPersonId);
+    const raisedBy = await teamService.personForUser(tenantId, userId);
     // A measurable/rock link from another workspace is rejected by the composite foreign keys.
     return tractionRepository.insertIssue(tenantId, {
       title: data.title.trim(),
+      issueType: data.issueType,
+      rootCause: data.rootCause?.trim() || null,
       notes: data.notes?.trim() || null,
       horizon: data.horizon,
-      ownerUserId: data.ownerUserId ?? null,
-      raisedByUserId,
+      ownerPersonId: data.ownerPersonId ?? null,
+      raisedByPersonId: raisedBy?.id ?? null,
       measurableId: data.measurableId ?? null,
       rockId: data.rockId ?? null,
     });
   },
 
   async updateIssue(tenantId: string, data: IssueUpdate) {
-    await assertMember(tenantId, data.ownerUserId);
+    await assertPerson(tenantId, data.ownerPersonId);
     const updated = await tractionRepository.updateIssue(tenantId, data.id, {
       title: data.title.trim(),
+      issueType: data.issueType,
+      rootCause: data.rootCause?.trim() || null,
       notes: data.notes?.trim() || null,
       horizon: data.horizon,
-      ownerUserId: data.ownerUserId ?? null,
+      ownerPersonId: data.ownerPersonId ?? null,
     });
     if (!updated) throw new UserFacingError("Issue not found.");
   },
 
-  /** Solve: closes the issue and, usually, creates the L10 To-Do that carries the solution out (linked to the issue). */
-  async solveIssue(tenantId: string, input: SolveIssueInput, userId: string) {
+  /**
+   * IDS "Solve", by kind: a problem is solved; an idea is decided yes / no / later; an obstacle is removed or
+   * escalated. "later" and "escalated" keep the issue open on the long-term list (the quarterly's). A closing
+   * outcome may carry any number of To-Dos — who + what + when — each linked to the issue.
+   */
+  async resolveIssue(tenantId: string, input: ResolveIssueInput, userId: string) {
     const issue = await tractionRepository.findIssue(tenantId, input.id);
     if (!issue) throw new UserFacingError("Issue not found.");
     if (issue.status !== "open") throw new UserFacingError("That issue is already closed.");
-    await assertMember(tenantId, input.todo?.assignedToUserId);
-    await tractionRepository.setIssueStatus(tenantId, input.id, "solved", input.solution?.trim() || null);
-    if (input.todo) {
+    if (!OUTCOMES_BY_TYPE[issue.issueType as IssueType].includes(input.outcome)) throw new UserFacingError("That outcome doesn't fit this kind of issue.");
+    const effect = outcomeEffect(input.outcome);
+    const todos = input.todos ?? [];
+    if (todos.length && !effect.allowsTodos) throw new UserFacingError("To-Dos come with a decision to act — not with no, later or escalate.");
+    for (const todo of todos) await assertPerson(tenantId, todo.assignedToPersonId);
+
+    await tractionRepository.setIssueStatus(tenantId, input.id, effect.status, input.solution?.trim() || null, { outcome: input.outcome, horizon: effect.horizon });
+    for (const todo of todos) {
       await activitiesService.create(
         tenantId,
-        { type: "task", subject: input.todo.subject.trim(), dueDate: input.todo.dueDate ?? null, assignedToUserId: input.todo.assignedToUserId ?? null },
+        { type: "task", subject: todo.subject.trim(), dueDate: todo.dueDate ?? null, assignedToPersonId: todo.assignedToPersonId },
         userId,
         { l10Todo: true, issueId: input.id }
       );
@@ -228,23 +319,26 @@ export const tractionService = {
   },
 
   async createTodo(tenantId: string, data: NewTodo, userId: string) {
+    await assertPerson(tenantId, data.assignedToPersonId);
     return activitiesService.create(
       tenantId,
-      { type: "task", subject: data.subject.trim(), dueDate: data.dueDate ?? null, assignedToUserId: data.assignedToUserId ?? null },
+      { type: "task", subject: data.subject.trim(), dueDate: data.dueDate ?? null, assignedToPersonId: data.assignedToPersonId },
       userId,
       { l10Todo: true }
     );
   },
 
-  /** Everything the L10 walks through, in agenda order. */
+  /** Everything the L10 walks through, in agenda order, plus the running meeting (if any) and the standing schedule. */
   async getMeetingData(tenantId: string) {
-    const [measurables, latest, rocksData, issues, todos, meetings] = await Promise.all([
+    const [measurables, latest, rocksData, issues, todos, meetings, live, schedule] = await Promise.all([
       tractionRepository.findMeasurables(tenantId),
       tractionRepository.findLatestEntries(tenantId),
       this.getRocks(tenantId),
       this.getIssues(tenantId),
       this.getTodos(tenantId),
       tractionRepository.findMeetings(tenantId, 5),
+      tractionRepository.findLiveMeeting(tenantId),
+      this.getL10Schedule(tenantId),
     ]);
     return {
       measurables,
@@ -254,30 +348,63 @@ export const tractionService = {
       issues: issues.filter((i) => i.horizon === "short_term"),
       todos,
       meetings,
+      live: live ?? null,
+      schedule,
     };
+  },
+
+  /** Starts the meeting (or returns the one already running), so members can rate it from their own devices. */
+  async startMeeting(tenantId: string, userId: string, now: Date = new Date()) {
+    return (await tractionRepository.findLiveMeeting(tenantId)) ?? tractionRepository.insertLiveMeeting(tenantId, userId, now);
+  },
+
+  /**
+   * One rating, 1–10. Each member rates for themselves; a teammate without a login can be rated for by whoever is
+   * running the meeting (they have no other way to). Nobody can overwrite another member's own rating.
+   */
+  async rateMeeting(tenantId: string, input: { meetingId: string; personId?: string | null; rating: number }, userId: string) {
+    const me = await teamService.personForUser(tenantId, userId);
+    const target = input.personId ?? me?.id;
+    if (!target) throw new UserFacingError("You aren't on this workspace's team yet, so there's no one to rate as.");
+    if (target !== me?.id) {
+      const people = await teamService.listPeople(tenantId);
+      const person = people.find((p) => p.id === target);
+      if (!person || person.archivedAt) throw new UserFacingError("That person isn't on this workspace's team.");
+      if (person.userId) throw new UserFacingError(`${person.name} rates for themselves from their own account.`);
+    }
+    const updated = await tractionRepository.setMeetingRating(tenantId, input.meetingId, target, input.rating);
+    if (!updated) throw new UserFacingError("That meeting has already been concluded.");
+    return updated;
   },
 
   /**
    * Conclude: records the meeting with a snapshot of where things stood (ratings, To-Do completion, issues solved
-   * this week, Rocks off track, measurables off goal). Ratings may only come from workspace members.
+   * during the meeting, Rocks off track, measurables off goal). Under an 8 average, EOS says the meeting itself
+   * needs fixing — so a reason is required then.
    */
-  async concludeMeeting(tenantId: string, input: ConcludeMeetingInput, userId: string, now: Date = new Date()) {
-    const raters = Object.keys(input.ratings);
-    for (const rater of raters) await assertMember(tenantId, rater);
+  async concludeMeeting(tenantId: string, input: ConcludeMeetingInput, now: Date = new Date()) {
+    const live = await tractionRepository.findLiveMeeting(tenantId);
+    if (!live || live.id !== input.meetingId) throw new UserFacingError("That meeting has already been concluded.");
+    const values = Object.values(live.ratings);
+    const average = values.length ? Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 10) / 10 : null;
+    if (average !== null && average < 8 && !input.improvement?.trim()) {
+      throw new UserFacingError(`The meeting averaged ${average}. Write down what would make the next one a 10.`);
+    }
     const [summary, issues] = await Promise.all([this.getSummary(tenantId, now), this.getIssues(tenantId, now)]);
-    const values = Object.values(input.ratings);
-    return tractionRepository.insertMeeting(tenantId, {
+    const started = live.startedAt ? new Date(live.startedAt).getTime() : now.getTime() - RECENT_MS;
+    const concluded = await tractionRepository.concludeMeeting(tenantId, live.id, {
       heldAt: now,
-      ratings: input.ratings,
-      averageRating: values.length ? Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 10) / 10 : null,
+      averageRating: average,
       todosDone: summary.todos.done,
       todosTotal: summary.todos.total,
-      issuesSolved: issues.filter((i) => i.status === "solved").length,
+      issuesSolved: issues.filter((i) => i.status === "solved" && i.solvedAt && new Date(i.solvedAt).getTime() >= started).length,
       rocksOffTrack: summary.rocks.offTrack,
       measurablesOffGoal: summary.scorecard.offGoal,
       headlines: input.headlines?.trim() || null,
-      createdByUserId: userId,
+      improvement: input.improvement?.trim() || null,
     });
+    if (!concluded) throw new UserFacingError("That meeting has already been concluded.");
+    return concluded;
   },
 
   async getMeetings(tenantId: string, limit = 10) {
@@ -287,6 +414,55 @@ export const tractionService = {
   /** The last year of weekly L10s (52), newest first. */
   async getMeetingHistory(tenantId: string, limit = 52) {
     return tractionRepository.findMeetingHistory(tenantId, limit);
+  },
+
+  /** The standing L10 time, and when the next one is (a meeting that started under 90 minutes ago is still "now"). */
+  async getL10Schedule(tenantId: string, now: Date = new Date()) {
+    const row = await tractionRepository.findL10Schedule(tenantId);
+    if (!row) return null;
+    return { weekday: row.weekday, startTime: row.startTime, timezone: row.timezone, nextAt: nextMeetingAt(row.weekday, row.startTime, row.timezone, now, 90) };
+  },
+
+  async saveL10Schedule(tenantId: string, input: L10ScheduleInput) {
+    await tractionRepository.upsertL10Schedule(tenantId, input);
+  },
+
+  /**
+   * The reminder sweep's half that lives here: every workspace whose L10 starts within the next hour, claimed once
+   * per meeting, with the agenda points the reminder carries and who should get it. Delivery is the notifications
+   * module's job.
+   */
+  async claimDueL10Reminders(now: Date = new Date()) {
+    const due = [];
+    for (const tenant of await tenancyService.listTenants()) {
+      try {
+        const schedule = await tractionRepository.findL10Schedule(tenant.id);
+        if (!schedule) continue;
+        const meetingAt = nextMeetingAt(schedule.weekday, schedule.startTime, schedule.timezone, now);
+        const minutesUntil = (meetingAt.getTime() - now.getTime()) / 60000;
+        if (minutesUntil <= 0 || minutesUntil > REMINDER_LEAD_MINUTES) continue;
+        if (!(await tractionRepository.claimL10Reminder(tenant.id, meetingAt))) continue;
+
+        const [data, people] = await Promise.all([this.getMeetingData(tenant.id), teamService.listPeople(tenant.id)]);
+        const offGoal = data.measurables.filter((m) => goalMet(m, data.latest.find((e) => e.measurableId === m.id)?.value) === false).map((m) => m.name);
+        due.push({
+          tenantId: tenant.id,
+          slug: tenant.slug,
+          workspaceName: tenant.name,
+          meetingAt,
+          timezone: schedule.timezone,
+          topIssues: data.issues.filter((i) => i.status === "open").slice(0, 3).map((i) => i.title),
+          offGoal,
+          offTrackRocks: data.rocks.filter((r) => r.status === "off_track").map((r) => r.title),
+          openTodos: data.todos.filter((t) => !t.done).length,
+          people: people.filter((p) => !p.archivedAt).map((p) => ({ name: p.name, email: p.email, userId: p.userId })),
+        });
+      } catch (error) {
+        // One workspace failing must not stop the others' reminders.
+        console.error(`L10 reminder failed for tenant ${tenant.id}:`, error);
+      }
+    }
+    return due;
   },
 
   // ───────────── V/TO ─────────────
@@ -304,13 +480,136 @@ export const tractionService = {
       tenantId,
       {
         ...content,
-        coreValues: clean(content.coreValues),
+        coreValues: content.coreValues.filter((v) => v.name.trim()).map((v) => ({ name: v.name.trim(), behaviors: clean(v.behaviors) })),
         marketing: { ...content.marketing, uniques: clean(content.marketing.uniques) },
         threeYear: { ...content.threeYear, picture: clean(content.threeYear.picture) },
-        oneYear: { ...content.oneYear, goals: clean(content.oneYear.goals) },
+        // A new goal gets its id here; an existing one keeps it, so the Rocks pointing at it still do.
+        oneYear: { ...content.oneYear, goals: content.oneYear.goals.filter((g) => g.text.trim()).map((g) => ({ id: g.id || randomUUID(), text: g.text.trim() })) },
       },
       userId
     );
+  },
+
+  // ───────────── People: Accountability Chart ─────────────
+
+  async getSeats(tenantId: string) {
+    return tractionRepository.findSeats(tenantId);
+  },
+
+  async createSeat(tenantId: string, data: NewSeat) {
+    await assertPerson(tenantId, data.personId);
+    const seats = await tractionRepository.findSeats(tenantId);
+    if (data.parentSeatId && !seats.some((s) => s.id === data.parentSeatId)) throw new UserFacingError("The seat above this one doesn't exist.");
+    return tractionRepository.insertSeat(tenantId, {
+      name: data.name.trim(),
+      responsibilities: data.responsibilities,
+      parentSeatId: data.parentSeatId ?? null,
+      personId: data.personId ?? null,
+      sortOrder: seats.length,
+    });
+  },
+
+  async updateSeat(tenantId: string, data: SeatUpdate) {
+    await assertPerson(tenantId, data.personId);
+    const seats = await tractionRepository.findSeats(tenantId);
+    if (!seats.some((s) => s.id === data.id)) throw new UserFacingError("Seat not found.");
+    // A seat can't report to itself or to anything below it — that would cut the branch off the chart.
+    for (let parent = data.parentSeatId ?? null; parent; parent = seats.find((s) => s.id === parent)?.parentSeatId ?? null) {
+      if (parent === data.id) throw new UserFacingError("A seat can't sit under itself or one of its own seats.");
+    }
+    await tractionRepository.updateSeat(tenantId, data.id, {
+      name: data.name.trim(),
+      responsibilities: data.responsibilities,
+      parentSeatId: data.parentSeatId ?? null,
+      personId: data.personId ?? null,
+    });
+  },
+
+  async deleteSeat(tenantId: string, id: string) {
+    const seat = (await tractionRepository.findSeats(tenantId)).find((s) => s.id === id);
+    if (!seat) throw new UserFacingError("Seat not found.");
+    await tractionRepository.deleteSeat(tenantId, id, seat.parentSeatId);
+  },
+
+  // ───────────── People: People Analyzer ─────────────
+
+  /**
+   * What one viewer may see of the People Analyzer for a quarter. It is private: a person sees their own reviews
+   * (manager's and self — compared in the Quarterly Conversation), a manager also sees their direct reports' (from
+   * the Accountability Chart), and a workspace admin sees everyone's.
+   */
+  async getPeopleAnalyzer(tenantId: string, userId: string, isAdmin: boolean, quarter: string) {
+    const [people, seats, vto] = await Promise.all([teamService.listPeople(tenantId), tractionRepository.findSeats(tenantId), this.getVto(tenantId)]);
+    const me = people.find((p) => p.userId === userId) ?? null;
+    const active = people.filter((p) => !p.archivedAt);
+    const reports = me ? directReports(seats, me.id) : [];
+    const visible = isAdmin ? active.map((p) => p.id) : [...new Set([...(me ? [me.id] : []), ...reports])];
+    const reviews = await tractionRepository.findReviews(tenantId, quarter, visible);
+    return {
+      me,
+      coreValues: vto.content.coreValues.map((v) => v.name),
+      people: active.filter((p) => visible.includes(p.id)),
+      reviews,
+      // Who may write which review: the manager's review → their manager (or an admin); the self review → the person.
+      canManagerReview: isAdmin ? visible : reports,
+      canSelfReview: me ? [me.id] : [],
+    };
+  },
+
+  async saveReview(tenantId: string, input: ReviewInput, userId: string, isAdmin: boolean) {
+    const [people, seats] = await Promise.all([teamService.listPeople(tenantId), tractionRepository.findSeats(tenantId)]);
+    const me = people.find((p) => p.userId === userId) ?? null;
+    if (!people.some((p) => p.id === input.personId && !p.archivedAt)) throw new UserFacingError("That person isn't on this workspace's team.");
+    if (input.kind === "self" && me?.id !== input.personId) throw new UserFacingError("Only the person themselves fills in their self review.");
+    if (input.kind === "manager" && !isAdmin && !(me && directReports(seats, me.id).includes(input.personId))) {
+      throw new UserFacingError("Only this person's manager (the seat above theirs) or an admin can review them.");
+    }
+    await tractionRepository.upsertReview(tenantId, {
+      personId: input.personId,
+      quarter: input.quarter,
+      kind: input.kind,
+      reviewerPersonId: me?.id ?? null,
+      valuesRatings: input.valuesRatings,
+      getsIt: input.getsIt,
+      wantsIt: input.wantsIt,
+      capacity: input.capacity,
+      notes: input.notes?.trim() || null,
+    });
+  },
+
+  // ───────────── Process ─────────────
+
+  async getProcesses(tenantId: string) {
+    return tractionRepository.findProcesses(tenantId);
+  },
+
+  async createProcess(tenantId: string, data: NewProcess) {
+    await assertPerson(tenantId, data.ownerPersonId);
+    return tractionRepository.insertProcess(tenantId, { ...data, name: data.name.trim(), ownerPersonId: data.ownerPersonId ?? null });
+  },
+
+  async updateProcess(tenantId: string, data: ProcessUpdate) {
+    await assertPerson(tenantId, data.ownerPersonId);
+    const updated = await tractionRepository.updateProcess(tenantId, data.id, {
+      name: data.name.trim(),
+      area: data.area,
+      ownerPersonId: data.ownerPersonId ?? null,
+      steps: data.steps,
+      stage: data.stage,
+      lastReviewedAt: new Date(),
+    });
+    if (!updated) throw new UserFacingError("Process not found.");
+  },
+
+  /** "Reviewed, still right" — EOS updates core processes every quarter. */
+  async markProcessReviewed(tenantId: string, id: string) {
+    const updated = await tractionRepository.updateProcess(tenantId, id, { lastReviewedAt: new Date() });
+    if (!updated) throw new UserFacingError("Process not found.");
+  },
+
+  async deleteProcess(tenantId: string, id: string) {
+    const deleted = await tractionRepository.deleteProcess(tenantId, id);
+    if (!deleted) throw new UserFacingError("Process not found.");
   },
 
   // ───────────── Overview / Portfolio ─────────────
@@ -339,7 +638,9 @@ export const tractionService = {
       if (met === false) offGoal++;
     }
     const quarter = focusQuarter(rocks, today);
-    const quarterRocks = rocks.filter((r) => r.quarter === quarter && r.status !== "dropped");
+    const quarterRocks = rocks.filter((r) => r.quarter === quarter && r.status !== "dropped" && r.status !== "rolled_over");
+    const lastQuarter = shiftQuarter(quarterOf(today), -1);
+    const lastRate = rockCompletionRate(rocks, lastQuarter);
     return {
       scorecard: { onGoal, offGoal, notEntered, total: measurables.length },
       rocks: {
@@ -349,10 +650,36 @@ export const tractionService = {
         onTrack: quarterRocks.filter((r) => r.status === "on_track").length,
         offTrack: quarterRocks.filter((r) => r.status === "off_track").length,
       },
+      lastQuarterRockRate: lastRate === null ? null : { quarter: lastQuarter, rate: lastRate },
       openIssues: issues.filter((i) => i.status === "open" && i.horizon === "short_term").length,
       todos: { done: todos.filter((t) => t.done).length, total: todos.length },
       lastMeeting: meetings[0] ?? null,
     };
+  },
+
+  /** Where the workspace is using the system against an EOS rule (Overview's checklist). */
+  async getRuleChecks(tenantId: string, now: Date = new Date()) {
+    const [summary, measurables, rocks, issues, vto, seats] = await Promise.all([
+      this.getSummary(tenantId, now),
+      tractionRepository.findMeasurables(tenantId),
+      tractionRepository.findRocks(tenantId),
+      this.getIssues(tenantId, now),
+      this.getVto(tenantId),
+      tractionRepository.findSeats(tenantId),
+    ]);
+    return eosRuleChecks({
+      measurables,
+      rocks,
+      currentQuarter: quarterOf(todayIso(now)),
+      lastFinishedQuarterRate: summary.lastQuarterRockRate?.rate ?? null,
+      openIssues: issues.filter((i) => i.status === "open"),
+      todos: summary.todos,
+      lastMeetingRating: summary.lastMeeting?.averageRating ?? null,
+      coreValuesCount: vto.content.coreValues.length,
+      oneYearGoalsCount: vto.content.oneYear.goals.length,
+      seatsWithoutPerson: seats.filter((s) => !s.personId).length,
+      now,
+    });
   },
 
   /**

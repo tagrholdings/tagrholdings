@@ -26,7 +26,7 @@ const withRelationsSelection = {
   organizationName: organizationsTable.name,
   pipelineItemId: activitiesTable.pipelineItemId,
   pipelineItemTitle: pipelineItemsTable.title,
-  assignedToUserId: activitiesTable.assignedToUserId,
+  assignedToPersonId: activitiesTable.assignedToPersonId,
   assignedToContactId: activitiesTable.assignedToContactId,
   assignedToContactName: assignedContactsTable.name,
   notify: activitiesTable.notify,
@@ -90,7 +90,7 @@ export const activitiesRepository = {
           contactId: data.contactId ?? null,
           organizationId: data.organizationId ?? null,
           pipelineItemId: data.pipelineItemId ?? null,
-          assignedToUserId: data.assignedToUserId ?? null,
+          assignedToPersonId: data.assignedToPersonId ?? null,
           assignedToContactId: data.assignedToContactId ?? null,
           notify,
           ...(dueChanged || (notify && !existing.notify) ? { notifiedAt: null } : {}),
@@ -111,7 +111,7 @@ export const activitiesRepository = {
           subject: activitiesTable.subject,
           done: activitiesTable.done,
           dueDate: activitiesTable.dueDate,
-          assignedToUserId: activitiesTable.assignedToUserId,
+          assignedToPersonId: activitiesTable.assignedToPersonId,
           updatedAt: activitiesTable.updatedAt,
         })
         .from(activitiesTable)
@@ -184,7 +184,7 @@ export const activitiesRepository = {
           type: activitiesTable.type,
           subject: activitiesTable.subject,
           dueDate: activitiesTable.dueDate,
-          assignedToUserId: activitiesTable.assignedToUserId,
+          assignedToPersonId: activitiesTable.assignedToPersonId,
         })
     );
   },

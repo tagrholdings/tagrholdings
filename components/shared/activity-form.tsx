@@ -53,7 +53,7 @@ export const activityFormSchema = z.object({
   dueTime: z.string().optional(),
   priority: z.enum(ACTIVITY_PRIORITIES).optional(),
   notes: z.string().optional(),
-  /** "user:<id>" or "contact:<id>" — one picker over two different owner kinds. */
+  /** "person:<id>" (a team person) or "contact:<id>" — one picker over two different owner kinds. */
   assignedTo: z.string().optional(),
   contactId: z.string().optional(),
   organizationId: z.string().optional(),
@@ -96,8 +96,8 @@ export function activityToFormValues(activity: ActivityRow): ActivityFormValues 
     dueTime: due && hasTimeComponent(due) ? toTimeInputValue(due) : "",
     priority,
     notes: activity.notes ?? "",
-    assignedTo: activity.assignedToUserId
-      ? `user:${activity.assignedToUserId}`
+    assignedTo: activity.assignedToPersonId
+      ? `person:${activity.assignedToPersonId}`
       : activity.assignedToContactId
         ? `contact:${activity.assignedToContactId}`
         : undefined,
@@ -119,7 +119,7 @@ export function toNewActivity(values: ActivityFormValues): NewActivity {
     contactId: values.contactId || undefined,
     organizationId: values.organizationId || undefined,
     pipelineItemId: values.pipelineItemId || undefined,
-    assignedToUserId: assignedKind === "user" ? assignedId : undefined,
+    assignedToPersonId: assignedKind === "person" ? assignedId : undefined,
     assignedToContactId: assignedKind === "contact" ? assignedId : undefined,
     // A reminder needs an exact moment: if the time was cleared after ticking the box, it's dropped rather than sent at midnight.
     notify: values.notify && values.dueDate && values.dueTime ? true : undefined,
@@ -151,7 +151,7 @@ export function buildOptimisticActivity(input: NewActivity, lookups: ActivityLoo
     organizationName: nameOf(lookups.organizations, input.organizationId),
     pipelineItemId: input.pipelineItemId ?? null,
     pipelineItemTitle: lookups.pipelineItems.find((i) => i.id === input.pipelineItemId)?.title ?? null,
-    assignedToUserId: input.assignedToUserId ?? null,
+    assignedToPersonId: input.assignedToPersonId ?? null,
     assignedToContactId: input.assignedToContactId ?? null,
     assignedToContactName: nameOf(lookups.contacts, input.assignedToContactId),
     notify: input.notify ?? false,
@@ -312,7 +312,7 @@ export function ActivityFormFields({ form, lookups, showPipelineItem = true, col
                     placeholder="Unassigned"
                     searchPlaceholder="Search team or contacts…"
                     groups={[
-                      { label: "Team", options: lookups.members.map((m) => ({ value: `user:${m.id}`, label: m.name ?? m.email })) },
+                      { label: "Team", options: lookups.members.map((m) => ({ value: `person:${m.id}`, label: m.name ?? m.email })) },
                       { label: "Contacts", options: lookups.contacts.map((c) => ({ value: `contact:${c.id}`, label: c.name })) },
                     ]}
                   />

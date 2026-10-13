@@ -26,7 +26,7 @@ const activityFieldsSchema = insertActivitySchema
     contactId: true,
     organizationId: true,
     pipelineItemId: true,
-    assignedToUserId: true,
+    assignedToPersonId: true,
     assignedToContactId: true,
     notify: true,
   })
@@ -36,11 +36,11 @@ const activityFieldsSchema = insertActivitySchema
   });
 
 /** The rules both creating and editing an activity share. */
-function withActivityRules<T extends z.ZodType<{ assignedToUserId?: string | null; assignedToContactId?: string | null; notify?: boolean | null; dueDate?: Date | null }>>(schema: T) {
+function withActivityRules<T extends z.ZodType<{ assignedToPersonId?: string | null; assignedToContactId?: string | null; notify?: boolean | null; dueDate?: Date | null }>>(schema: T) {
   return schema
-    .refine((data) => !(data.assignedToUserId && data.assignedToContactId), {
+    .refine((data) => !(data.assignedToPersonId && data.assignedToContactId), {
       message: "Assign to either a team member or a contact, not both.",
-      path: ["assignedToUserId"],
+      path: ["assignedToPersonId"],
     })
     .refine((data) => !data.notify || !!data.dueDate, {
       message: "A notification needs a due date and time.",
@@ -93,7 +93,7 @@ export interface ActivityRow {
   organizationName: string | null;
   pipelineItemId: string | null;
   pipelineItemTitle: string | null;
-  assignedToUserId: string | null;
+  assignedToPersonId: string | null;
   assignedToContactId: string | null;
   assignedToContactName: string | null;
   /** A push reminder is set for the due date/time. */

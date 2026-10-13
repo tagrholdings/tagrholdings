@@ -5,33 +5,57 @@ import { cn, initialsFor } from "@/lib/utils";
 import { CommandSelect } from "@/components/shared/command-select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { memberName } from "@/modules/traction/traction.logic";
-import { ROCK_STATUSES, ROCK_STATUS_LABELS, type RockStatus, type TractionMember } from "@/modules/traction/traction.types";
+import { SETTABLE_ROCK_STATUSES, ROCK_STATUS_LABELS, type RockStatus, type TractionMember } from "@/modules/traction/traction.types";
 
-/** An owner: initials + name, or a muted "No owner". Every Traction row shows one — EOS's "everyone has a number". */
+type SettableRockStatus = (typeof SETTABLE_ROCK_STATUSES)[number];
+
+/** An owner: initials + first name (and their seat, when they have one), or a muted "No owner". */
 export function OwnerBadge({ members, userId, compact = false, className }: { members: TractionMember[]; userId: string | null | undefined; compact?: boolean; className?: string }) {
   const name = memberName(members, userId);
   if (!name) return <span className={cn("text-sm text-muted-foreground italic", className)}>No owner</span>;
+  const seat = members.find((m) => m.id === userId)?.seat;
   return (
-    <span className={cn("inline-flex min-w-0 items-center gap-2 text-sm text-foreground", className)} title={name}>
+    <span className={cn("inline-flex min-w-0 items-center gap-2 text-sm text-foreground", className)} title={seat ? `${name} · ${seat}` : name}>
       <span className="flex size-6 shrink-0 items-center justify-center rounded-full border border-divider bg-muted text-[10.5px] font-semibold">
         {initialsFor(name)}
       </span>
-      {!compact && <span className="truncate">{name.split(" ")[0]}</span>}
+      {!compact && (
+        <span className="min-w-0 leading-tight">
+          <span className="block truncate">{name.split(" ")[0]}</span>
+          {seat && <span className="block truncate text-[11px] text-muted-foreground">{seat}</span>}
+        </span>
+      )}
     </span>
   );
 }
 
 const NO_OWNER = "__none__";
 
-/** Picks a workspace member (or nobody). Inline, so it works inside a Vault — see CommandSelect. */
-export function OwnerPicker({ members, value, onChange, placeholder = "Who owns it?" }: { members: TractionMember[]; value: string | null | undefined; onChange: (userId: string | null) => void; placeholder?: string }) {
+/** Picks a team person (or nobody, unless `required`). Inline, so it works inside a Vault — see CommandSelect. */
+export function OwnerPicker({
+  members,
+  value,
+  onChange,
+  placeholder = "Who owns it?",
+  required = false,
+}: {
+  members: TractionMember[];
+  value: string | null | undefined;
+  onChange: (personId: string | null) => void;
+  placeholder?: string;
+  /** EOS: every number, Rock and To-Do has exactly one owner — no "No owner" choice then. */
+  required?: boolean;
+}) {
   return (
     <CommandSelect
       value={value ?? undefined}
       onChange={(v) => onChange(!v || v === NO_OWNER ? null : v)}
       placeholder={placeholder}
       searchPlaceholder="Search people…"
-      options={[{ value: NO_OWNER, label: "No owner" }, ...members.map((m) => ({ value: m.id, label: m.name || m.email, description: m.name ? m.email : undefined }))]}
+      options={[
+        ...(required ? [] : [{ value: NO_OWNER, label: "No owner" }]),
+        ...members.map((m) => ({ value: m.id, label: m.name || m.email, description: m.seat || m.email || undefined })),
+      ]}
     />
   );
 }
@@ -64,6 +88,7 @@ const STATUS_STYLES: Record<RockStatus, string> = {
   off_track: "bg-destructive/10 text-destructive",
   complete: "bg-accent/15 text-accent-text",
   dropped: "bg-muted text-muted-foreground line-through",
+  rolled_over: "bg-muted text-muted-foreground",
 };
 
 export function RockStatusPill({ status, className }: { status: RockStatus; className?: string }) {
@@ -76,7 +101,9 @@ export function RockStatusPill({ status, className }: { status: RockStatus; clas
 }
 
 /** The status pill as a menu — the Rock Review's one question ("on track or off?") answered in a click. */
-export function RockStatusMenu({ status, onChange, disabled }: { status: RockStatus; onChange: (status: RockStatus) => void; disabled?: boolean }) {
+export function RockStatusMenu({ status, onChange, disabled }: { status: RockStatus; onChange: (status: SettableRockStatus) => void; disabled?: boolean }) {
+  // A rolled-over Rock is history (its copy lives in the next quarter): it shows its status but can't change it.
+  if (status === "rolled_over") return <RockStatusPill status={status} />;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild disabled={disabled}>
@@ -86,8 +113,8 @@ export function RockStatusMenu({ status, onChange, disabled }: { status: RockSta
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuRadioGroup value={status} onValueChange={(v) => onChange(v as RockStatus)}>
-          {ROCK_STATUSES.map((s) => (
+        <DropdownMenuRadioGroup value={status} onValueChange={(v) => onChange(v as SettableRockStatus)}>
+          {SETTABLE_ROCK_STATUSES.map((s) => (
             <DropdownMenuRadioItem key={s} value={s}>
               {ROCK_STATUS_LABELS[s]}
             </DropdownMenuRadioItem>

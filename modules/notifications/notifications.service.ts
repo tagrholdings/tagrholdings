@@ -3,6 +3,12 @@ import { isPushConfigured, sendPush } from "@/lib/web-push";
 import { activitiesService } from "@/modules/activities/activities.service";
 import { ACTIVITY_TYPE_LABELS } from "@/modules/activities/activities.types";
 import { tenancyService } from "@/modules/tenancy/tenancy.service";
+import { teamService } from "@/modules/team/team.service";
+import { tractionService } from "@/modules/traction/traction.service";
+import { formatMeetingTime } from "@/modules/traction/traction.logic";
+import { sendEmail } from "@/lib/email/send";
+import { l10ReminderEmail, l10ReminderEmailText } from "@/lib/email/templates/l10-reminder";
+import { crmUrl } from "@/lib/app-url";
 import { workspacePath } from "@/lib/workspace-path";
 import { notificationsRepository } from "./notifications.repository";
 import { isAllowedPushEndpoint, type PushPayload, type SubscribePushInput } from "./notifications.types";
@@ -61,10 +67,14 @@ export const notificationsService = {
         const due = await activitiesService.claimDueReminders(tenantId, now);
         if (due.length === 0) continue;
         const everyone = (await tenancyService.listMembers(tenantId)).map((member) => member.id);
+        // Tasks are assigned to team people; only the ones with a login have devices to push to.
+        const loginOf = new Map((await teamService.listPeople(tenantId)).map((p) => [p.id, p.userId]));
 
         for (const activity of due) {
           reminders += 1;
-          const recipients = activity.assignedToUserId ? [activity.assignedToUserId] : everyone;
+          const assigneeLogin = activity.assignedToPersonId ? loginOf.get(activity.assignedToPersonId) : undefined;
+          const recipients = activity.assignedToPersonId ? (assigneeLogin ? [assigneeLogin] : []) : everyone;
+          if (recipients.length === 0) continue; // assigned to someone with no login: no device to reach
           const subscriptions = await notificationsRepository.findByUserIds(recipients);
           delivered += await deliver(subscriptions, {
             title: activity.subject,
@@ -78,5 +88,45 @@ export const notificationsService = {
       }
     }
     return { reminders, delivered };
+  },
+
+  /**
+   * One hour before each workspace's standing L10: a push to every teammate's devices (those with a login and
+   * notifications on) and an email to every teammate with an address, carrying the meeting's points. Each meeting is
+   * claimed once (tractionService.claimDueL10Reminders), so overlapping sweeps never send it twice.
+   */
+  async sendDueL10Reminders(now: Date = new Date()) {
+    let meetings = 0;
+    let pushed = 0;
+    let emailed = 0;
+    for (const reminder of await tractionService.claimDueL10Reminders(now)) {
+      meetings += 1;
+      const when = formatMeetingTime(reminder.meetingAt, reminder.timezone);
+      const path = workspacePath(reminder.slug, "/traction/l10");
+      if (isPushConfigured()) {
+        const logins = reminder.people.map((p) => p.userId).filter((id): id is string => !!id);
+        pushed += await deliver(await notificationsRepository.findByUserIds(logins), {
+          title: `L10 in one hour · ${reminder.workspaceName}`,
+          body: reminder.topIssues.length ? `Top issue: ${reminder.topIssues[0]}` : `${when}. Open the agenda.`,
+          url: path,
+          tag: `l10-${reminder.tenantId}`,
+        });
+      }
+      const options = {
+        workspaceName: reminder.workspaceName,
+        when,
+        meetingUrl: `${crmUrl()}${path}`,
+        topIssues: reminder.topIssues,
+        offGoal: reminder.offGoal,
+        offTrackRocks: reminder.offTrackRocks,
+        openTodos: reminder.openTodos,
+      };
+      for (const person of reminder.people) {
+        if (!person.email) continue;
+        const sent = await sendEmail({ to: person.email, subject: `L10 in one hour · ${reminder.workspaceName}`, html: l10ReminderEmail(options), text: l10ReminderEmailText(options) });
+        if (sent) emailed += 1;
+      }
+    }
+    return { meetings, pushed, emailed };
   },
 };

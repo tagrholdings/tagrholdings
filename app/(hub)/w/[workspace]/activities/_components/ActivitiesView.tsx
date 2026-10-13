@@ -179,7 +179,7 @@ export function ActivitiesView({
   const memberById = new Map(lookups.members.map((m) => [m.id, m.name ?? m.email]));
   function assigneeLabel(activity: ActivityRow) {
     if (activity.assignedToContactName) return activity.assignedToContactName;
-    if (activity.assignedToUserId) return memberById.get(activity.assignedToUserId) ?? null;
+    if (activity.assignedToPersonId) return memberById.get(activity.assignedToPersonId) ?? null;
     return null;
   }
 

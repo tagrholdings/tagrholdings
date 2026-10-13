@@ -16,6 +16,7 @@ import * as rateLimitSchema from "@/modules/rate-limit/rate-limit.schema";
 import * as portalAccessSchema from "@/modules/portal-access/portal-access.schema";
 import * as notificationsSchema from "@/modules/notifications/notifications.schema";
 import * as tractionSchema from "@/modules/traction/traction.schema";
+import * as teamSchema from "@/modules/team/team.schema";
 
 const schema = {
   ...tenancySchema,
@@ -32,6 +33,7 @@ const schema = {
   ...portalAccessSchema,
   ...notificationsSchema,
   ...tractionSchema,
+  ...teamSchema,
 };
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL! });

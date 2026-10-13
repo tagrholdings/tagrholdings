@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/modules/notifications/notifications.service", () => ({ notificationsService: { sendDueTaskReminders: vi.fn() } }));
+vi.mock("@/modules/notifications/notifications.service", () => ({ notificationsService: { sendDueTaskReminders: vi.fn(), sendDueL10Reminders: vi.fn() } }));
 
 import { GET, POST } from "./route";
 import { notificationsService } from "@/modules/notifications/notifications.service";
@@ -12,6 +12,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.stubEnv("CRON_SECRET", "s3cret-value");
   vi.mocked(notificationsService.sendDueTaskReminders).mockResolvedValue({ reminders: 2, delivered: 3 });
+  vi.mocked(notificationsService.sendDueL10Reminders).mockResolvedValue({ meetings: 1, pushed: 2, emailed: 4 });
   vi.spyOn(console, "error").mockImplementation(() => undefined);
 });
 afterEach(() => vi.unstubAllEnvs());
@@ -33,12 +34,20 @@ describe("/api/cron/task-reminders", () => {
     for (const handler of [POST, GET]) {
       const response = await call(handler, "Bearer s3cret-value");
       expect(response.status).toBe(200);
-      expect(await response.json()).toEqual({ reminders: 2, delivered: 3 });
+      expect(await response.json()).toEqual({ reminders: 2, delivered: 3, l10: { meetings: 1, pushed: 2, emailed: 4 } });
     }
+  });
+
+  it("still sends the L10 reminders when the task sweep fails (and vice versa)", async () => {
+    vi.mocked(notificationsService.sendDueTaskReminders).mockRejectedValue(new Error("push not configured"));
+    const response = await call(POST, "Bearer s3cret-value");
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ l10: { meetings: 1, pushed: 2, emailed: 4 } });
   });
 
   it("masks a failure as a generic 500", async () => {
     vi.mocked(notificationsService.sendDueTaskReminders).mockRejectedValue(new Error("secret db detail"));
+    vi.mocked(notificationsService.sendDueL10Reminders).mockRejectedValue(new Error("secret db detail"));
     const response = await call(POST, "Bearer s3cret-value");
     expect(response.status).toBe(500);
     expect(JSON.stringify(await response.json())).not.toContain("secret db detail");

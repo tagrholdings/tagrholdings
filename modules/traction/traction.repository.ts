@@ -3,20 +3,37 @@ import { and, asc, desc, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-
 import {
   tractionEntriesTable,
   tractionIssuesTable,
+  tractionL10SettingsTable,
   tractionMeasurablesTable,
   tractionMeetingsTable,
+  tractionPeopleReviewsTable,
+  tractionProcessesTable,
   tractionRocksTable,
+  tractionSeatsTable,
   tractionVtoTable,
 } from "./traction.schema";
-import type { EntryRow, IssueRow, MeasurableRow, MeetingHistoryRow, MeetingRow, RockRow } from "./traction.types";
+import type {
+  EntryRow,
+  IssueRow,
+  L10Schedule,
+  LiveMeeting,
+  MeasurableRow,
+  MeetingHistoryRow,
+  MeetingRow,
+  ProcessRow,
+  ReviewRow,
+  RockRow,
+  SeatRow,
+} from "./traction.types";
 
 const measurableSelection = {
   id: tractionMeasurablesTable.id,
   name: tractionMeasurablesTable.name,
-  ownerUserId: tractionMeasurablesTable.ownerUserId,
+  ownerPersonId: tractionMeasurablesTable.ownerPersonId,
   cadence: tractionMeasurablesTable.cadence,
   goalOperator: tractionMeasurablesTable.goalOperator,
   goalValue: tractionMeasurablesTable.goalValue,
+  goalValueMax: tractionMeasurablesTable.goalValueMax,
   unit: tractionMeasurablesTable.unit,
   aggregation: tractionMeasurablesTable.aggregation,
   sortOrder: tractionMeasurablesTable.sortOrder,
@@ -26,10 +43,12 @@ const rockSelection = {
   id: tractionRocksTable.id,
   quarter: tractionRocksTable.quarter,
   title: tractionRocksTable.title,
-  ownerUserId: tractionRocksTable.ownerUserId,
+  ownerPersonId: tractionRocksTable.ownerPersonId,
   dueDate: tractionRocksTable.dueDate,
   status: tractionRocksTable.status,
   successCriteria: tractionRocksTable.successCriteria,
+  isCompany: tractionRocksTable.isCompany,
+  oneYearGoalId: tractionRocksTable.oneYearGoalId,
 };
 
 const meetingSelection = {
@@ -226,12 +245,15 @@ export const tractionRepository = {
         .select({
           id: tractionIssuesTable.id,
           title: tractionIssuesTable.title,
+          issueType: tractionIssuesTable.issueType,
+          rootCause: tractionIssuesTable.rootCause,
+          outcome: tractionIssuesTable.outcome,
           notes: tractionIssuesTable.notes,
           horizon: tractionIssuesTable.horizon,
           status: tractionIssuesTable.status,
           rank: tractionIssuesTable.rank,
-          raisedByUserId: tractionIssuesTable.raisedByUserId,
-          ownerUserId: tractionIssuesTable.ownerUserId,
+          raisedByPersonId: tractionIssuesTable.raisedByPersonId,
+          ownerPersonId: tractionIssuesTable.ownerPersonId,
           measurableId: tractionIssuesTable.measurableId,
           measurableName: tractionMeasurablesTable.name,
           rockId: tractionIssuesTable.rockId,
@@ -257,7 +279,13 @@ export const tractionRepository = {
   async findIssue(tenantId: string, id: string) {
     const [row] = await withTenant(tenantId, (tx) =>
       tx
-        .select({ id: tractionIssuesTable.id, status: tractionIssuesTable.status, title: tractionIssuesTable.title, ownerUserId: tractionIssuesTable.ownerUserId })
+        .select({
+          id: tractionIssuesTable.id,
+          status: tractionIssuesTable.status,
+          title: tractionIssuesTable.title,
+          issueType: tractionIssuesTable.issueType,
+          ownerPersonId: tractionIssuesTable.ownerPersonId,
+        })
         .from(tractionIssuesTable)
         .where(and(eq(tractionIssuesTable.tenantId, tenantId), eq(tractionIssuesTable.id, id)))
     );
@@ -266,13 +294,23 @@ export const tractionRepository = {
 
   async insertIssue(
     tenantId: string,
-    values: { title: string; notes: string | null; horizon: string; ownerUserId: string | null; raisedByUserId: string | null; measurableId: string | null; rockId: string | null }
+    values: {
+      title: string;
+      issueType: string;
+      rootCause: string | null;
+      notes: string | null;
+      horizon: string;
+      ownerPersonId: string | null;
+      raisedByPersonId: string | null;
+      measurableId: string | null;
+      rockId: string | null;
+    }
   ) {
     const [row] = await withTenant(tenantId, (tx) => tx.insert(tractionIssuesTable).values({ ...values, tenantId }).returning({ id: tractionIssuesTable.id }));
     return row;
   },
 
-  async updateIssue(tenantId: string, id: string, values: { title: string; notes: string | null; horizon: string; ownerUserId: string | null }) {
+  async updateIssue(tenantId: string, id: string, values: { title: string; issueType: string; rootCause: string | null; notes: string | null; horizon: string; ownerPersonId: string | null }) {
     const [row] = await withTenant(tenantId, (tx) =>
       tx
         .update(tractionIssuesTable)
@@ -283,11 +321,18 @@ export const tractionRepository = {
     return row;
   },
 
-  async setIssueStatus(tenantId: string, id: string, status: "open" | "solved" | "dropped", solution: string | null) {
+  /** Closes (or reopens) an issue. `horizon` moves it between lists — an idea decided "later" or an escalated obstacle. */
+  async setIssueStatus(
+    tenantId: string,
+    id: string,
+    status: "open" | "solved" | "dropped",
+    solution: string | null,
+    extra: { outcome?: string | null; horizon?: string } = {}
+  ) {
     const [row] = await withTenant(tenantId, (tx) =>
       tx
         .update(tractionIssuesTable)
-        .set({ status, solution, solvedAt: status === "solved" ? new Date() : null, rank: null, updatedAt: new Date() })
+        .set({ status, solution, solvedAt: status === "solved" ? new Date() : null, rank: null, outcome: extra.outcome ?? null, ...(extra.horizon ? { horizon: extra.horizon } : {}), updatedAt: new Date() })
         .where(and(eq(tractionIssuesTable.tenantId, tenantId), eq(tractionIssuesTable.id, id)))
         .returning({ id: tractionIssuesTable.id })
     );
@@ -320,7 +365,12 @@ export const tractionRepository = {
 
   async findMeetings(tenantId: string, limit: number): Promise<MeetingRow[]> {
     return withTenant(tenantId, (tx) =>
-      tx.select(meetingSelection).from(tractionMeetingsTable).where(eq(tractionMeetingsTable.tenantId, tenantId)).orderBy(desc(tractionMeetingsTable.heldAt)).limit(limit)
+      tx
+        .select(meetingSelection)
+        .from(tractionMeetingsTable)
+        .where(and(eq(tractionMeetingsTable.tenantId, tenantId), eq(tractionMeetingsTable.status, "concluded")))
+        .orderBy(desc(tractionMeetingsTable.heldAt))
+        .limit(limit)
     );
   },
 
@@ -328,17 +378,101 @@ export const tractionRepository = {
   async findMeetingHistory(tenantId: string, limit: number): Promise<MeetingHistoryRow[]> {
     return withTenant(tenantId, (tx) =>
       tx
-        .select({ ...meetingSelection, ratings: tractionMeetingsTable.ratings, headlines: tractionMeetingsTable.headlines, createdByUserId: tractionMeetingsTable.createdByUserId })
+        .select({
+          ...meetingSelection,
+          ratings: tractionMeetingsTable.ratings,
+          headlines: tractionMeetingsTable.headlines,
+          improvement: tractionMeetingsTable.improvement,
+          createdByUserId: tractionMeetingsTable.createdByUserId,
+        })
         .from(tractionMeetingsTable)
-        .where(eq(tractionMeetingsTable.tenantId, tenantId))
+        .where(and(eq(tractionMeetingsTable.tenantId, tenantId), eq(tractionMeetingsTable.status, "concluded")))
         .orderBy(desc(tractionMeetingsTable.heldAt))
         .limit(limit)
     );
   },
 
-  async insertMeeting(tenantId: string, values: Omit<typeof tractionMeetingsTable.$inferInsert, "tenantId" | "id">) {
-    const [row] = await withTenant(tenantId, (tx) => tx.insert(tractionMeetingsTable).values({ ...values, tenantId }).returning(meetingSelection));
+  async findLiveMeeting(tenantId: string): Promise<LiveMeeting | undefined> {
+    const [row] = await withTenant(tenantId, (tx) =>
+      tx
+        .select({ id: tractionMeetingsTable.id, startedAt: tractionMeetingsTable.startedAt, ratings: tractionMeetingsTable.ratings })
+        .from(tractionMeetingsTable)
+        .where(and(eq(tractionMeetingsTable.tenantId, tenantId), eq(tractionMeetingsTable.status, "in_progress")))
+        .orderBy(desc(tractionMeetingsTable.startedAt))
+        .limit(1)
+    );
     return row;
+  },
+
+  async insertLiveMeeting(tenantId: string, userId: string, now: Date) {
+    const [row] = await withTenant(tenantId, (tx) =>
+      tx
+        .insert(tractionMeetingsTable)
+        .values({ tenantId, status: "in_progress", startedAt: now, heldAt: now, ratings: {}, createdByUserId: userId })
+        .returning({ id: tractionMeetingsTable.id, startedAt: tractionMeetingsTable.startedAt, ratings: tractionMeetingsTable.ratings })
+    );
+    return row;
+  },
+
+  /** Adds one person's rating atomically (jsonb merge), so members rating at the same moment never overwrite each other. */
+  async setMeetingRating(tenantId: string, meetingId: string, personId: string, rating: number) {
+    const [row] = await withTenant(tenantId, (tx) =>
+      tx
+        .update(tractionMeetingsTable)
+        .set({ ratings: sql`${tractionMeetingsTable.ratings} || jsonb_build_object(${personId}::text, ${rating}::int)` })
+        .where(and(eq(tractionMeetingsTable.tenantId, tenantId), eq(tractionMeetingsTable.id, meetingId), eq(tractionMeetingsTable.status, "in_progress")))
+        .returning({ id: tractionMeetingsTable.id, ratings: tractionMeetingsTable.ratings })
+    );
+    return row;
+  },
+
+  async concludeMeeting(tenantId: string, meetingId: string, values: Partial<typeof tractionMeetingsTable.$inferInsert>) {
+    const [row] = await withTenant(tenantId, (tx) =>
+      tx
+        .update(tractionMeetingsTable)
+        .set({ ...values, status: "concluded" })
+        .where(and(eq(tractionMeetingsTable.tenantId, tenantId), eq(tractionMeetingsTable.id, meetingId), eq(tractionMeetingsTable.status, "in_progress")))
+        .returning(meetingSelection)
+    );
+    return row;
+  },
+
+  // ───────────── L10 schedule ─────────────
+
+  async findL10Schedule(tenantId: string): Promise<(L10Schedule & { remindedFor: Date | null }) | undefined> {
+    const [row] = await withTenant(tenantId, (tx) =>
+      tx
+        .select({
+          weekday: tractionL10SettingsTable.weekday,
+          startTime: tractionL10SettingsTable.startTime,
+          timezone: tractionL10SettingsTable.timezone,
+          remindedFor: tractionL10SettingsTable.remindedFor,
+        })
+        .from(tractionL10SettingsTable)
+        .where(eq(tractionL10SettingsTable.tenantId, tenantId))
+    );
+    return row;
+  },
+
+  async upsertL10Schedule(tenantId: string, values: L10Schedule) {
+    await withTenant(tenantId, (tx) =>
+      tx
+        .insert(tractionL10SettingsTable)
+        .values({ ...values, tenantId })
+        .onConflictDoUpdate({ target: tractionL10SettingsTable.tenantId, set: { ...values, remindedFor: null, updatedAt: new Date() } })
+    );
+  },
+
+  /** Claims the reminder for one meeting start: true for exactly one caller, so two overlapping sweeps can't both send it. */
+  async claimL10Reminder(tenantId: string, meetingAt: Date) {
+    const rows = await withTenant(tenantId, (tx) =>
+      tx
+        .update(tractionL10SettingsTable)
+        .set({ remindedFor: meetingAt })
+        .where(and(eq(tractionL10SettingsTable.tenantId, tenantId), sql`${tractionL10SettingsTable.remindedFor} is distinct from ${meetingAt}`))
+        .returning({ id: tractionL10SettingsTable.id })
+    );
+    return rows.length > 0;
   },
 
   // ───────────── V/TO ─────────────
@@ -360,5 +494,145 @@ export const tractionRepository = {
         .values({ tenantId, content, updatedByUserId: userId })
         .onConflictDoUpdate({ target: tractionVtoTable.tenantId, set: { content, updatedByUserId: userId, updatedAt: new Date() } })
     );
+  },
+
+  // ───────────── Seats (Accountability Chart) ─────────────
+
+  async findSeats(tenantId: string): Promise<SeatRow[]> {
+    return withTenant(tenantId, (tx) =>
+      tx
+        .select({
+          id: tractionSeatsTable.id,
+          name: tractionSeatsTable.name,
+          responsibilities: tractionSeatsTable.responsibilities,
+          parentSeatId: tractionSeatsTable.parentSeatId,
+          personId: tractionSeatsTable.personId,
+          sortOrder: tractionSeatsTable.sortOrder,
+        })
+        .from(tractionSeatsTable)
+        .where(eq(tractionSeatsTable.tenantId, tenantId))
+        .orderBy(asc(tractionSeatsTable.sortOrder), asc(tractionSeatsTable.createdAt))
+    );
+  },
+
+  async insertSeat(tenantId: string, values: Omit<SeatRow, "id">) {
+    const [row] = await withTenant(tenantId, (tx) => tx.insert(tractionSeatsTable).values({ ...values, tenantId }).returning({ id: tractionSeatsTable.id }));
+    return row;
+  },
+
+  async updateSeat(tenantId: string, id: string, values: Partial<Omit<SeatRow, "id">>) {
+    const [row] = await withTenant(tenantId, (tx) =>
+      tx
+        .update(tractionSeatsTable)
+        .set({ ...values, updatedAt: new Date() })
+        .where(and(eq(tractionSeatsTable.tenantId, tenantId), eq(tractionSeatsTable.id, id)))
+        .returning({ id: tractionSeatsTable.id })
+    );
+    return row;
+  },
+
+  /** Deletes a seat; the seats under it move up to its parent, so the chart never loses a branch. */
+  async deleteSeat(tenantId: string, id: string, parentSeatId: string | null) {
+    return withTenant(tenantId, async (tx) => {
+      await tx
+        .update(tractionSeatsTable)
+        .set({ parentSeatId, updatedAt: new Date() })
+        .where(and(eq(tractionSeatsTable.tenantId, tenantId), eq(tractionSeatsTable.parentSeatId, id)));
+      const [row] = await tx
+        .delete(tractionSeatsTable)
+        .where(and(eq(tractionSeatsTable.tenantId, tenantId), eq(tractionSeatsTable.id, id)))
+        .returning({ id: tractionSeatsTable.id });
+      return row;
+    });
+  },
+
+  // ───────────── People Analyzer ─────────────
+
+  async findReviews(tenantId: string, quarter: string, personIds: string[] | "all"): Promise<ReviewRow[]> {
+    if (personIds !== "all" && personIds.length === 0) return [];
+    const rows = await withTenant(tenantId, (tx) =>
+      tx
+        .select({
+          id: tractionPeopleReviewsTable.id,
+          personId: tractionPeopleReviewsTable.personId,
+          quarter: tractionPeopleReviewsTable.quarter,
+          kind: tractionPeopleReviewsTable.kind,
+          reviewerPersonId: tractionPeopleReviewsTable.reviewerPersonId,
+          valuesRatings: tractionPeopleReviewsTable.valuesRatings,
+          getsIt: tractionPeopleReviewsTable.getsIt,
+          wantsIt: tractionPeopleReviewsTable.wantsIt,
+          capacity: tractionPeopleReviewsTable.capacity,
+          notes: tractionPeopleReviewsTable.notes,
+          updatedAt: tractionPeopleReviewsTable.updatedAt,
+        })
+        .from(tractionPeopleReviewsTable)
+        .where(
+          and(
+            eq(tractionPeopleReviewsTable.tenantId, tenantId),
+            eq(tractionPeopleReviewsTable.quarter, quarter),
+            personIds === "all" ? undefined : inArray(tractionPeopleReviewsTable.personId, personIds)
+          )
+        )
+    );
+    return rows as ReviewRow[];
+  },
+
+  async upsertReview(tenantId: string, values: Omit<ReviewRow, "id" | "updatedAt">) {
+    await withTenant(tenantId, (tx) =>
+      tx
+        .insert(tractionPeopleReviewsTable)
+        .values({ ...values, tenantId })
+        .onConflictDoUpdate({
+          target: [tractionPeopleReviewsTable.tenantId, tractionPeopleReviewsTable.personId, tractionPeopleReviewsTable.quarter, tractionPeopleReviewsTable.kind],
+          set: { ...values, updatedAt: new Date() },
+        })
+    );
+  },
+
+  // ───────────── Processes ─────────────
+
+  async findProcesses(tenantId: string): Promise<ProcessRow[]> {
+    const rows = await withTenant(tenantId, (tx) =>
+      tx
+        .select({
+          id: tractionProcessesTable.id,
+          name: tractionProcessesTable.name,
+          area: tractionProcessesTable.area,
+          ownerPersonId: tractionProcessesTable.ownerPersonId,
+          steps: tractionProcessesTable.steps,
+          stage: tractionProcessesTable.stage,
+          lastReviewedAt: tractionProcessesTable.lastReviewedAt,
+          updatedAt: tractionProcessesTable.updatedAt,
+        })
+        .from(tractionProcessesTable)
+        .where(eq(tractionProcessesTable.tenantId, tenantId))
+        .orderBy(asc(tractionProcessesTable.area), asc(tractionProcessesTable.name))
+    );
+    return rows as ProcessRow[];
+  },
+
+  async insertProcess(tenantId: string, values: Omit<ProcessRow, "id" | "updatedAt" | "lastReviewedAt">) {
+    const [row] = await withTenant(tenantId, (tx) =>
+      tx.insert(tractionProcessesTable).values({ ...values, tenantId, lastReviewedAt: new Date() }).returning({ id: tractionProcessesTable.id })
+    );
+    return row;
+  },
+
+  async updateProcess(tenantId: string, id: string, values: Partial<Omit<ProcessRow, "id" | "updatedAt" | "lastReviewedAt">> & { lastReviewedAt?: Date }) {
+    const [row] = await withTenant(tenantId, (tx) =>
+      tx
+        .update(tractionProcessesTable)
+        .set({ ...values, updatedAt: new Date() })
+        .where(and(eq(tractionProcessesTable.tenantId, tenantId), eq(tractionProcessesTable.id, id)))
+        .returning({ id: tractionProcessesTable.id })
+    );
+    return row;
+  },
+
+  async deleteProcess(tenantId: string, id: string) {
+    const [row] = await withTenant(tenantId, (tx) =>
+      tx.delete(tractionProcessesTable).where(and(eq(tractionProcessesTable.tenantId, tenantId), eq(tractionProcessesTable.id, id))).returning({ id: tractionProcessesTable.id })
+    );
+    return row;
   },
 };

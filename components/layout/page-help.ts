@@ -74,12 +74,12 @@ const HELP_AGAIN: TourStep = {
   text: "This button explains whatever page you are on, and starts this tour again. Nothing here changes your data.",
 };
 
-/** Mobile only: the bottom bar shows one group of pages at a time, and a pull-down swaps CRM ⇄ Traction. */
+/** Mobile only: the bottom bar shows one group of pages at a time, and a pull-down moves CRM → Traction → EOS → CRM. */
 const NAV_SWITCH: TourStep = {
   target: "nav-bottom",
   only: "mobile",
-  title: "Switch between CRM and Traction",
-  text: "This bar shows one group of pages at a time. Pull it down (drag it toward the bottom of the screen) to swap between the CRM and Traction; pull again to come back.",
+  title: "Switch between CRM, Traction and EOS",
+  text: "This bar shows one group of pages at a time. Pull it down (drag it toward the bottom of the screen) to move to the next group: CRM, then Traction, then EOS, then back to the CRM.",
 };
 
 const ENTRIES: Entry[] = [
@@ -115,13 +115,13 @@ const ENTRIES: Entry[] = [
           target: "nav-sidebar",
           only: "desktop",
           title: "Getting around",
-          text: "Everything starts here, in two groups: CRM (the Leads Inbox for new finds, Leads for deals you are working, and more) and Traction (the company's operating system: Scorecard, Rocks, Issues, the weekly L10 and the V/TO).",
+          text: "Everything starts here, in three groups: CRM (the Leads Inbox for new finds, Leads for deals you are working, and more), Traction (the weekly rhythm: Scorecard, Rocks, Issues, the L10) and EOS (Vision, People and Process).",
         },
         {
           target: "nav-bottom",
           only: "mobile",
           title: "Getting around",
-          text: "These icons switch between the main parts of the CRM: the inbox of new finds, the leads you are working, and more. Pull the bar down (drag it toward the bottom of the screen) to switch to Traction's pages, and again to come back. Your avatar on the far right opens the account menu: settings, workspaces, dark mode and sign out.",
+          text: "These icons switch between the main parts of the CRM: the inbox of new finds, the leads you are working, and more. Pull the bar down (drag it toward the bottom of the screen) to move to Traction's pages, again for EOS, and once more to come back. Your avatar on the far right opens the account menu: settings, workspaces, dark mode and sign out.",
         },
         {
           target: "leads-inbox-tabs",
@@ -432,8 +432,8 @@ const ENTRIES: Entry[] = [
       tour: [
         {
           target: "contacts-tabs",
-          title: "People and companies",
-          text: "People are the sellers, brokers and advisors you talk to. Organizations are the companies they belong to.",
+          title: "People, companies and your team",
+          text: "People are the sellers, brokers and advisors you talk to; Organizations are the companies they belong to. Team is your own company's people: whoever can own a Rock, a number or a To-Do, with or without a login.",
         },
         {
           target: "contacts-table",
@@ -727,11 +727,11 @@ const ENTRIES: Entry[] = [
     path: "/traction",
     build: () => ({
       title: "Traction",
-      summary: "The company's operating system (EOS) on one page: this week's numbers and the Vision/Traction Organizer.",
+      summary: "The weekly rhythm of the company's operating system (EOS) on one screen.",
       sections: [
         {
           heading: "What it's for",
-          body: "Every company in the portfolio runs the same system. The top of this page shows where this one stands this week; below it, the V/TO says where it's going.",
+          body: "Every company in the portfolio runs the same system. This page shows where this one stands this week, when the next L10 is, and where the system is being used against an EOS rule.",
         },
         {
           heading: "How the pieces connect",
@@ -744,8 +744,8 @@ const ENTRIES: Entry[] = [
           ],
         },
         {
-          heading: "The V/TO",
-          body: "Blank parts show as dashed gaps on purpose: they are work still to do. Dates only take real dates and money only takes amounts (600000 or 3M). Its Rocks and Issues sections come live from their own pages.",
+          heading: "Where the rest lives",
+          body: "The V/TO, the Accountability Chart, the People Analyzer and the core processes are in the EOS group: Vision, People and Process.",
         },
       ],
       tour: [
@@ -758,22 +758,12 @@ const ENTRIES: Entry[] = [
         {
           target: "traction-next-l10",
           title: "The next L10",
-          text: "The top three issues the next meeting will solve, when the last one happened, and the button to start it.",
+          text: "The top three issues it will solve, its standing day and time, and the way in. While a meeting runs it says so, and the button joins it.",
         },
         {
-          target: "vto-vision",
-          title: "Vision",
-          text: "Who the company is and where it's going: core values, focus, the 10-year target and the marketing strategy.",
-        },
-        {
-          target: "vto-traction",
-          title: "Traction",
-          text: "The 3-year picture and the 1-year plan, plus this quarter's Rocks and the long-term issues, taken live from their pages.",
-        },
-        {
-          target: "vto-edit",
-          title: "Edit the V/TO",
-          text: "Update it at each quarterly. Dates use a date picker; revenue and profit take an amount like 600000 or 3M.",
+          target: "traction-checks",
+          title: "EOS checks",
+          text: "Each line is a rule EOS expects that isn't met yet: a number with no owner, too few Rocks, a meeting rated under 8. Fix them and this list empties.",
         },
         HELP_AGAIN,
       ],
@@ -813,9 +803,14 @@ const ENTRIES: Entry[] = [
           demo: { kind: "table", columns: ["Measurable", "Goal", "Jul", "Aug", "Sep"] },
         },
         {
+          target: "scorecard-checks",
+          title: "What EOS expects",
+          text: "5 to 15 numbers, each with one owner and a goal, entered weekly. Anything missing shows up here.",
+        },
+        {
           target: "scorecard-add",
           title: "Add a measurable",
-          text: "Give it a name, an owner and a goal. Without a goal the cells stay neutral, never red or green.",
+          text: "Give it a name, one owner and a goal: at least, at most, exactly, or a range. Without a goal the cells stay neutral, never red or green.",
           demo: { kind: "vault", fields: ["Name", "Owner", "Goal"], button: "Add measurable" },
         },
         HELP_AGAIN,
@@ -837,6 +832,7 @@ const ENTRIES: Entry[] = [
           body: [
             "Change a Rock's status from its pill: on track, off track, complete or dropped.",
             "When a Rock is off track, drop it to Issues so the L10 can solve it.",
+            "After a quarter ends, close out each unfinished Rock: complete it, carry it into the next quarter, or drop it.",
             "Click a Rock to edit it, move it to another quarter or delete it.",
           ],
         },
@@ -851,13 +847,18 @@ const ENTRIES: Entry[] = [
         {
           target: "rocks-list",
           title: "The quarter's Rocks",
-          text: "Each Rock shows its owner, due date and status. The bar on top shows how the quarter is going.",
+          text: "Company Rocks first, then each person's individual Rocks. Each shows its owner, finish line, due date, status and the 1-Year goal it moves.",
           demo: { kind: "table", columns: ["Rock", "Owner", "Status"] },
+        },
+        {
+          target: "rocks-rate",
+          title: "Done is binary",
+          text: "The share of the quarter's Rocks that are complete; the target is 80%. When a quarter ends, each unfinished Rock is completed, carried into the next quarter, or dropped.",
         },
         {
           target: "rocks-add",
           title: "Add a Rock",
-          text: "Write it so anyone could check whether it's done, and give it a single owner.",
+          text: "Write it so anyone could check whether it's done, give it one owner, and pick the 1-Year goal it moves.",
           demo: { kind: "vault", fields: ["Rock", "Owner", "Done when"], button: "Add Rock" },
         },
         HELP_AGAIN,
@@ -872,15 +873,19 @@ const ENTRIES: Entry[] = [
       sections: [
         {
           heading: "What it's for",
-          body: "An issue can be a problem, an idea or an opportunity. The weekly L10 ranks the list and solves the top three, one at a time.",
+          body: "Every issue has a kind. A problem is solved; an idea is decided yes, no or later; an obstacle (something blocking a Rock) is removed or escalated. The weekly L10 ranks the list and works the top three, one at a time.",
         },
         {
           heading: "The two lists",
           body: ["This week (L10): solved in the weekly meeting.", "Long term (V/TO): bigger topics, worked at the quarterly."],
         },
         {
-          heading: "Solving",
-          body: "Solve asks for the decision and, usually, the To-Do that carries it out. That To-Do lands in Activities and in the next L10.",
+          heading: "IDS",
+          body: [
+            "Identify: write the real issue in one sentence, the root cause and not the symptom.",
+            "Discuss: everyone weighs in, no tangents, 5 to 15 minutes.",
+            "Solve: record the decision and its To-Dos, each with one owner and a due date. They land in Activities and the next L10.",
+          ],
         },
       ],
       tour: [
@@ -893,7 +898,7 @@ const ENTRIES: Entry[] = [
         {
           target: "issues-list",
           title: "Ranked list",
-          text: "The top three (dark numbers) are what the next L10 works on. Use the menu to move an issue up or down, edit, drop or delete it.",
+          text: "The top three (dark numbers) are what the next L10 works on. Each shows its kind and how long it has been open; four weeks or more turns red. Use the menu to move it, edit its root cause, drop or delete it.",
           demo: { kind: "table", columns: ["#", "Issue", "Owner"] },
         },
         {
@@ -917,6 +922,10 @@ const ENTRIES: Entry[] = [
           body: "The operator runs the L10 every week, same day and time, with the leadership team. Each step shows live data (the Scorecard, Rocks, To-Dos and Issues), so nothing is copied by hand. It is called a Level 10 because the goal is for everyone to rate it a 10.",
         },
         {
+          heading: "Same day, same time",
+          body: "An admin sets the standing day and time. An hour before each meeting, everyone on the team gets a reminder with its points: a push on the app, and an email.",
+        },
+        {
           heading: "The agenda (90 minutes)",
           body: [
             "Segue (5 min): each person shares one personal and one professional best from the week.",
@@ -925,16 +934,31 @@ const ENTRIES: Entry[] = [
             "Customer / Employee Headlines (5 min): one-line news. Anything that needs talking goes to Issues.",
             "To-Do List (5 min): each To-Do is done or not done. The target is 90% done.",
             "IDS (60 min): Identify, Discuss, Solve the top three issues, one at a time. Each solution becomes a To-Do.",
-            "Conclude (5 min): recap the new To-Dos, then everyone rates the meeting from 1 to 10.",
+            "Conclude (5 min): recap the new To-Dos; everyone rates the meeting from 1 to 10 from their own device.",
           ],
         },
         {
           heading: "After the meeting",
-          body: "Conclude records the meeting with this week's numbers. It shows on the Overview, in History and in the owner's Portfolio.",
+          body: "Conclude records the meeting with this week's numbers. Under an 8 average, it asks what would make the next one a 10. It shows on the Overview, in History and in the owner's Portfolio.",
         },
       ],
       tour: [
         NAV_SWITCH,
+        {
+          target: "l10-schedule",
+          title: "Same day, same time",
+          text: "The standing day and time. An hour before, everyone gets a push and an email with the meeting's points. An admin can change it here.",
+        },
+        {
+          target: "l10-start",
+          title: "Start the meeting",
+          text: "Starting it opens the meeting for everyone: each person can then rate it from their own phone or computer.",
+        },
+        {
+          target: "l10-live",
+          title: "While it runs",
+          text: "Everyone sees this bar, with their own rating one tap away. It also counts how many have rated.",
+        },
         {
           target: "l10-agenda",
           title: "The agenda",
@@ -968,22 +992,27 @@ const ENTRIES: Entry[] = [
         {
           target: "l10-agenda",
           title: "5 · To-Do List (5 min)",
-          text: "Go down last week's To-Dos: done or not done, tick the box. The percentage at the top should be 90% or more. New To-Dos can be added at the bottom.",
+          text: "Go down last week's To-Dos: done or not done, tick the box. The percentage at the top should be 90% or more. New To-Dos (with one owner) can be added at the bottom.",
         },
         {
           target: "l10-agenda",
           title: "6 · IDS (60 min)",
-          text: "The heart of the meeting. Take the top three issues one at a time: Identify the real problem, Discuss it briefly, Solve it. Solve records the decision and creates the To-Do.",
+          text: "The heart of the meeting. Take the top three issues one at a time: Identify the root cause, Discuss it (the issue's own timer turns red after 15 minutes), Solve it with a decision and its To-Dos.",
         },
         {
           target: "l10-agenda",
           title: "7 · Conclude (5 min)",
-          text: "Recap the new To-Dos, then each person rates the meeting from 1 to 10. Conclude meeting saves it with this week's numbers.",
+          text: "Recap the new To-Dos. Everyone rates the meeting from 1 to 10 from their own device; a teammate without a login is rated for here. Under an 8 average, write what would make it a 10, then conclude.",
         },
         {
           target: "l10-section",
           title: "The step's live data",
           text: "Everything here is the real data from the Scorecard, Rocks, Activities and Issues. Changes you make during the meeting are saved right away.",
+        },
+        {
+          target: "l10-ratings",
+          title: "Everyone's rating",
+          text: "Ratings arrive as people send them from their own devices. Yours is the one you can change; a teammate without a login can be rated for.",
         },
         {
           target: "l10-history",
@@ -1015,6 +1044,132 @@ const ENTRIES: Entry[] = [
           target: "l10-history-list",
           title: "One card per meeting",
           text: "The date and rating at the top, the week's numbers below (red when off), then who rated what and the headlines.",
+        },
+        HELP_AGAIN,
+      ],
+    }),
+  },
+  {
+    path: "/eos/vision",
+    build: () => ({
+      title: "Vision / Traction Organizer",
+      summary: "The company's vision and plan on one page: the V/TO.",
+      sections: [
+        {
+          heading: "What it's for",
+          body: "Where the company is going (core values, core focus, the 10-year target, the marketing strategy) and how it gets there (the 3-year picture, the 1-year plan, this quarter's Rocks, the long-term issues). Share it with the whole company.",
+        },
+        {
+          heading: "What EOS expects",
+          body: [
+            "3 to 7 core values, each with 2–3 behaviors you can see, so they can be used to hire, review and fire.",
+            "A 3-year picture with revenue, profit, people and customers.",
+            "A 1-year plan with 3 to 7 specific, measurable goals — and Rocks that move each of them.",
+          ],
+        },
+        {
+          heading: "Good to know",
+          body: "Blank parts show as dashed gaps on purpose: they are work still to do. Dates only take real dates and money only takes amounts (600000 or 3M). The Rocks and Issues sections come live from their own pages.",
+        },
+      ],
+      tour: [
+        NAV_SWITCH,
+        {
+          target: "vto-vision",
+          title: "Vision",
+          text: "Who the company is and where it's going. These change rarely, so revisit them at the annual planning.",
+        },
+        {
+          target: "vto-traction",
+          title: "Traction",
+          text: "The 3-year picture and the 1-year plan, plus this quarter's Rocks and the long-term issues, taken live from their pages.",
+        },
+        {
+          target: "vto-goals",
+          title: "Goals and Rocks",
+          text: "Each 1-Year goal shows how many of this quarter's Rocks move it. A goal with none is in red: no one is working on it this quarter.",
+        },
+        {
+          target: "vto-edit",
+          title: "Edit the V/TO",
+          text: "Update it at each quarterly. Core values take their behaviors, goals are one per row, dates use a date picker, and money takes an amount like 600000 or 3M.",
+        },
+        HELP_AGAIN,
+      ],
+    }),
+  },
+  {
+    path: "/eos/people",
+    build: () => ({
+      title: "People",
+      summary: "The Accountability Chart and the People Analyzer: the right people in the right seats.",
+      sections: [
+        {
+          heading: "Accountability Chart",
+          body: "The company's seats, who sits in each, and each seat's 3–5 roles. One person per seat — shared accountability is no accountability. A person may hold more than one seat, or none yet. Everyone sees the chart; admins shape it.",
+        },
+        {
+          heading: "People Analyzer",
+          body: [
+            "Right person: + / +− / − on each core value. All + is the bar; one +− is a conversation; any − means wrong person.",
+            "Right seat: yes or no on Gets it, Wants it, Capacity to do it. All three must be yes.",
+            "It is private: you see your own reviews and your direct reports'; admins see everyone's. The manager's review and the self review are compared in the Quarterly Conversation.",
+          ],
+        },
+      ],
+      tour: [
+        NAV_SWITCH,
+        {
+          target: "people-tabs",
+          title: "Chart or Analyzer",
+          text: "The Accountability Chart shows who sits where; the People Analyzer reviews whether they are the right person in the right seat.",
+        },
+        {
+          target: "people-chart",
+          title: "The chart",
+          text: "Each seat with its person and roles. An empty seat is outlined in red. Who sits above whom decides who reviews whom.",
+        },
+        {
+          target: "people-add-seat",
+          title: "Add a seat",
+          text: "Admins add seats: start with the Visionary and the Integrator, then a seat per major function.",
+        },
+        {
+          target: "people-analyzer",
+          title: "Reviews, privately",
+          text: "Each row shows the manager's and the self review for the quarter. Review your direct reports, and fill in your own self review.",
+        },
+        HELP_AGAIN,
+      ],
+    }),
+  },
+  {
+    path: "/eos/process",
+    build: () => ({
+      title: "Core processes",
+      summary: "The handful of processes that make the company run the same way every time.",
+      sections: [
+        {
+          heading: "What it's for",
+          body: "Document the 20% of processes that give 80% of the consistency — usually HR, sales, operations, customer service and finance. 5 to 20 major steps each, with just enough detail.",
+        },
+        {
+          heading: "Followed by all",
+          body: "A process moves from documented, to trained, to followed by all (FBA). Review each one every quarter; one not reviewed in 90 days is flagged.",
+        },
+      ],
+      tour: [
+        NAV_SWITCH,
+        {
+          target: "process-list",
+          title: "Processes by area",
+          text: "Open one to see its steps. Each shows its owner, where it stands, and when it was last reviewed.",
+        },
+        {
+          target: "process-add",
+          title: "Add a process",
+          text: "Name it the way people say it, give it one owner, and list its major steps.",
+          demo: { kind: "vault", fields: ["Name", "Owner", "Steps"], button: "Add process" },
         },
         HELP_AGAIN,
       ],

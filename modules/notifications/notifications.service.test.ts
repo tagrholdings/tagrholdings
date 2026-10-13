@@ -6,21 +6,27 @@ vi.mock("./notifications.repository", () => ({
 vi.mock("@/lib/web-push", () => ({ isPushConfigured: vi.fn(), sendPush: vi.fn() }));
 vi.mock("@/modules/activities/activities.service", () => ({ activitiesService: { claimDueReminders: vi.fn() } }));
 vi.mock("@/modules/tenancy/tenancy.service", () => ({ tenancyService: { listTenants: vi.fn(), listMembers: vi.fn() } }));
+vi.mock("@/modules/team/team.service", () => ({ teamService: { listPeople: vi.fn() } }));
+vi.mock("@/modules/traction/traction.service", () => ({ tractionService: { claimDueL10Reminders: vi.fn() } }));
+vi.mock("@/lib/email/send", () => ({ sendEmail: vi.fn() }));
 
 import { notificationsService } from "./notifications.service";
 import { notificationsRepository } from "./notifications.repository";
 import { isPushConfigured, sendPush } from "@/lib/web-push";
 import { activitiesService } from "@/modules/activities/activities.service";
 import { tenancyService } from "@/modules/tenancy/tenancy.service";
+import { teamService } from "@/modules/team/team.service";
+import { tractionService } from "@/modules/traction/traction.service";
+import { sendEmail } from "@/lib/email/send";
 
 const NOW = new Date("2026-09-28T15:00:00Z");
 const sub = (id: string) => ({ id, endpoint: `https://fcm.googleapis.com/${id}`, p256dh: "k", auth: "a" });
-const reminder = (over: Partial<{ id: string; assignedToUserId: string | null }> = {}) => ({
+const reminder = (over: Partial<{ id: string; assignedToPersonId: string | null }> = {}) => ({
   id: "act-1",
   type: "call",
   subject: "Call the seller",
   dueDate: NOW,
-  assignedToUserId: null,
+  assignedToPersonId: null,
   ...over,
 });
 
@@ -34,6 +40,12 @@ beforeEach(() => {
     { id: "u2", name: "Matheus", email: "m@x.com", role: "member" },
   ]);
   vi.mocked(notificationsRepository.findByUserIds).mockResolvedValue([sub("s1")]);
+  // Tasks are assigned to team people: p2 is Matheus's login (u2); p-tech has no login.
+  vi.mocked(teamService.listPeople).mockResolvedValue([
+    { id: "p1", name: "Tanner", email: "t@x.com", title: null, userId: "u1", archivedAt: null },
+    { id: "p2", name: "Matheus", email: "m@x.com", title: null, userId: "u2", archivedAt: null },
+    { id: "p-tech", name: "Rex", email: null, title: null, userId: null, archivedAt: null },
+  ]);
 });
 
 describe("subscribe", () => {
@@ -58,7 +70,7 @@ describe("sendDueTaskReminders", () => {
   });
 
   it("an assigned task goes only to its assignee, with a link to the activity", async () => {
-    vi.mocked(activitiesService.claimDueReminders).mockResolvedValue([reminder({ assignedToUserId: "u2" })] as never);
+    vi.mocked(activitiesService.claimDueReminders).mockResolvedValue([reminder({ assignedToPersonId: "p2" })] as never);
     const result = await notificationsService.sendDueTaskReminders(NOW);
     expect(notificationsRepository.findByUserIds).toHaveBeenCalledWith(["u2"]);
     expect(sendPush).toHaveBeenCalledWith(
@@ -66,6 +78,11 @@ describe("sendDueTaskReminders", () => {
       expect.objectContaining({ title: "Call the seller", body: "Call due now", url: "/w/acme/activities?activity=act-1", tag: "activity-act-1" })
     );
     expect(result).toEqual({ reminders: 1, delivered: 1 });
+  });
+
+  it("a task assigned to someone without a login is pushed to nobody (they have no device)", async () => {
+    vi.mocked(activitiesService.claimDueReminders).mockResolvedValue([reminder({ assignedToPersonId: "p-tech" })] as never);
+    expect(await notificationsService.sendDueTaskReminders(NOW)).toEqual({ reminders: 1, delivered: 0 });
   });
 
   it("an unassigned task goes to the whole team", async () => {
@@ -109,5 +126,44 @@ describe("sendTest", () => {
   it("sends to the person's own devices", async () => {
     expect(await notificationsService.sendTest("u1", "acme")).toEqual({ sent: 1 });
     expect(notificationsRepository.findByUserIds).toHaveBeenCalledWith(["u1"]);
+  });
+});
+
+describe("sendDueL10Reminders", () => {
+  const due = {
+    tenantId: "t1",
+    slug: "grounded",
+    workspaceName: "Grounded",
+    meetingAt: new Date("2026-10-13T15:00:00Z"),
+    timezone: "America/Phoenix",
+    topIssues: ["Home inspectors are a channel"],
+    offGoal: ["Active customers"],
+    offTrackRocks: [],
+    openTodos: 4,
+    people: [
+      { name: "Jay", email: "jay@x.test", userId: "u-jay" },
+      { name: "Rex", email: "rex@x.test", userId: null },
+      { name: "Kody", email: null, userId: "u-kody" },
+    ],
+  };
+
+  it("pushes to everyone with a login and emails everyone with an address, with the meeting's points", async () => {
+    vi.mocked(tractionService.claimDueL10Reminders).mockResolvedValue([due]);
+    vi.mocked(sendEmail).mockResolvedValue(true);
+    const result = await notificationsService.sendDueL10Reminders(NOW);
+    expect(notificationsRepository.findByUserIds).toHaveBeenCalledWith(["u-jay", "u-kody"]);
+    expect(sendPush).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ url: "/w/grounded/traction/l10", body: "Top issue: Home inspectors are a channel" }));
+    expect(sendEmail).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(sendEmail).mock.calls[0][0]).toMatchObject({ to: "jay@x.test", subject: "L10 in one hour · Grounded" });
+    expect(vi.mocked(sendEmail).mock.calls[0][0].text).toContain("Active customers");
+    expect(result).toEqual({ meetings: 1, pushed: 1, emailed: 2 });
+  });
+
+  it("still emails when push isn't configured", async () => {
+    vi.mocked(isPushConfigured).mockReturnValue(false);
+    vi.mocked(tractionService.claimDueL10Reminders).mockResolvedValue([due]);
+    vi.mocked(sendEmail).mockResolvedValue(true);
+    expect(await notificationsService.sendDueL10Reminders(NOW)).toEqual({ meetings: 1, pushed: 0, emailed: 2 });
+    expect(sendPush).not.toHaveBeenCalled();
   });
 });

@@ -10,6 +10,7 @@ import { SegmentedControl } from "@/components/shared/segmented-control";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { OwnerBadge } from "@/components/traction/traction-ui";
+import { RuleChecks } from "@/components/traction/rule-checks";
 import { createIssueAction, setEntryAction } from "@/modules/traction/traction.actions";
 import {
   aggregate,
@@ -24,6 +25,7 @@ import {
   shiftPeriod,
   WINDOW_SIZE,
   type Cadence,
+  type RuleCheck,
 } from "@/modules/traction/traction.logic";
 import { AGGREGATION_LABELS, type EntryRow, type MeasurableRow, type TractionMember } from "@/modules/traction/traction.types";
 import { MeasurableVault } from "./MeasurableVault";
@@ -44,6 +46,7 @@ export function ScorecardView({
   periods,
   counts,
   members,
+  checks,
 }: {
   cadence: Cadence;
   windowEnd: string;
@@ -53,6 +56,7 @@ export function ScorecardView({
   periods: string[];
   counts: Record<Cadence, number>;
   members: TractionMember[];
+  checks: RuleCheck[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -97,8 +101,9 @@ export function ScorecardView({
       const value = formatValue(valueOf(measurable.id, period), measurable.unit);
       const result = await createIssueAction({
         title: `${measurable.name} off goal: ${value} in ${periodLabel(period, cadence, currentYear)}`,
+        issueType: "problem",
         horizon: "short_term",
-        ownerUserId: measurable.ownerUserId,
+        ownerPersonId: measurable.ownerPersonId,
         measurableId: measurable.id,
       });
       if (result?.serverError || result?.validationErrors) notify.error(result.serverError ?? "Couldn't add the issue.");
@@ -147,6 +152,7 @@ export function ScorecardView({
     return (
       <>
         {toolbar}
+        <RuleChecks checks={checks} tourId="scorecard-checks" />
         <Empty data-tour="scorecard-grid" className="border border-dashed border-divider">
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -170,6 +176,7 @@ export function ScorecardView({
   return (
     <>
       {toolbar}
+      <RuleChecks checks={checks} tourId="scorecard-checks" />
       <div data-tour="scorecard-grid" className="overflow-hidden rounded-lg border border-divider bg-surface">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-sm">
@@ -203,7 +210,7 @@ export function ScorecardView({
                       </button>
                     </td>
                     <td className="px-3 py-2">
-                      <OwnerBadge members={members} userId={m.ownerUserId} />
+                      <OwnerBadge members={members} userId={m.ownerPersonId} />
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap text-muted-foreground tabular-nums">
                       {goal ?? (

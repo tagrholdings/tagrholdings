@@ -26,7 +26,7 @@ function tenantTables(): string[] {
       // Split at every pgTable( and look at each table's own definition.
       const parts = source.split(/pgTable\(\s*/).slice(1);
       for (const part of parts) {
-        const name = part.match(/^"([a-z_]+)"/)?.[1];
+        const name = part.match(/^"([a-z0-9_]+)"/)?.[1];
         if (name && /uuid\("tenant_id"\)/.test(part.split(/\n\);?\n/)[0]) && !HANDLED_ELSEWHERE.has(name)) found.push(name);
       }
     }
@@ -64,5 +64,6 @@ describe("TENANT_DATA_TABLES", () => {
     before("traction_issues", "traction_measurables");
     before("traction_issues", "traction_rocks");
     before("traction_entries", "traction_measurables");
+    for (const child of ["activities", "traction_measurables", "traction_rocks", "traction_issues", "traction_seats", "traction_people_reviews", "traction_processes"]) before(child, "team_people");
   });
 });

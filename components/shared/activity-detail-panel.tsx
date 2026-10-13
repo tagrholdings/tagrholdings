@@ -42,8 +42,8 @@ function DetailBody({
   const linkedItem = pipelineItems.find((i) => i.id === activity.pipelineItemId);
   const assignee =
     activity.assignedToContactName ??
-    members.find((m) => m.id === activity.assignedToUserId)?.name ??
-    members.find((m) => m.id === activity.assignedToUserId)?.email ??
+    members.find((m) => m.id === activity.assignedToPersonId)?.name ??
+    members.find((m) => m.id === activity.assignedToPersonId)?.email ??
     null;
 
   return (

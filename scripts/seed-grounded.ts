@@ -11,12 +11,13 @@ import { Pool, type PoolClient } from "pg";
  * Left out on purpose: the V/TO's "Rocks for the Quarter" (dated "3/31/25", no status — ambiguous), and goals the
  * sheet doesn't give (only revenue has one: $13,500).
  *
- * Owners ("Who") are CRM accounts. Pass the ones that already exist in GROUNDED_OWNER_EMAILS: they become members and
- * own their rows. An owner without an account leaves their rows unowned — a To-Do gets "L10 owner: <name>" in its notes.
+ * Owners ("Who") are team people (team_people), created for every name on the sheet whether or not they have a login.
+ * Pass emails in GROUNDED_OWNER_EMAILS: a person whose email has a CRM account is linked to it and made a member;
+ * anyone else is a person without a login (they can still own work, and get linked when they accept an invite).
  *
  * Like scripts/migrate-explicit.ts it never reads the repo's env files or `.neon`: you type the database and the host
  * must match. It refuses to run if the `grounded` slug already exists. Without GROUNDED_APPLY=yes it runs everything
- * inside a transaction and ROLLS BACK (a dry run that still checks every constraint). Needs migrations 0023-0024.
+ * inside a transaction and ROLLS BACK (a dry run that still checks every constraint). Needs migrations up to 0027.
  *
  * Usage:
  *   SEED_DATABASE_URL="postgresql://...unpooled-host.../neondb?..." \
@@ -182,11 +183,11 @@ async function main() {
     for (const owner of OWNERS) {
       const email = ownerEmails[owner];
       const userId = email ? usersByEmail.get(email) : undefined;
-      if (userId) {
-        ownerId[owner] = userId;
-        if (!memberRoles.has(userId)) memberRoles.set(userId, "member");
-      }
-      console.log(`  ${owner.padEnd(8)} ${userId ? `→ ${email}` : email ? `✗ ${email} has no account — left unowned` : "✗ no email given — left unowned"}`);
+      if (userId && !memberRoles.has(userId)) memberRoles.set(userId, "member");
+      // Every owner is a team person; the login is attached only when one exists.
+      ownerId[owner] = randomUUID();
+      await insert(db, "team_people", { id: ownerId[owner], tenant_id: T, name: owner, email: email ?? null, user_id: userId ?? null });
+      console.log(`  ${owner.padEnd(8)} ${userId ? `→ signs in as ${email}` : email ? `person (${email} has no login yet)` : "person, no email"}`);
     }
     for (const [userId, role] of memberRoles) await insert(db, "tenant_members", { tenant_id: T, user_id: userId, role });
     console.log(`Members: ${memberRoles.size}${memberRoles.size === 0 ? " (only a super admin can open it until someone is invited)" : ""}`);
@@ -210,10 +211,10 @@ async function main() {
         subject: t.subject,
         due_date: t.due ?? null,
         done: t.done ?? false,
-        notes: owner(t.who) ? null : `L10 owner: ${t.who}`,
+        notes: null,
         contact_id: t.contact ? contactId[t.contact] : null,
         organization_id: t.org ? orgId[t.org] : null,
-        assigned_to_user_id: owner(t.who),
+        assigned_to_person_id: owner(t.who),
         l10_todo: true,
       });
     }
@@ -245,7 +246,7 @@ async function main() {
 
     // Traction — Rocks
     for (const r of ROCKS) {
-      await insert(db, "traction_rocks", { tenant_id: T, quarter: "2026-Q2", title: r.title, owner_user_id: owner(r.owner), due_date: "2026-06-30", status: r.status, success_criteria: r.criteria ?? null });
+      await insert(db, "traction_rocks", { tenant_id: T, quarter: "2026-Q2", title: r.title, owner_person_id: owner(r.owner), due_date: "2026-06-30", status: r.status, success_criteria: r.criteria ?? null, is_company: true });
     }
     console.log(`Rocks: ${ROCKS.length} (Q2 2026)`);
 
@@ -257,8 +258,8 @@ async function main() {
         horizon: "short_term",
         status: issue.solved ? "solved" : "open",
         rank: issue.solved ? null : i + 1,
-        raised_by_user_id: owner(issue.creator),
-        owner_user_id: owner(issue.creator),
+        raised_by_person_id: owner(issue.creator),
+        owner_person_id: owner(issue.creator),
         solved_at: issue.solved ? new Date() : null,
       });
     }

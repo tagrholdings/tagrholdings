@@ -4,7 +4,7 @@ import { pipelineService } from "@/modules/pipeline/pipeline.service";
 import { activitiesService } from "@/modules/activities/activities.service";
 import { contactsService } from "@/modules/contacts/contacts.service";
 import { organizationsService } from "@/modules/organizations/organizations.service";
-import { tenancyService } from "@/modules/tenancy/tenancy.service";
+import { teamService } from "@/modules/team/team.service";
 import { initialsFor } from "@/lib/utils";
 import { PipelineView } from "@/components/pipeline/PipelineView";
 
@@ -21,7 +21,7 @@ export default async function LeadsPage({ params, searchParams }: { params: Prom
     activitiesService.listForTenant(user.tenantId),
     contactsService.listForTenant(user.tenantId),
     organizationsService.listForTenant(user.tenantId),
-    tenancyService.listMembers(user.tenantId),
+    teamService.listOptions(user.tenantId),
     pipelineService.listAllForTenant(user.tenantId),
   ]);
 

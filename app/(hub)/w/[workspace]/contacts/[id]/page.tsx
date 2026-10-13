@@ -6,7 +6,7 @@ import { contactsService } from "@/modules/contacts/contacts.service";
 import { organizationsService } from "@/modules/organizations/organizations.service";
 import { pipelineService } from "@/modules/pipeline/pipeline.service";
 import { activitiesService } from "@/modules/activities/activities.service";
-import { tenancyService } from "@/modules/tenancy/tenancy.service";
+import { teamService } from "@/modules/team/team.service";
 import { initialsFor } from "@/lib/utils";
 import { ContactProfileView } from "./_components/ContactProfileView";
 
@@ -25,7 +25,7 @@ export default async function ContactDetailPage({ params }: { params: Promise<{ 
     pipelineService.listAllForTenant(user.tenantId),
     activitiesService.listForTenant(user.tenantId),
     pipelineService.listBoards(user.tenantId),
-    tenancyService.listMembers(user.tenantId),
+    teamService.listOptions(user.tenantId),
   ]);
 
   return (

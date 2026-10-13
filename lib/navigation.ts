@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { stripWorkspacePrefix } from "@/lib/workspace-path";
-import { FolderKanban, Users, ListChecks, Inbox, Target, LayoutDashboard, LineChart, Gem, CircleAlert, Timer } from "lucide-react";
+import { FolderKanban, Users, ListChecks, Inbox, Target, LayoutDashboard, LineChart, Gem, CircleAlert, Timer, Compass, Network, Workflow } from "lucide-react";
 
 export interface NavItem {
   label: string;
@@ -13,7 +13,7 @@ export interface NavItem {
   exact?: boolean;
 }
 
-export type NavSectionId = "crm" | "traction";
+export type NavSectionId = "crm" | "traction" | "eos";
 
 export interface NavSection {
   id: NavSectionId;
@@ -35,21 +35,29 @@ export const NAV_ITEMS: NavItem[] = [
 
 /** Traction — the EOS operating system (see .agents/docs/EOS_PLAN.md), in the order a week uses it. */
 export const TRACTION_NAV_ITEMS: NavItem[] = [
-  { label: "Overview", href: "/traction", icon: LayoutDashboard, exact: true }, // the week at a glance + the V/TO
+  { label: "Overview", href: "/traction", icon: LayoutDashboard, exact: true },
   { label: "Scorecard", href: "/traction/scorecard", icon: LineChart },
   { label: "Rocks", href: "/traction/rocks", icon: Gem },
   { label: "Issues", href: "/traction/issues", icon: CircleAlert },
   { label: "L10 Meeting", href: "/traction/l10", icon: Timer },
 ];
 
+/** EOS's long-lived components: where the company is going, who sits where, and how the work is done. */
+export const EOS_NAV_ITEMS: NavItem[] = [
+  { label: "Vision", href: "/eos/vision", icon: Compass },
+  { label: "People", href: "/eos/people", icon: Network },
+  { label: "Process", href: "/eos/process", icon: Workflow },
+];
+
 /**
  * Single source of truth for primary navigation — consumed by both Sidebar (desktop/tablet, every section stacked
- * under its label) and BottomNav (mobile/PWA, one section at a time; drag the bar down to switch). See
+ * under its label) and BottomNav (mobile/PWA, one section at a time; drag the bar down for the next one). See
  * .agents/rules/design.md — "Responsive navigation".
  */
 export const NAV_SECTIONS: NavSection[] = [
   { id: "crm", label: "CRM", items: NAV_ITEMS },
   { id: "traction", label: "Traction", items: TRACTION_NAV_ITEMS },
+  { id: "eos", label: "EOS", items: EOS_NAV_ITEMS },
 ];
 
 /** Bottom nav shows the first N items as tabs; the rest collapse into "More". */

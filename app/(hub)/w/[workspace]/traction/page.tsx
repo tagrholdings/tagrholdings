@@ -3,29 +3,28 @@ import { getWorkspace } from "@/lib/auth-server";
 import { HubPage } from "@/components/layout/HubPage";
 import { RockBar } from "@/components/traction/traction-ui";
 import { tractionService } from "@/modules/traction/traction.service";
-import { tenancyService } from "@/modules/tenancy/tenancy.service";
-import { percent, quarterLabel } from "@/modules/traction/traction.logic";
+import { RuleChecks } from "@/components/traction/rule-checks";
+import { WEEKDAYS, formatMeetingTime, percent, quarterLabel } from "@/modules/traction/traction.logic";
 import { workspacePath } from "@/lib/workspace-path";
 import { initialsFor } from "@/lib/utils";
 import { formatDateUS } from "@/utils/date";
-import { VtoView } from "./_components/VtoView";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Traction's landing page: where the company stands this week (the tiles and the next L10) and where it's going (the
- * V/TO, editable in place). One page, so the plan and the weekly numbers are always read together.
+ * Traction's landing page: where the company stands this week (the tiles), the next L10, and every place the system
+ * is being used against an EOS rule. The V/TO lives in EOS → Vision.
  */
 export default async function TractionOverviewPage({ params }: { params: Promise<{ workspace: string }> }) {
   const { workspace: slug } = await params;
   const { user } = await getWorkspace(slug);
-  const [summary, vto, rocksData, issues, members] = await Promise.all([
+  const [summary, issues, checks, meeting] = await Promise.all([
     tractionService.getSummary(user.tenantId),
-    tractionService.getVto(user.tenantId),
-    tractionService.getRocks(user.tenantId),
     tractionService.getIssues(user.tenantId),
-    tenancyService.listMembers(user.tenantId),
+    tractionService.getRuleChecks(user.tenantId),
+    tractionService.getMeetingData(user.tenantId),
   ]);
+  const { schedule, live } = meeting;
   const href = (path: string) => workspacePath(slug, path);
   const topIssues = issues.filter((i) => i.status === "open" && i.horizon === "short_term").slice(0, 3);
   const { scorecard, rocks, todos, lastMeeting } = summary;
@@ -74,22 +73,36 @@ export default async function TractionOverviewPage({ params }: { params: Promise
             </ol>
           )}
         </div>
-        <p className="text-sm text-muted-foreground tabular-nums">
-          {lastMeeting ? `Last L10 ${formatDateUS(lastMeeting.heldAt, { month: "short", day: "numeric" })} · rating ${lastMeeting.averageRating ?? "—"}` : "No L10 recorded yet"}
-        </p>
+        <div className="text-sm text-muted-foreground tabular-nums">
+          <p>
+            {live ? (
+              <span className="font-medium text-accent-text">Meeting in progress</span>
+            ) : schedule ? (
+              <>Every {WEEKDAYS[schedule.weekday]} · next {formatMeetingTime(new Date(schedule.nextAt), schedule.timezone)}</>
+            ) : (
+              "No standing day and time yet"
+            )}
+          </p>
+          <p>{lastMeeting ? `Last L10 ${formatDateUS(lastMeeting.heldAt, { month: "short", day: "numeric" })} · rating ${lastMeeting.averageRating ?? "—"}` : "No L10 recorded yet"}</p>
+        </div>
         <Link href={href("/traction/l10")} className="rounded-pill bg-accent px-4 py-2 text-sm font-medium text-ink hover:bg-accent-hover">
-          Start meeting
+          {live ? "Join the meeting" : "Open the L10"}
         </Link>
       </section>
 
-      <VtoView
-        content={vto.content}
-        updatedAt={vto.updatedAt}
-        quarter={rocksData.focusQuarter}
-        rocks={rocksData.rocks.filter((r) => r.quarter === rocksData.focusQuarter)}
-        longTermIssues={issues.filter((i) => i.horizon === "long_term" && i.status === "open")}
-        members={members}
-      />
+      <section className="flex flex-col gap-2">
+        <div className="flex items-baseline justify-between gap-2">
+          <h2 className="font-serif text-lg font-semibold">EOS checks</h2>
+          <span className="text-xs text-muted-foreground">Where the system is being used against an EOS rule</span>
+        </div>
+        {checks.length === 0 ? (
+          <p data-tour="traction-checks" className="rounded-lg border border-divider bg-surface px-4 py-3 text-sm text-muted-foreground">
+            Everything is set up the EOS way.
+          </p>
+        ) : (
+          <RuleChecks checks={checks} tourId="traction-checks" />
+        )}
+      </section>
     </HubPage>
   );
 }

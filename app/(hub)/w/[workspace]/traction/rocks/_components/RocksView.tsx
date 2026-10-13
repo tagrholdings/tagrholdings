@@ -8,13 +8,30 @@ import { notify } from "@/components/ui/toaster";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
 import { OwnerBadge, RockBar, RockStatusMenu } from "@/components/traction/traction-ui";
-import { createIssueAction, setRockStatusAction } from "@/modules/traction/traction.actions";
-import { planningQuarters, quarterLabel } from "@/modules/traction/traction.logic";
+import { RuleChecks } from "@/components/traction/rule-checks";
+import { closeOutRockAction, createIssueAction, setRockStatusAction } from "@/modules/traction/traction.actions";
+import { memberName, percent, planningQuarters, quarterLabel, shiftQuarter, type RuleCheck } from "@/modules/traction/traction.logic";
 import type { RockRow, RockStatus, TractionMember } from "@/modules/traction/traction.types";
 import { formatDateUS } from "@/utils/date";
 import { RockVault } from "./RockVault";
 
-export function RocksView({ rocks: initialRocks, quarter, currentQuarter, members }: { rocks: RockRow[]; quarter: string; currentQuarter: string; members: TractionMember[] }) {
+type Goal = { id: string; text: string };
+
+export function RocksView({
+  rocks: initialRocks,
+  quarter,
+  currentQuarter,
+  members,
+  goals,
+  checks,
+}: {
+  rocks: RockRow[];
+  quarter: string;
+  currentQuarter: string;
+  members: TractionMember[];
+  goals: Goal[];
+  checks: RuleCheck[];
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const [rocks, setStatus] = useOptimistic(initialRocks, (state, patch: { id: string; status: RockStatus }) => state.map((r) => (r.id === patch.id ? { ...r, status: patch.status } : r)));
@@ -23,10 +40,16 @@ export function RocksView({ rocks: initialRocks, quarter, currentQuarter, member
 
   const quarters = planningQuarters(currentQuarter, [...rocks.map((r) => r.quarter), quarter]);
   const visible = rocks.filter((r) => r.quarter === quarter);
-  const counted = visible.filter((r) => r.status !== "dropped");
-  const count = (s: RockStatus) => counted.filter((r) => r.status === s).length;
+  const finished = quarter < currentQuarter;
+  // EOS scores Rocks binary: complete, or not (rolled over and dropped count as not done).
+  const rate = visible.length ? percent(visible.filter((r) => r.status === "complete").length, visible.length) : null;
+  const live = visible.filter((r) => r.status !== "dropped" && r.status !== "rolled_over");
+  const count = (s: RockStatus) => live.filter((r) => r.status === s).length;
+  const company = visible.filter((r) => r.isCompany);
+  const individual = visible.filter((r) => !r.isCompany);
+  const byOwner = [...new Set(individual.map((r) => r.ownerPersonId ?? ""))].map((owner) => ({ owner, rocks: individual.filter((r) => (r.ownerPersonId ?? "") === owner) }));
 
-  function changeStatus(rock: RockRow, status: RockStatus) {
+  function changeStatus(rock: RockRow, status: Exclude<RockStatus, "rolled_over">) {
     startTransition(async () => {
       setStatus({ id: rock.id, status });
       const result = await setRockStatusAction({ id: rock.id, status });
@@ -35,13 +58,64 @@ export function RocksView({ rocks: initialRocks, quarter, currentQuarter, member
     });
   }
 
+  function closeOut(rock: RockRow, action: "complete" | "carry" | "drop") {
+    startTransition(async () => {
+      setStatus({ id: rock.id, status: action === "complete" ? "complete" : action === "drop" ? "dropped" : "rolled_over" });
+      const result = await closeOutRockAction({ id: rock.id, action });
+      if (result?.serverError) notify.error(result.serverError);
+      else if (action === "carry") notify.success(`Carried into ${quarterLabel(shiftQuarter(rock.quarter, 1))}.`);
+    });
+  }
+
   function dropToIssues(rock: RockRow) {
     startTransition(async () => {
-      const result = await createIssueAction({ title: `Rock off track: ${rock.title}`, horizon: "short_term", ownerUserId: rock.ownerUserId, rockId: rock.id });
+      const result = await createIssueAction({ title: `Rock off track: ${rock.title}`, issueType: "problem", horizon: "short_term", ownerPersonId: rock.ownerPersonId, rockId: rock.id });
       if (result?.serverError || result?.validationErrors) notify.error(result.serverError ?? "Couldn't add the issue.");
       else notify.success("Dropped to Issues.");
     });
   }
+
+  const row = (rock: RockRow) => {
+    const goal = goals.find((g) => g.id === rock.oneYearGoalId);
+    const open = rock.status === "on_track" || rock.status === "off_track";
+    return (
+      <li key={rock.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-divider/50 px-4 py-3 last:border-0">
+        <button type="button" onClick={() => setVault({ open: true, rock })} className="min-w-0 flex-1 basis-56 text-left" disabled={rock.status === "rolled_over"}>
+          <span className={cn("block font-medium text-foreground hover:text-accent-text", (rock.status === "dropped" || rock.status === "rolled_over") && "text-muted-foreground line-through")}>{rock.title}</span>
+          <span className="block text-xs text-muted-foreground">{rock.successCriteria ? `Done when: ${rock.successCriteria}` : "No finish line written yet"}</span>
+          {goal && <span className="block text-xs text-accent-text">Moves: {goal.text}</span>}
+        </button>
+        <OwnerBadge members={members} userId={rock.ownerPersonId} className="w-32" />
+        <span className="w-24 text-xs text-muted-foreground tabular-nums">{rock.dueDate ? `Due ${formatDateUS(new Date(`${rock.dueDate}T12:00:00`), { month: "short", day: "numeric" })}` : "No due date"}</span>
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+          {finished && open ? (
+            // Quarter is over: EOS doesn't do partial credit — finish it, carry it, or drop it.
+            <>
+              <Button variant="outline" size="sm" onClick={() => closeOut(rock, "complete")}>
+                Complete
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => closeOut(rock, "carry")}>
+                Carry to {quarterLabel(shiftQuarter(rock.quarter, 1))}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => closeOut(rock, "drop")}>
+                Drop
+              </Button>
+            </>
+          ) : (
+            <>
+              {rock.status === "off_track" && (
+                <Button variant="ghost" size="sm" onClick={() => dropToIssues(rock)}>
+                  <CircleAlert />
+                  Drop to Issues
+                </Button>
+              )}
+              <RockStatusMenu status={rock.status} onChange={(status) => changeStatus(rock, status)} />
+            </>
+          )}
+        </div>
+      </li>
+    );
+  };
 
   return (
     <>
@@ -68,17 +142,25 @@ export function RocksView({ rocks: initialRocks, quarter, currentQuarter, member
         </Button>
       </div>
 
+      <RuleChecks checks={checks} />
+
       <div data-tour="rocks-list" className="overflow-hidden rounded-lg border border-divider bg-surface">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-divider px-4 py-3">
           <div className="min-w-0 flex-1">
             <p className="label-kicker text-muted-foreground">{quarterLabel(quarter)}</p>
             <p className="text-sm text-muted-foreground">
-              {counted.length === 0 ? "No Rocks yet. EOS recommends 3 to 7 per quarter." : `${count("complete")} complete · ${count("on_track")} on track · ${count("off_track")} off track`}
+              {visible.length === 0 ? "No Rocks yet. EOS recommends 3 to 7 company Rocks per quarter." : `${count("complete")} complete · ${count("on_track")} on track · ${count("off_track")} off track`}
             </p>
           </div>
-          {counted.length > 0 && (
+          {rate !== null && (
+            <div data-tour="rocks-rate" className="text-right">
+              <p className={cn("font-serif text-xl font-semibold tabular-nums", finished && (rate >= 80 ? "text-green-800 dark:text-green-400" : "text-destructive"))}>{rate}%</p>
+              <p className="text-xs text-muted-foreground">{finished ? "finished · target 80%" : "complete so far · target 80%"}</p>
+            </div>
+          )}
+          {live.length > 0 && (
             <div className="w-full sm:w-48">
-              <RockBar complete={count("complete")} onTrack={count("on_track")} offTrack={count("off_track")} total={counted.length} />
+              <RockBar complete={count("complete")} onTrack={count("on_track")} offTrack={count("off_track")} total={live.length} />
             </div>
           )}
         </div>
@@ -98,33 +180,30 @@ export function RocksView({ rocks: initialRocks, quarter, currentQuarter, member
             </Button>
           </Empty>
         ) : (
-          <ul>
-            {visible.map((rock) => (
-              <li key={rock.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-divider/50 px-4 py-3 last:border-0">
-                <button type="button" onClick={() => setVault({ open: true, rock })} className="min-w-0 flex-1 basis-56 text-left">
-                  <span className={cn("block font-medium text-foreground hover:text-accent-text", rock.status === "dropped" && "text-muted-foreground line-through")}>{rock.title}</span>
-                  <span className="block text-xs text-muted-foreground">
-                    {rock.successCriteria ? `Done when: ${rock.successCriteria}` : "No finish line written yet"}
-                  </span>
-                </button>
-                <OwnerBadge members={members} userId={rock.ownerUserId} className="w-28" />
-                <span className="w-24 text-xs text-muted-foreground tabular-nums">{rock.dueDate ? `Due ${formatDateUS(new Date(`${rock.dueDate}T12:00:00`), { month: "short", day: "numeric" })}` : "No due date"}</span>
-                <div className="ml-auto flex items-center gap-2">
-                  {rock.status === "off_track" && (
-                    <Button variant="ghost" size="sm" onClick={() => dropToIssues(rock)}>
-                      <CircleAlert />
-                      Drop to Issues
-                    </Button>
-                  )}
-                  <RockStatusMenu status={rock.status} onChange={(status) => changeStatus(rock, status)} />
-                </div>
-              </li>
+          <>
+            <p className="label-kicker border-b border-divider/50 bg-muted/30 px-4 py-2 text-muted-foreground">Company Rocks · {company.length}</p>
+            {company.length === 0 ? <p className="px-4 py-3 text-sm text-muted-foreground">No company Rocks this quarter.</p> : <ul>{company.map(row)}</ul>}
+            {byOwner.map(({ owner, rocks: own }) => (
+              <div key={owner || "none"}>
+                <p className="label-kicker border-y border-divider/50 bg-muted/30 px-4 py-2 text-muted-foreground">
+                  {memberName(members, owner) ?? "No owner"}&apos;s Rocks · {own.length}
+                </p>
+                <ul>{own.map(row)}</ul>
+              </div>
             ))}
-          </ul>
+          </>
         )}
       </div>
 
-      <RockVault members={members} rock={vault.rock} defaultQuarter={quarter} currentQuarter={currentQuarter} open={vault.open} onOpenChange={(open) => setVault((v) => ({ ...v, open }))} />
+      <RockVault
+        members={members}
+        goals={goals}
+        rock={vault.rock}
+        defaultQuarter={quarter}
+        currentQuarter={currentQuarter}
+        open={vault.open}
+        onOpenChange={(open) => setVault((v) => ({ ...v, open }))}
+      />
     </>
   );
 }

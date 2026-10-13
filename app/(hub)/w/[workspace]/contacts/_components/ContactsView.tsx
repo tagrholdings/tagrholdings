@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { Building2, Globe, Users as UsersIcon } from "lucide-react";
+import { Building2, Globe, UserRoundCog, Users as UsersIcon } from "lucide-react";
 import { useOptimisticAction } from "next-safe-action/hooks";
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
@@ -20,10 +20,12 @@ import { CreateContactVault } from "./CreateContactVault";
 import { CreateOrganizationVault } from "./CreateOrganizationVault";
 import { ContactDetailPanel } from "./ContactDetailPanel";
 import { OrganizationDetailPanel } from "./OrganizationDetailPanel";
+import { TeamPanel, type TeamTabData } from "./TeamPanel";
 
 export type { ContactRow };
 
-type Tab = "people" | "organizations";
+/** people = contacts (outside the company); team = the company's own people, who own work (modules/team). */
+type Tab = "people" | "organizations" | "team";
 
 export function ContactsView({
   contacts,
@@ -34,6 +36,7 @@ export function ContactsView({
   initialTab,
   initialSelectedId,
   initialSelectedOrgId,
+  team,
 }: {
   contacts: ContactRow[];
   organizations: OrganizationSummary[];
@@ -43,6 +46,7 @@ export function ContactsView({
   initialTab: Tab;
   initialSelectedId: string | null;
   initialSelectedOrgId: string | null;
+  team: TeamTabData;
 }) {
   const [tab, setTab] = useState<Tab>(initialTab);
   const [peopleSearch, setPeopleSearch] = useState("");
@@ -149,7 +153,7 @@ export function ContactsView({
     tab === "people"
       ? { placeholder: "Filter by name, email, or organization", value: peopleSearch, onChange: setPeopleSearch }
       : { placeholder: "Filter by organization name", value: orgSearch, onChange: setOrgSearch };
-  useHeaderSearch({ ...headerSearch, enabled: contacts.length > 0 || organizations.length > 0 });
+  useHeaderSearch({ ...headerSearch, enabled: tab !== "team" && (contacts.length > 0 || organizations.length > 0) });
 
   const createContactVault = <CreateContactVault tourId="contacts-create" organizations={organizations} onCreateOrganization={createOrganization} />;
   // A separate standalone entry point, not nested inside CreateContactVault's own
@@ -157,6 +161,31 @@ export function ContactsView({
   // inside another breaks (see design.md's "Relational pickers" section; the
   // picker's own inline "Create ‹name›" row is what covers that spot instead).
   const createOrgVault = <CreateOrganizationVault variant="button" tourId="contacts-create-org" onCreated={registerOrganization} />;
+
+  const tabs = (
+    <SegmentedControl
+      tourId="contacts-tabs"
+      collapseInactive
+      value={tab}
+      onChange={setTab}
+      options={[
+        { value: "people", label: "People", icon: UsersIcon },
+        { value: "organizations", label: "Organizations", icon: Building2 },
+        { value: "team", label: "Team", icon: UserRoundCog },
+      ]}
+    />
+  );
+
+  if (tab === "team") {
+    return (
+      <div className="flex min-w-0 flex-1 flex-col gap-4">
+        <div className="sticky top-14 z-10 bg-background pt-4 md:top-20">{tabs}</div>
+        <div>
+          <TeamPanel {...team} />
+        </div>
+      </div>
+    );
+  }
 
   if (contacts.length === 0 && organizations.length === 0) {
     return (
@@ -172,6 +201,9 @@ export function ContactsView({
           {createOrgVault}
           {createContactVault}
         </div>
+        <button type="button" onClick={() => setTab("team")} className="text-sm font-medium text-accent-text hover:text-accent-hover">
+          See the team
+        </button>
       </Empty>
     );
   }
@@ -197,16 +229,7 @@ export function ContactsView({
       <div className="flex min-w-0 flex-1 flex-col gap-4">
         {/* One line on a phone (the tab labels collapse to icons, and the row scrolls sideways if it still doesn't fit); wraps from md up. */}
         <div className="no-scrollbar sticky top-14 z-10 flex items-center gap-2 overflow-x-auto bg-background pb-4 pt-4 md:top-20 md:flex-wrap md:overflow-visible">
-          <SegmentedControl
-            tourId="contacts-tabs"
-            collapseInactive
-            value={tab}
-            onChange={setTab}
-            options={[
-              { value: "people", label: "People", icon: UsersIcon },
-              { value: "organizations", label: "Organizations", icon: Building2 },
-            ]}
-          />
+          {tabs}
           {tab === "people" ? (
             <SearchInput
               placeholder="Filter by name, email, or organization"

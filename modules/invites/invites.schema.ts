@@ -10,7 +10,7 @@ import { tenantsTable, tenantIsolationPolicy } from "@/modules/tenancy/tenancy.s
  * expired (`expiresAt` passed — it can be re-sent, which issues a new token and a new expiry on the same row).
  * A row is never deleted. `email` is stored lowercased.
  *
- * `userId`s are Neon Auth ids (no FK possible — see activities.schema.ts's assignedToUserId).
+ * `userId`s are Neon Auth ids (no FK possible — see activities.schema.ts's createdByUserId).
  */
 export const invitesTable = pgTable(
   "invites",

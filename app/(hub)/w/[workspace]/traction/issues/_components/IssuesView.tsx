@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/button";
 import { SegmentedControl } from "@/components/shared/segmented-control";
 import { IssueList } from "@/components/traction/issue-list";
 import { IssueVault } from "@/components/traction/issue-vaults";
+import { RuleChecks } from "@/components/traction/rule-checks";
+import type { RuleCheck } from "@/modules/traction/traction.logic";
 import type { IssueHorizon, IssueRow, TractionMember } from "@/modules/traction/traction.types";
 
-export function IssuesView({ issues, members, initialHorizon }: { issues: IssueRow[]; members: TractionMember[]; initialHorizon: IssueHorizon }) {
+export function IssuesView({ issues, members, checks, initialHorizon }: { issues: IssueRow[]; members: TractionMember[]; checks: RuleCheck[]; initialHorizon: IssueHorizon }) {
   const [horizon, setHorizon] = useState<IssueHorizon>(initialHorizon);
   const openCount = (h: IssueHorizon) => issues.filter((i) => i.horizon === h && i.status === "open").length;
 
@@ -36,6 +38,8 @@ export function IssuesView({ issues, members, initialHorizon }: { issues: IssueR
           }
         />
       </div>
+
+      <RuleChecks checks={checks} />
 
       <div data-tour="issues-list" className="overflow-hidden rounded-lg border border-divider bg-surface">
         <IssueList

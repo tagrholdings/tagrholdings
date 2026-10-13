@@ -9,7 +9,7 @@ import { pgTable, uuid, text, timestamp, index } from "drizzle-orm/pg-core";
  * with. Rows are removed when the person turns notifications off, or when the push service says the
  * subscription is gone (404/410).
  *
- * `userId` is a Neon Auth user id (no FK possible — see activities.schema.ts's assignedToUserId).
+ * `userId` is a Neon Auth user id (no FK possible — see activities.schema.ts's createdByUserId).
  */
 export const pushSubscriptionsTable = pgTable(
   "push_subscriptions",

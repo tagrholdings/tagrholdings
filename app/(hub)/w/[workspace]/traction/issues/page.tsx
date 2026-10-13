@@ -1,7 +1,6 @@
 import { getWorkspace } from "@/lib/auth-server";
 import { HubPage } from "@/components/layout/HubPage";
 import { tractionService } from "@/modules/traction/traction.service";
-import { tenancyService } from "@/modules/tenancy/tenancy.service";
 import { initialsFor } from "@/lib/utils";
 import { IssuesView } from "./_components/IssuesView";
 
@@ -11,11 +10,11 @@ export const dynamic = "force-dynamic";
 export default async function IssuesPage({ params, searchParams }: { params: Promise<{ workspace: string }>; searchParams: Promise<{ list?: string }> }) {
   const [{ workspace: slug }, query] = await Promise.all([params, searchParams]);
   const { user } = await getWorkspace(slug);
-  const [issues, members] = await Promise.all([tractionService.getIssues(user.tenantId), tenancyService.listMembers(user.tenantId)]);
+  const [issues, members, checks] = await Promise.all([tractionService.getIssues(user.tenantId), tractionService.listOwners(user.tenantId), tractionService.getRuleChecks(user.tenantId)]);
 
   return (
     <HubPage user={{ name: user.name || user.email, initials: initialsFor(user.name || user.email) }} kicker="Traction" title="Issues">
-      <IssuesView issues={issues} members={members} initialHorizon={query.list === "long_term" ? "long_term" : "short_term"} />
+      <IssuesView issues={issues} members={members} checks={checks.filter((c) => c.area === "issues")} initialHorizon={query.list === "long_term" ? "long_term" : "short_term"} />
     </HubPage>
   );
 }

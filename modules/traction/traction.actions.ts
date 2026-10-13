@@ -1,30 +1,52 @@
 "use server";
 
 import { revalidateWorkspace } from "@/lib/revalidate";
-import { protectedAction } from "@/lib/safe-action";
+import { adminAction, protectedAction } from "@/lib/safe-action";
 import { tractionService } from "./traction.service";
 import {
   archiveMeasurableSchema,
+  closeOutRockSchema,
   concludeMeetingSchema,
   createIssueSchema,
   createMeasurableSchema,
+  createProcessSchema,
   createRockSchema,
+  createSeatSchema,
   createTodoSchema,
   deleteRockSchema,
   issueIdSchema,
+  processIdSchema,
+  rateMeetingSchema,
   reorderIssuesSchema,
+  resolveIssueSchema,
+  saveL10ScheduleSchema,
+  saveReviewSchema,
   saveVtoSchema,
+  seatIdSchema,
   setEntrySchema,
   setRockStatusSchema,
-  solveIssueSchema,
+  startMeetingSchema,
   updateIssueSchema,
   updateMeasurableSchema,
+  updateProcessSchema,
   updateRockSchema,
+  updateSeatSchema,
 } from "./traction.types";
 
-/** Every Traction page reads a bit of everything (the Overview and the L10 read all of it), so a change refreshes them all. */
+/** Every Traction/EOS page reads a bit of everything (the Overview and the L10 read most of it), so a change refreshes them all. */
 function revalidateTraction(slug: string) {
-  revalidateWorkspace(slug, "/traction", "/traction/scorecard", "/traction/rocks", "/traction/issues", "/traction/l10");
+  revalidateWorkspace(
+    slug,
+    "/traction",
+    "/traction/scorecard",
+    "/traction/rocks",
+    "/traction/issues",
+    "/traction/l10",
+    "/traction/l10/history",
+    "/eos/vision",
+    "/eos/people",
+    "/eos/process"
+  );
 }
 
 // ───────────── Scorecard ─────────────
@@ -73,6 +95,12 @@ export const setRockStatusAction = protectedAction.schema(setRockStatusSchema).a
   return { success: true };
 });
 
+export const closeOutRockAction = protectedAction.schema(closeOutRockSchema).action(async ({ parsedInput, ctx }) => {
+  await tractionService.closeOutRock(ctx.user.tenantId, parsedInput.id, parsedInput.action);
+  revalidateTraction(ctx.workspace.slug);
+  return { success: true };
+});
+
 export const deleteRockAction = protectedAction.schema(deleteRockSchema).action(async ({ parsedInput, ctx }) => {
   await tractionService.deleteRock(ctx.user.tenantId, parsedInput.id);
   revalidateTraction(ctx.workspace.slug);
@@ -93,8 +121,8 @@ export const updateIssueAction = protectedAction.schema(updateIssueSchema).actio
   return { success: true };
 });
 
-export const solveIssueAction = protectedAction.schema(solveIssueSchema).action(async ({ parsedInput, ctx }) => {
-  await tractionService.solveIssue(ctx.user.tenantId, parsedInput, ctx.user.id);
+export const resolveIssueAction = protectedAction.schema(resolveIssueSchema).action(async ({ parsedInput, ctx }) => {
+  await tractionService.resolveIssue(ctx.user.tenantId, parsedInput, ctx.user.id);
   revalidateTraction(ctx.workspace.slug);
   revalidateWorkspace(ctx.workspace.slug, "/activities");
   return { success: true };
@@ -133,16 +161,92 @@ export const createTodoAction = protectedAction.schema(createTodoSchema).action(
   return { success: true };
 });
 
-export const concludeMeetingAction = protectedAction.schema(concludeMeetingSchema).action(async ({ parsedInput, ctx }) => {
-  const meeting = await tractionService.concludeMeeting(ctx.user.tenantId, parsedInput, ctx.user.id);
+export const startMeetingAction = protectedAction.schema(startMeetingSchema).action(async ({ ctx }) => {
+  const meeting = await tractionService.startMeeting(ctx.user.tenantId, ctx.user.id);
   revalidateTraction(ctx.workspace.slug);
   return { meeting };
+});
+
+export const rateMeetingAction = protectedAction.schema(rateMeetingSchema).action(async ({ parsedInput, ctx }) => {
+  const meeting = await tractionService.rateMeeting(ctx.user.tenantId, parsedInput, ctx.user.id);
+  revalidateTraction(ctx.workspace.slug);
+  return { meeting };
+});
+
+export const concludeMeetingAction = protectedAction.schema(concludeMeetingSchema).action(async ({ parsedInput, ctx }) => {
+  const meeting = await tractionService.concludeMeeting(ctx.user.tenantId, parsedInput);
+  revalidateTraction(ctx.workspace.slug);
+  return { meeting };
+});
+
+/** The standing L10 time decides when everyone is reminded — a workspace admin's call. */
+export const saveL10ScheduleAction = adminAction.schema(saveL10ScheduleSchema).action(async ({ parsedInput, ctx }) => {
+  await tractionService.saveL10Schedule(ctx.user.tenantId, parsedInput);
+  revalidateTraction(ctx.workspace.slug);
+  return { success: true };
 });
 
 // ───────────── V/TO ─────────────
 
 export const saveVtoAction = protectedAction.schema(saveVtoSchema).action(async ({ parsedInput, ctx }) => {
   await tractionService.saveVto(ctx.user.tenantId, parsedInput.content, ctx.user.id);
+  revalidateTraction(ctx.workspace.slug);
+  return { success: true };
+});
+
+// ───────────── People ─────────────
+
+/** The Accountability Chart decides who manages whom (and so who reviews whom) — admins shape it. */
+export const createSeatAction = adminAction.schema(createSeatSchema).action(async ({ parsedInput, ctx }) => {
+  const seat = await tractionService.createSeat(ctx.user.tenantId, parsedInput);
+  revalidateTraction(ctx.workspace.slug);
+  revalidateWorkspace(ctx.workspace.slug, "/contacts");
+  return { seat };
+});
+
+export const updateSeatAction = adminAction.schema(updateSeatSchema).action(async ({ parsedInput, ctx }) => {
+  await tractionService.updateSeat(ctx.user.tenantId, parsedInput);
+  revalidateTraction(ctx.workspace.slug);
+  revalidateWorkspace(ctx.workspace.slug, "/contacts");
+  return { success: true };
+});
+
+export const deleteSeatAction = adminAction.schema(seatIdSchema).action(async ({ parsedInput, ctx }) => {
+  await tractionService.deleteSeat(ctx.user.tenantId, parsedInput.id);
+  revalidateTraction(ctx.workspace.slug);
+  revalidateWorkspace(ctx.workspace.slug, "/contacts");
+  return { success: true };
+});
+
+/** Who may save which review is decided in the service (the person, their manager, or an admin). */
+export const saveReviewAction = protectedAction.schema(saveReviewSchema).action(async ({ parsedInput, ctx }) => {
+  await tractionService.saveReview(ctx.user.tenantId, parsedInput, ctx.user.id, ctx.workspace.role === "admin");
+  revalidateWorkspace(ctx.workspace.slug, "/eos/people");
+  return { success: true };
+});
+
+// ───────────── Process ─────────────
+
+export const createProcessAction = protectedAction.schema(createProcessSchema).action(async ({ parsedInput, ctx }) => {
+  const process = await tractionService.createProcess(ctx.user.tenantId, parsedInput);
+  revalidateTraction(ctx.workspace.slug);
+  return { process };
+});
+
+export const updateProcessAction = protectedAction.schema(updateProcessSchema).action(async ({ parsedInput, ctx }) => {
+  await tractionService.updateProcess(ctx.user.tenantId, parsedInput);
+  revalidateTraction(ctx.workspace.slug);
+  return { success: true };
+});
+
+export const markProcessReviewedAction = protectedAction.schema(processIdSchema).action(async ({ parsedInput, ctx }) => {
+  await tractionService.markProcessReviewed(ctx.user.tenantId, parsedInput.id);
+  revalidateTraction(ctx.workspace.slug);
+  return { success: true };
+});
+
+export const deleteProcessAction = protectedAction.schema(processIdSchema).action(async ({ parsedInput, ctx }) => {
+  await tractionService.deleteProcess(ctx.user.tenantId, parsedInput.id);
   revalidateTraction(ctx.workspace.slug);
   return { success: true };
 });

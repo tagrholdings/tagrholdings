@@ -3,7 +3,8 @@ import { NextResponse } from "next/server";
 import { notificationsService } from "@/modules/notifications/notifications.service";
 
 /**
- * /api/cron/task-reminders — sends the push reminders for tasks whose due time has arrived. Called every few
+ * /api/cron/task-reminders — sends the push reminders for tasks whose due time has arrived, and the L10 reminders
+ * (push + email, one hour before each workspace's standing meeting). Called every few
  * minutes by a scheduler (.github/workflows/task-reminders.yml; a Vercel Cron job works too, it sends the
  * same header). Not a Server Action: the caller has no session, it authenticates with a shared secret.
  *
@@ -32,7 +33,12 @@ async function handle(request: Request) {
   }
 
   try {
-    return NextResponse.json(await notificationsService.sendDueTaskReminders());
+    // The L10 sweep sends email too, so it runs even when push (VAPID) isn't configured.
+    const [tasks, l10] = await Promise.allSettled([notificationsService.sendDueTaskReminders(), notificationsService.sendDueL10Reminders()]);
+    if (tasks.status === "rejected") console.error("/api/cron/task-reminders: task reminders failed:", tasks.reason);
+    if (l10.status === "rejected") console.error("/api/cron/task-reminders: L10 reminders failed:", l10.reason);
+    if (tasks.status === "rejected" && l10.status === "rejected") throw tasks.reason;
+    return NextResponse.json({ ...(tasks.status === "fulfilled" ? tasks.value : {}), l10: l10.status === "fulfilled" ? l10.value : null });
   } catch (error) {
     console.error("/api/cron/task-reminders failed:", error);
     return NextResponse.json({ error: "Could not send reminders." }, { status: 500 });

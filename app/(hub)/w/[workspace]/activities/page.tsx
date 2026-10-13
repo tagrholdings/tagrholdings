@@ -4,7 +4,7 @@ import { activitiesService } from "@/modules/activities/activities.service";
 import { contactsService } from "@/modules/contacts/contacts.service";
 import { organizationsService } from "@/modules/organizations/organizations.service";
 import { pipelineService } from "@/modules/pipeline/pipeline.service";
-import { tenancyService } from "@/modules/tenancy/tenancy.service";
+import { teamService } from "@/modules/team/team.service";
 import { initialsFor } from "@/lib/utils";
 import { ActivitiesView } from "./_components/ActivitiesView";
 
@@ -18,7 +18,7 @@ export default async function ActivitiesPage({ params, searchParams }: { params:
     contactsService.listForTenant(user.tenantId),
     organizationsService.listForTenant(user.tenantId),
     pipelineService.listAllForTenant(user.tenantId),
-    tenancyService.listMembers(user.tenantId),
+    teamService.listOptions(user.tenantId),
   ]);
 
   return (

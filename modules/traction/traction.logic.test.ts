@@ -1,13 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
   aggregate,
+  eosRuleChecks,
   formatCalendarDate,
   formatCompactCurrency,
   formatGoal,
   formatValue,
   goalMet,
+  isValidTimeZone,
   latestEntry,
   memberName,
+  nextMeetingAt,
   parseCalendarDate,
   parseMoney,
   periodLabel,
@@ -17,6 +20,7 @@ import {
   quarterLabel,
   quarterOf,
   quarterRange,
+  reviewVerdict,
   shiftQuarter,
 } from "./traction.logic";
 
@@ -137,5 +141,79 @@ describe("V/TO values", () => {
     expect(memberName(members, "u2")).toBe("kody@x.test");
     expect(memberName(members, "nope")).toBeNull();
     expect(memberName(members, null)).toBeNull();
+  });
+});
+
+describe("L10 schedule", () => {
+  it("finds the next weekly meeting in the meeting's own time zone", () => {
+    // Phoenix is UTC-7 all year. Monday 2026-10-12, 10:00 Phoenix = 17:00 UTC.
+    const now = new Date("2026-10-12T17:00:00Z");
+    expect(nextMeetingAt(2, "08:00", "America/Phoenix", now).toISOString()).toBe("2026-10-13T15:00:00.000Z"); // Tue 8:00
+    expect(nextMeetingAt(1, "09:00", "America/Phoenix", now).toISOString()).toBe("2026-10-19T16:00:00.000Z"); // today's already passed
+    expect(nextMeetingAt(1, "09:00", "America/Phoenix", now, 90).toISOString()).toBe("2026-10-12T16:00:00.000Z"); // still within the grace window
+  });
+
+  it("follows daylight saving where the zone has it", () => {
+    // New York: EDT (UTC-4) until Nov 1 2026, then EST (UTC-5).
+    expect(nextMeetingAt(2, "08:00", "America/New_York", new Date("2026-10-26T12:00:00Z")).toISOString()).toBe("2026-10-27T12:00:00.000Z");
+    expect(nextMeetingAt(2, "08:00", "America/New_York", new Date("2026-11-02T12:00:00Z")).toISOString()).toBe("2026-11-03T13:00:00.000Z");
+  });
+
+  it("knows a real time zone from a typo", () => {
+    expect(isValidTimeZone("America/Phoenix")).toBe(true);
+    expect(isValidTimeZone("Mars/Base")).toBe(false);
+  });
+});
+
+describe("between goals", () => {
+  it("is green only inside the range", () => {
+    const rule = { goalOperator: "between" as const, goalValue: 40, goalValueMax: 60 };
+    expect(goalMet(rule, 50)).toBe(true);
+    expect(goalMet(rule, 61)).toBe(false);
+    expect(formatGoal(rule, "number")).toBe("40–60");
+  });
+});
+
+describe("People Analyzer", () => {
+  const values = ["Own it", "Trust", "Service"];
+  it("follows the EOS bar for right person, right seat", () => {
+    expect(reviewVerdict(values, { "Own it": "+", Trust: "+", Service: "+" }, [true, true, true])).toEqual({ rightPerson: "yes", rightSeat: "yes" });
+    expect(reviewVerdict(values, { "Own it": "+", Trust: "+/-", Service: "+" }, [true, false, true])).toEqual({ rightPerson: "talk", rightSeat: "no" });
+    expect(reviewVerdict(values, { "Own it": "-", Trust: "+", Service: "+" }, [true, true, true]).rightPerson).toBe("no");
+    expect(reviewVerdict(values, { "Own it": "+" }, [true, null, true])).toEqual({ rightPerson: null, rightSeat: null });
+  });
+});
+
+describe("EOS rule checks", () => {
+  const base = {
+    measurables: Array.from({ length: 6 }, () => ({ ownerPersonId: "p1", goalOperator: "gte", cadence: "weekly" })),
+    rocks: Array.from({ length: 4 }, () => ({ quarter: "2026-Q4", ownerPersonId: "p1", isCompany: true, status: "on_track" })),
+    currentQuarter: "2026-Q4",
+    lastFinishedQuarterRate: 85,
+    openIssues: [],
+    todos: { done: 9, total: 10 },
+    lastMeetingRating: 9,
+    coreValuesCount: 4,
+    oneYearGoalsCount: 4,
+    seatsWithoutPerson: 0,
+  };
+
+  it("is quiet when the system is used the EOS way", () => {
+    expect(eosRuleChecks(base)).toEqual([]);
+  });
+
+  it("flags each broken rule", () => {
+    const checks = eosRuleChecks({
+      ...base,
+      measurables: [{ ownerPersonId: null, goalOperator: null, cadence: "monthly" }],
+      rocks: [],
+      lastFinishedQuarterRate: 50,
+      todos: { done: 5, total: 10 },
+      lastMeetingRating: 7,
+      coreValuesCount: 2,
+      oneYearGoalsCount: 2,
+      seatsWithoutPerson: 1,
+    });
+    expect(checks.map((c) => c.area)).toEqual(["scorecard", "scorecard", "scorecard", "scorecard", "rocks", "rocks", "l10", "l10", "vision", "vision", "people"]);
   });
 });
