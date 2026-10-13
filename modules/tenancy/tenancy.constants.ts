@@ -14,6 +14,7 @@ export const TENANT_DATA_TABLES = [
   "traction_rocks",
   "traction_meetings",
   "traction_vto",
+  "traction_checkups",
   "traction_people_reviews",
   "traction_processes",
   "traction_l10_settings",

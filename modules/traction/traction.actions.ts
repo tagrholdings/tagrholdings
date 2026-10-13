@@ -1,10 +1,14 @@
 "use server";
 
+import { z } from "zod";
 import { revalidateWorkspace } from "@/lib/revalidate";
 import { adminAction, protectedAction } from "@/lib/safe-action";
+import { EOS_CHECKUP_STATEMENTS } from "@/lib/eos-checkup";
+import { portfolioService } from "@/modules/portfolio/portfolio.service";
 import { tractionService } from "./traction.service";
 import {
   archiveMeasurableSchema,
+  checkupIdSchema,
   closeOutRockSchema,
   concludeMeetingSchema,
   createIssueSchema,
@@ -19,6 +23,7 @@ import {
   rateMeetingSchema,
   reorderIssuesSchema,
   resolveIssueSchema,
+  saveCheckupSchema,
   saveL10ScheduleSchema,
   saveReviewSchema,
   saveVtoSchema,
@@ -45,7 +50,8 @@ function revalidateTraction(slug: string) {
     "/traction/l10/history",
     "/eos/vision",
     "/eos/people",
-    "/eos/process"
+    "/eos/process",
+    "/eos/checkup"
   );
 }
 
@@ -249,4 +255,28 @@ export const deleteProcessAction = protectedAction.schema(processIdSchema).actio
   await tractionService.deleteProcess(ctx.user.tenantId, parsedInput.id);
   revalidateTraction(ctx.workspace.slug);
   return { success: true };
+});
+
+// ───────────── Organizational Checkup ─────────────
+
+export const saveCheckupAction = protectedAction.schema(saveCheckupSchema).action(async ({ parsedInput, ctx }) => {
+  const checkup = await tractionService.saveCheckup(ctx.user.tenantId, parsedInput, EOS_CHECKUP_STATEMENTS.length, ctx.user.id);
+  revalidateTraction(ctx.workspace.slug);
+  return { checkup };
+});
+
+/** Deleting a record of the company's state is an admin's call (e.g. one taken by mistake). */
+export const deleteCheckupAction = adminAction.schema(checkupIdSchema).action(async ({ parsedInput, ctx }) => {
+  await tractionService.deleteCheckup(ctx.user.tenantId, parsedInput.id);
+  revalidateTraction(ctx.workspace.slug);
+  return { success: true };
+});
+
+// ───────────── The portfolio's standard measurables ─────────────
+
+/** Adds the portfolio's standard measurables this workspace is missing (each company then sets their owners). */
+export const addStandardMeasurablesAction = protectedAction.schema(z.object({})).action(async ({ ctx }) => {
+  const added = await tractionService.addStandardMeasurables(ctx.user.tenantId, await portfolioService.getTemplate());
+  revalidateTraction(ctx.workspace.slug);
+  return { added };
 });

@@ -358,3 +358,24 @@ export const tractionL10SettingsTable = pgTable(
     tenantIsolationPolicy("traction_l10_settings"),
   ]
 );
+
+/**
+ * The EOS Organizational Checkup: 20 statements scored 1–5 (lib/eos-checkup.ts). Taken at kickoff and again later
+ * (the playbook asks for month 12) to measure movement. `answers` follows the statements' order; `score` is the
+ * 0–100 percentage, stored so history never shifts if the statements are ever reworded.
+ */
+export const tractionCheckupsTable = pgTable(
+  "traction_checkups",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenantsTable.id),
+    takenAt: timestamp("taken_at").notNull().defaultNow(),
+    takenByUserId: text("taken_by_user_id"),
+    answers: jsonb("answers").$type<number[]>().notNull(),
+    score: integer("score").notNull(),
+    notes: text("notes"),
+  },
+  (t) => [check("traction_checkups_score_check", sql`${t.score} between 0 and 100`), tenantIsolationPolicy("traction_checkups")]
+);

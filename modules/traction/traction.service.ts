@@ -5,6 +5,7 @@ import { teamService } from "@/modules/team/team.service";
 import { tenancyService } from "@/modules/tenancy/tenancy.service";
 import { tractionRepository } from "./traction.repository";
 import {
+  checkupScore,
   eosRuleChecks,
   goalMet,
   latestEntry,
@@ -44,6 +45,7 @@ import {
   type RockUpdate,
   type SeatRow,
   type SeatUpdate,
+  type StandardMeasurable,
   type TractionSummary,
   type VtoContent,
 } from "./traction.types";
@@ -616,13 +618,14 @@ export const tractionService = {
 
   /** One workspace's state at a glance — the Overview tiles, the L10 snapshot and one Portfolio row. */
   async getSummary(tenantId: string, now: Date = new Date()): Promise<TractionSummary> {
-    const [measurables, latest, rocks, issues, todos, meetings] = await Promise.all([
+    const [measurables, latest, rocks, issues, todos, meetings, checkups] = await Promise.all([
       tractionRepository.findMeasurables(tenantId),
       tractionRepository.findLatestEntries(tenantId),
       tractionRepository.findRocks(tenantId),
       this.getIssues(tenantId, now),
       this.getTodos(tenantId, now),
       tractionRepository.findMeetings(tenantId, 1),
+      tractionRepository.findCheckups(tenantId),
     ]);
     const today = todayIso(now);
     let onGoal = 0;
@@ -654,6 +657,7 @@ export const tractionService = {
       openIssues: issues.filter((i) => i.status === "open" && i.horizon === "short_term").length,
       todos: { done: todos.filter((t) => t.done).length, total: todos.length },
       lastMeeting: meetings[0] ?? null,
+      checkup: checkups.length ? { kickoff: checkups[0].score, latest: checkups[checkups.length - 1].score, count: checkups.length } : null,
     };
   },
 
@@ -689,5 +693,70 @@ export const tractionService = {
   async getPortfolio(now: Date = new Date()) {
     const tenants = await tenancyService.listTenants();
     return Promise.all(tenants.map(async (t) => ({ tenantId: t.id, slug: t.slug, name: t.name, summary: await this.getSummary(t.id, now) })));
+  },
+
+  // ───────────── Organizational Checkup ─────────────
+
+  /** Every checkup, oldest first — the first is the kickoff baseline the rest are measured against. */
+  async getCheckups(tenantId: string) {
+    return tractionRepository.findCheckups(tenantId);
+  },
+
+  /** Saves one checkup. Every statement must be answered (`statementCount` = the current statement list's length). */
+  async saveCheckup(tenantId: string, input: { answers: number[]; notes?: string | null }, statementCount: number, userId: string) {
+    if (input.answers.length !== statementCount) throw new UserFacingError(`Score all ${statementCount} statements before saving.`);
+    return tractionRepository.insertCheckup(tenantId, {
+      answers: input.answers,
+      score: checkupScore(input.answers, statementCount),
+      notes: input.notes?.trim() || null,
+      takenByUserId: userId,
+    });
+  },
+
+  async deleteCheckup(tenantId: string, id: string) {
+    const deleted = await tractionRepository.deleteCheckup(tenantId, id);
+    if (!deleted) throw new UserFacingError("Checkup not found.");
+  },
+
+  // ───────────── The portfolio's standard measurables ─────────────
+
+  /** Which of the portfolio's standard measurables this workspace doesn't have yet (matched by name, any case). */
+  async missingStandardMeasurables(tenantId: string, standard: StandardMeasurable[]) {
+    const have = new Set((await tractionRepository.findMeasurables(tenantId)).map((m) => m.name.trim().toLowerCase()));
+    return standard.filter((s) => !have.has(s.name.trim().toLowerCase()));
+  },
+
+  /** Copies in the standard measurables this workspace is missing. The company then gives each one its owner. */
+  async addStandardMeasurables(tenantId: string, standard: StandardMeasurable[]) {
+    const missing = await this.missingStandardMeasurables(tenantId, standard);
+    let sortOrder = await tractionRepository.nextMeasurableSortOrder(tenantId);
+    for (const s of missing) {
+      // Field by field: a template row carries its own id, which must never become this workspace's measurable id.
+      await tractionRepository.insertMeasurable(tenantId, {
+        name: s.name,
+        cadence: s.cadence,
+        unit: s.unit,
+        aggregation: s.aggregation,
+        goalOperator: s.goalOperator,
+        goalValue: s.goalValue,
+        goalValueMax: s.goalValueMax,
+        ownerPersonId: null,
+        sortOrder: sortOrder++,
+      });
+    }
+    return missing.length;
+  },
+
+  /**
+   * The portfolio's standard numbers for one workspace: for each standard measurable (by name), its latest value and
+   * whether it is on goal — so the Portfolio page can line the companies up side by side.
+   */
+  async getStandardNumbers(tenantId: string, standard: StandardMeasurable[]) {
+    const [measurables, latest] = await Promise.all([tractionRepository.findMeasurables(tenantId), tractionRepository.findLatestEntries(tenantId)]);
+    return standard.map((s) => {
+      const m = measurables.find((x) => x.name.trim().toLowerCase() === s.name.trim().toLowerCase());
+      const entry = m ? latest.find((e) => e.measurableId === m.id) : undefined;
+      return { name: s.name, unit: m?.unit ?? s.unit, tracked: !!m, value: entry?.value ?? null, periodStart: entry?.periodStart ?? null, met: m && entry ? goalMet(m, entry.value) : null };
+    });
   },
 };

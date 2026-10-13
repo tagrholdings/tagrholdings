@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { stripWorkspacePrefix } from "@/lib/workspace-path";
-import { FolderKanban, Users, ListChecks, Inbox, Target, LayoutDashboard, LineChart, Gem, CircleAlert, Timer, Compass, Network, Workflow } from "lucide-react";
+import { FolderKanban, Users, ListChecks, Inbox, Target, LayoutDashboard, LineChart, Gem, CircleAlert, Timer, Compass, Network, Workflow, ClipboardList } from "lucide-react";
 
 export interface NavItem {
   label: string;
@@ -47,6 +47,7 @@ export const EOS_NAV_ITEMS: NavItem[] = [
   { label: "Vision", href: "/eos/vision", icon: Compass },
   { label: "People", href: "/eos/people", icon: Network },
   { label: "Process", href: "/eos/process", icon: Workflow },
+  { label: "Checkup", href: "/eos/checkup", icon: ClipboardList },
 ];
 
 /**

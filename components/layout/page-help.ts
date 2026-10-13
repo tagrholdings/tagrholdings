@@ -808,6 +808,11 @@ const ENTRIES: Entry[] = [
           text: "5 to 15 numbers, each with one owner and a goal, entered weekly. Anything missing shows up here.",
         },
         {
+          target: "scorecard-standard",
+          title: "The portfolio's standard numbers",
+          text: "Every company in the portfolio reports a few of the same numbers, so they compare side by side. This adds the ones this company doesn't have yet; then give each one its owner.",
+        },
+        {
           target: "scorecard-add",
           title: "Add a measurable",
           text: "Give it a name, one owner and a goal: at least, at most, exactly, or a range. Without a goal the cells stay neutral, never red or green.",
@@ -1170,6 +1175,47 @@ const ENTRIES: Entry[] = [
           title: "Add a process",
           text: "Name it the way people say it, give it one owner, and list its major steps.",
           demo: { kind: "vault", fields: ["Name", "Owner", "Steps"], button: "Add process" },
+        },
+        HELP_AGAIN,
+      ],
+    }),
+  },
+  {
+    path: "/eos/checkup",
+    build: () => ({
+      title: "Organizational Checkup",
+      summary: "The company scored on the 20 EOS statements, saved so the movement can be measured.",
+      sections: [
+        {
+          heading: "What it's for",
+          body: "The leadership team rates the company together, 1 (weak) to 5 (strong), on 20 statements covering the six EOS components. The total is a 0–100% score.",
+        },
+        {
+          heading: "When to take it",
+          body: "At kickoff, to set the baseline, and again later — the playbook asks for month 12. Under 40% needs focus, 40–69% is building the foundation, 70% and up is strong and scalable.",
+        },
+      ],
+      tour: [
+        NAV_SWITCH,
+        {
+          target: "checkup-form",
+          title: "Score each statement",
+          text: "Tap 1 to 5 for every statement. The score at the top updates as you go; it saves once all 20 are scored.",
+        },
+        {
+          target: "checkup-summary",
+          title: "Kickoff, latest, movement",
+          text: "The first checkup is the baseline. The latest one is compared against it, in points.",
+        },
+        {
+          target: "checkup-statements",
+          title: "Statement by statement",
+          text: "Where the company moved and where it didn't, from the kickoff to the latest checkup.",
+        },
+        {
+          target: "checkup-new",
+          title: "Take it again",
+          text: "Each new checkup is saved with its date, so the history shows the trend.",
         },
         HELP_AGAIN,
       ],

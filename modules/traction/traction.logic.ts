@@ -325,3 +325,18 @@ export function eosRuleChecks(input: {
   if (input.seatsWithoutPerson) checks.push({ area: "people", level: "warn", message: `${input.seatsWithoutPerson} seat${input.seatsWithoutPerson === 1 ? " is" : "s are"} empty on the Accountability Chart.` });
   return checks;
 }
+
+// ───────────── Organizational Checkup ─────────────
+
+/** 20 statements × 1–5: the share of the 100 possible points, as the portal's tool scores it. */
+export function checkupScore(answers: number[], statementCount: number): number {
+  const total = answers.reduce((sum, a) => sum + a, 0);
+  return statementCount === 0 ? 0 : Math.round((total / (statementCount * 5)) * 100);
+}
+
+/** The portal's bands: under 40% needs focus, under 70% is building the foundation, 70%+ is strong and scalable. */
+export function checkupBand(score: number): { label: string; tone: "bad" | "mid" | "good" } {
+  if (score < 40) return { label: "Needs focus", tone: "bad" };
+  if (score < 70) return { label: "Building the foundation", tone: "mid" };
+  return { label: "Strong & scalable", tone: "good" };
+}

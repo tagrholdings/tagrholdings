@@ -246,6 +246,28 @@ export type NewProcess = z.infer<typeof createProcessSchema>;
 export type ProcessUpdate = z.infer<typeof updateProcessSchema>;
 export const processIdSchema = z.object({ id: uuid });
 
+// ───────────── Organizational Checkup ─────────────
+
+/** One answer (1–5) per statement, in the statements' order (lib/eos-checkup.ts). */
+export const saveCheckupSchema = z.object({
+  answers: z.array(z.number().int().min(1).max(5)).min(1).max(50),
+  notes: z.string().max(2000).nullish(),
+});
+export const checkupIdSchema = z.object({ id: uuid });
+
+// ───────────── Standard measurables (the portfolio template) ─────────────
+
+/** A measurable as the portfolio template defines it — copied into a workspace by name. */
+export interface StandardMeasurable {
+  name: string;
+  cadence: Cadence;
+  unit: Unit;
+  aggregation: Aggregation;
+  goalOperator: GoalOperator | null;
+  goalValue: number | null;
+  goalValueMax: number | null;
+}
+
 // ───────────── Rows the pages receive ─────────────
 
 export interface MeasurableRow {
@@ -375,6 +397,14 @@ export interface ProcessRow {
   updatedAt: Date | string;
 }
 
+export interface CheckupRow {
+  id: string;
+  takenAt: Date | string;
+  answers: number[];
+  score: number;
+  notes: string | null;
+}
+
 /** A team person, as every owner picker shows them (id = the person's id, not a login). */
 export interface TractionMember {
   id: string;
@@ -393,4 +423,6 @@ export interface TractionSummary {
   openIssues: number;
   todos: { done: number; total: number };
   lastMeeting: MeetingRow | null;
+  /** The Organizational Checkup: the kickoff (first) score and the latest one. Null before the first. */
+  checkup: { kickoff: number; latest: number; count: number } | null;
 }

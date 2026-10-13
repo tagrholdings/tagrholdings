@@ -197,6 +197,20 @@
       "when": 1791893284300,
       "tag": "0027_drop_user_owner_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1791895975734,
+      "tag": "0028_checkups_and_portfolio_template",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1791895977411,
+      "tag": "0029_checkups_grants",
+      "breakpoints": true
     }
   ]
 }

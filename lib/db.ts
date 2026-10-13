@@ -17,6 +17,7 @@ import * as portalAccessSchema from "@/modules/portal-access/portal-access.schem
 import * as notificationsSchema from "@/modules/notifications/notifications.schema";
 import * as tractionSchema from "@/modules/traction/traction.schema";
 import * as teamSchema from "@/modules/team/team.schema";
+import * as portfolioSchema from "@/modules/portfolio/portfolio.schema";
 
 const schema = {
   ...tenancySchema,
@@ -34,6 +35,7 @@ const schema = {
   ...notificationsSchema,
   ...tractionSchema,
   ...teamSchema,
+  ...portfolioSchema,
 };
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL! });

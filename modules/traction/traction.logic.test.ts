@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   aggregate,
+  checkupBand,
+  checkupScore,
   eosRuleChecks,
   formatCalendarDate,
   formatCompactCurrency,
@@ -215,5 +217,16 @@ describe("EOS rule checks", () => {
       seatsWithoutPerson: 1,
     });
     expect(checks.map((c) => c.area)).toEqual(["scorecard", "scorecard", "scorecard", "scorecard", "rocks", "rocks", "l10", "l10", "vision", "vision", "people"]);
+  });
+});
+
+describe("Organizational Checkup", () => {
+  it("scores 20 statements of 1–5 as a 0–100 percentage, in the portal's bands", () => {
+    expect(checkupScore(Array(20).fill(5), 20)).toBe(100);
+    expect(checkupScore(Array(20).fill(1), 20)).toBe(20);
+    expect(checkupScore([...Array(10).fill(3), ...Array(10).fill(4)], 20)).toBe(70);
+    expect(checkupBand(39).tone).toBe("bad");
+    expect(checkupBand(40).label).toBe("Building the foundation");
+    expect(checkupBand(70).tone).toBe("good");
   });
 });

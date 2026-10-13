@@ -3,34 +3,12 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { HeroHeader } from "@/components/shared/hero-header";
 import { NavBar } from "@/components/shared/nav-bar";
+import { EOS_CHECKUP_STATEMENTS } from "@/lib/eos-checkup";
 import { EosCheckup } from "./eos-checkup";
 import { UrgencyIndex } from "./urgency-index";
 import { ToolsTabs, type PortalToolId } from "./tools-tabs";
 
 export type { PortalToolId };
-
-const statements = [
-  "We have a clear vision in writing that has been properly communicated and is shared by everyone.",
-  "Our core values are clear, and we are hiring, reviewing, rewarding, and firing around them.",
-  "Our core business is clear, and our systems and processes reflect that.",
-  "Our 10-Year Target is clear and has been communicated to everyone.",
-  "Our target market is clear, and our sales and marketing efforts are focused on it.",
-  "Our differentiators are clear, and all of our sales and marketing efforts communicate them.",
-  "We have a proven process for doing business with our customers. It has been named and visually illustrated, and everyone is adhering to it.",
-  "All of the people in our organization are the right people.",
-  "Our accountability chart is clear, complete, and constantly updated.",
-  "Everyone is in the right seat.",
-  "Our leadership team is open and honest, and demonstrates a high level of trust.",
-  "Everyone has Rocks and is focused on them (3 to 7 priorities per quarter).",
-  "Everyone is engaged in regular weekly meetings.",
-  "All meetings are on the same day and at the same time each week, have the same printed agenda, start on time, and end on time.",
-  "All teams clearly identify, discuss, and solve key issues for the greater good and long term.",
-  "Our systems and processes are documented, simplified, and followed by all.",
-  "We have a system for receiving regular customer and employee feedback, and we know their level of satisfaction.",
-  "A Scorecard for weekly metrics and measurables is in place.",
-  "Everyone in the organization has a number.",
-  "We have a budget and are monitoring it regularly (e.g., monthly or quarterly).",
-];
 
 const urgencyStatements = [
   "I seem to do my best work when I'm under pressure.",
@@ -126,8 +104,8 @@ export function PortalTools({
             number: "01",
             title: "EOS Checkup",
             blurb: "Rate the company on the 20 EOS statements and get a live organizational score.",
-            meta: `${statements.length} statements · ~5 min`,
-            content: <EosCheckup statements={statements} />,
+            meta: `${EOS_CHECKUP_STATEMENTS.length} statements · ~5 min`,
+            content: <EosCheckup statements={EOS_CHECKUP_STATEMENTS} />,
           },
           {
             id: "urgency",

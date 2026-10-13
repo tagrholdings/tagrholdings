@@ -11,7 +11,7 @@ import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { OwnerBadge } from "@/components/traction/traction-ui";
 import { RuleChecks } from "@/components/traction/rule-checks";
-import { createIssueAction, setEntryAction } from "@/modules/traction/traction.actions";
+import { addStandardMeasurablesAction, createIssueAction, setEntryAction } from "@/modules/traction/traction.actions";
 import {
   aggregate,
   formatGoal,
@@ -47,6 +47,7 @@ export function ScorecardView({
   counts,
   members,
   checks,
+  missingStandard,
 }: {
   cadence: Cadence;
   windowEnd: string;
@@ -57,6 +58,8 @@ export function ScorecardView({
   counts: Record<Cadence, number>;
   members: TractionMember[];
   checks: RuleCheck[];
+  /** Names of the portfolio's standard measurables this company doesn't have yet. */
+  missingStandard: string[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -93,6 +96,14 @@ export function ScorecardView({
       addPatch({ measurableId: measurable.id, periodStart: period, value });
       const result = await setEntryAction({ measurableId: measurable.id, periodStart: period, value });
       if (result?.serverError || result?.validationErrors) notify.error(result.serverError ?? "Couldn't save that number.");
+    });
+  }
+
+  function addStandard() {
+    startTransition(async () => {
+      const result = await addStandardMeasurablesAction({});
+      if (result?.serverError) notify.error(result.serverError);
+      else notify.success(`${result?.data?.added ?? 0} standard measurable(s) added. Give each one its owner.`);
     });
   }
 
@@ -139,6 +150,11 @@ export function ScorecardView({
         )}
       </div>
       <div className="flex-1" />
+      {missingStandard.length > 0 && (
+        <Button data-tour="scorecard-standard" variant="outline" onClick={addStandard} title={`Adds: ${missingStandard.join(", ")}`}>
+          Add {missingStandard.length} portfolio standard{missingStandard.length === 1 ? "" : "s"}
+        </Button>
+      )}
       <Button data-tour="scorecard-add" onClick={() => setVault({ open: true })}>
         <Plus />
         New measurable

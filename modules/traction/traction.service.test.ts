@@ -28,6 +28,8 @@ vi.mock("./traction.repository", () => ({
     findReviews: vi.fn(),
     upsertReview: vi.fn(),
     findVto: vi.fn(),
+    findCheckups: vi.fn(),
+    insertCheckup: vi.fn(),
     findL10Schedule: vi.fn(),
     claimL10Reminder: vi.fn(),
   },
@@ -70,6 +72,7 @@ beforeEach(() => {
   repo.findMeetings.mockResolvedValue([]);
   repo.findSeats.mockResolvedValue([]);
   repo.findVto.mockResolvedValue(undefined as never);
+  repo.findCheckups.mockResolvedValue([]);
   activities.listL10Todos.mockResolvedValue([]);
 });
 
@@ -270,5 +273,48 @@ describe("summary", () => {
     ]);
     const { lastQuarterRockRate } = await tractionService.getSummary("t1", NOW);
     expect(lastQuarterRockRate).toEqual({ quarter: "2026-Q3", rate: 50 });
+  });
+});
+
+describe("Organizational Checkup", () => {
+  it("needs every statement scored, and stores the 0–100 score", async () => {
+    await expect(tractionService.saveCheckup("t1", { answers: [5, 5] }, 20, "u1")).rejects.toThrow("Score all 20");
+    await tractionService.saveCheckup("t1", { answers: Array(20).fill(4) }, 20, "u1");
+    expect(repo.insertCheckup).toHaveBeenCalledWith("t1", expect.objectContaining({ score: 80, takenByUserId: "u1" }));
+  });
+
+  it("reports the kickoff and the latest score in the summary", async () => {
+    repo.findCheckups.mockResolvedValue([
+      { id: "a", takenAt: new Date(), answers: [], score: 48, notes: null },
+      { id: "b", takenAt: new Date(), answers: [], score: 71, notes: null },
+    ]);
+    expect((await tractionService.getSummary("t1", NOW)).checkup).toEqual({ kickoff: 48, latest: 71, count: 2 });
+  });
+});
+
+describe("the portfolio's standard measurables", () => {
+  const template = [
+    { id: "tpl-1", sortOrder: 0, name: "Revenue", cadence: "weekly" as const, unit: "currency" as const, aggregation: "sum" as const, goalOperator: null, goalValue: null, goalValueMax: null },
+    { id: "tpl-2", sortOrder: 1, name: "Active customers", cadence: "monthly" as const, unit: "number" as const, aggregation: "latest" as const, goalOperator: "gte" as const, goalValue: 500, goalValueMax: null },
+  ];
+
+  it("adds only the missing ones (matched by name, any case), as the workspace's own rows with no owner yet", async () => {
+    repo.findMeasurables.mockResolvedValue([{ ...revenue, name: "revenue" }]);
+    repo.nextMeasurableSortOrder.mockResolvedValue(3);
+    expect(await tractionService.addStandardMeasurables("t1", template)).toBe(1);
+    expect(repo.insertMeasurable).toHaveBeenCalledTimes(1);
+    const inserted = repo.insertMeasurable.mock.calls[0][1];
+    expect(inserted).toMatchObject({ name: "Active customers", goalValue: 500, ownerPersonId: null, sortOrder: 3 });
+    expect(inserted).not.toHaveProperty("id");
+  });
+
+  it("reports each standard number's latest value and whether it's on goal", async () => {
+    repo.findMeasurables.mockResolvedValue([customers]);
+    repo.findLatestEntries.mockResolvedValue([{ measurableId: "m2", periodStart: "2026-09-01", value: 421 }]);
+    const numbers = await tractionService.getStandardNumbers("t1", template);
+    expect(numbers).toEqual([
+      { name: "Revenue", unit: "currency", tracked: false, value: null, periodStart: null, met: null },
+      { name: "Active customers", unit: "currency", tracked: true, value: 421, periodStart: "2026-09-01", met: false }, // the workspace's own unit wins
+    ]);
   });
 });

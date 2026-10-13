@@ -1,6 +1,7 @@
 import { withTenant } from "@/lib/db";
 import { and, asc, desc, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import {
+  tractionCheckupsTable,
   tractionEntriesTable,
   tractionIssuesTable,
   tractionL10SettingsTable,
@@ -13,6 +14,7 @@ import {
   tractionVtoTable,
 } from "./traction.schema";
 import type {
+  CheckupRow,
   EntryRow,
   IssueRow,
   L10Schedule,
@@ -632,6 +634,30 @@ export const tractionRepository = {
   async deleteProcess(tenantId: string, id: string) {
     const [row] = await withTenant(tenantId, (tx) =>
       tx.delete(tractionProcessesTable).where(and(eq(tractionProcessesTable.tenantId, tenantId), eq(tractionProcessesTable.id, id))).returning({ id: tractionProcessesTable.id })
+    );
+    return row;
+  },
+
+  // ───────────── Organizational Checkup ─────────────
+
+  async findCheckups(tenantId: string): Promise<CheckupRow[]> {
+    return withTenant(tenantId, (tx) =>
+      tx
+        .select({ id: tractionCheckupsTable.id, takenAt: tractionCheckupsTable.takenAt, answers: tractionCheckupsTable.answers, score: tractionCheckupsTable.score, notes: tractionCheckupsTable.notes })
+        .from(tractionCheckupsTable)
+        .where(eq(tractionCheckupsTable.tenantId, tenantId))
+        .orderBy(asc(tractionCheckupsTable.takenAt))
+    );
+  },
+
+  async insertCheckup(tenantId: string, values: { answers: number[]; score: number; notes: string | null; takenByUserId: string }) {
+    const [row] = await withTenant(tenantId, (tx) => tx.insert(tractionCheckupsTable).values({ ...values, tenantId }).returning({ id: tractionCheckupsTable.id }));
+    return row;
+  },
+
+  async deleteCheckup(tenantId: string, id: string) {
+    const [row] = await withTenant(tenantId, (tx) =>
+      tx.delete(tractionCheckupsTable).where(and(eq(tractionCheckupsTable.tenantId, tenantId), eq(tractionCheckupsTable.id, id))).returning({ id: tractionCheckupsTable.id })
     );
     return row;
   },
