@@ -199,6 +199,19 @@ html {
   } 
 }
 
+/* Phones and the installed app (PWA) show no scrollbars at all — every list, table, tab strip and vault still
+   scrolls by touch, the bar just isn't drawn. Desktop browsers keep theirs (there they're how a mouse scrolls). */
+@media (max-width: 767px), (display-mode: standalone) {
+  *,
+  *::before,
+  *::after {
+    scrollbar-width: none; /* Firefox */
+  }
+  *::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

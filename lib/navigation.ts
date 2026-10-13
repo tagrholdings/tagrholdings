@@ -39,7 +39,7 @@ export const TRACTION_NAV_ITEMS: NavItem[] = [
   { label: "Scorecard", href: "/traction/scorecard", icon: LineChart },
   { label: "Rocks", href: "/traction/rocks", icon: Gem },
   { label: "Issues", href: "/traction/issues", icon: CircleAlert },
-  { label: "L10 Meeting", href: "/traction/l10", icon: Timer },
+  { label: "L10s", href: "/traction/l10", icon: Timer },
 ];
 
 /** EOS's long-lived components: where the company is going, who sits where, and how the work is done. */
