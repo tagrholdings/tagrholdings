@@ -799,13 +799,18 @@ const ENTRIES: Entry[] = [
         {
           target: "scorecard-grid",
           title: "The grid",
-          text: "One row per number, one column per week or month. Click a cell to enter the number; a red one can be dropped to Issues.",
+          text: "One row per number, one column per week or month (on a phone, one card per number with its latest value big). Click a cell to enter the number; a red one can be dropped to Issues.",
           demo: { kind: "table", columns: ["Measurable", "Goal", "Jul", "Aug", "Sep"] },
         },
         {
           target: "scorecard-checks",
           title: "What EOS expects",
           text: "5 to 15 numbers, each with one owner and a goal, entered weekly. Anything missing shows up here.",
+        },
+        {
+          target: "scorecard-enter",
+          title: "Enter the numbers",
+          text: "Opens one field per measurable for this week (or month): type each number and save them all at once. On a phone, tapping a measurable's period opens just that one.",
         },
         {
           target: "scorecard-standard",
