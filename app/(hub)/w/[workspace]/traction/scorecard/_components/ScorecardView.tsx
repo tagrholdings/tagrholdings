@@ -11,7 +11,7 @@ import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { OwnerBadge } from "@/components/traction/traction-ui";
 import { RuleChecks } from "@/components/traction/rule-checks";
-import { MOBILE_ICON_ONLY, MOBILE_LABEL, PageSlotContent } from "@/components/layout/page-slots";
+import { MOBILE_GHOST, MOBILE_LABEL, PageSlotContent } from "@/components/layout/page-slots";
 import { addStandardMeasurablesAction, createIssueAction, setEntryAction } from "@/modules/traction/traction.actions";
 import {
   aggregate,
@@ -186,7 +186,9 @@ export function ScorecardView({
       )}
       {/* On a phone this is a "+" in the header, so the toolbar keeps to one line. */}
       <PageSlotContent name="header">
-        <Button data-tour="scorecard-add" className={MOBILE_ICON_ONLY} aria-label="New measurable" onClick={() => setVault({ open: true })}>
+        {/* Filled on desktop; on a phone a bare accent "+" like the other headers' add buttons (MOBILE_ICON_ONLY's
+            text-primary would paint the icon the same colour as this filled button). */}
+        <Button data-tour="scorecard-add" className={cn("max-md:size-9 max-md:gap-0 max-md:px-0", MOBILE_GHOST)} aria-label="New measurable" onClick={() => setVault({ open: true })}>
           <Plus />
           <span className={MOBILE_LABEL}>New measurable</span>
         </Button>
