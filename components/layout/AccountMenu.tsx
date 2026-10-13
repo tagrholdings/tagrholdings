@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { BookOpen, Briefcase, Check, Loader2, LogOut, Moon, Settings, ShieldCheck, Sun } from "lucide-react";
+import { BookOpen, Briefcase, Check, ChevronDown, Loader2, LogOut, Moon, Settings, ShieldCheck, Sun } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { notify } from "@/components/ui/toaster";
 import { useTheme } from "@/hooks/ui/use-theme";
@@ -62,6 +62,20 @@ function WorkspaceTile({ name, current }: { name: string; current: boolean }) {
   );
 }
 
+/** How many workspaces the menu lists before folding the rest behind "Show all". */
+const WORKSPACES_SHOWN = 5;
+const RECENT_WORKSPACES_KEY = "tagr:recent-workspaces";
+
+/** Slugs of the workspaces this browser opened, most recent first. Per-device convenience only — may be empty. */
+function readRecent(): string[] {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(RECENT_WORKSPACES_KEY) ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
 /** Section heading, left-aligned in both the desktop dropdown and the mobile sheet. */
 function MenuHeading({ children }: { children: React.ReactNode }) {
   return <DropdownMenuLabel className="label-kicker px-3 pt-2 pb-1 text-left font-normal text-muted-foreground">{children}</DropdownMenuLabel>;
@@ -79,6 +93,17 @@ function WorkspaceSwitcherItems() {
   const workspace = useWorkspace();
   const [pending, startTransition] = useTransition();
   const [target, setTarget] = useState<string | null>(null);
+  // The menu's content only mounts when it opens (client side), so reading the browser's list here is safe.
+  const [recent] = useState(readRecent);
+  const [showAll, setShowAll] = useState(false);
+
+  // Remember the open workspace at the front of this browser's recent list.
+  useEffect(() => {
+    const next = [workspace.slug, ...readRecent().filter((s) => s !== workspace.slug)].slice(0, 20);
+    try {
+      localStorage.setItem(RECENT_WORKSPACES_KEY, JSON.stringify(next));
+    } catch {}
+  }, [workspace.slug]);
 
   // One workspace and no super-admin powers: nothing to switch, so no list — the header already names it.
   if (workspace.workspaces.length <= 1 && !workspace.isSuperAdmin) return null;
@@ -86,7 +111,7 @@ function WorkspaceSwitcherItems() {
   return (
     <>
       <MenuHeading>Workspaces</MenuHeading>
-      {workspace.workspaces.map((w) => {
+      {visibleWorkspaces(workspace.workspaces, workspace.slug, recent, showAll).map((w) => {
         const isCurrent = w.slug === workspace.slug;
         return (
           <DropdownMenuItem
@@ -108,6 +133,21 @@ function WorkspaceSwitcherItems() {
           </DropdownMenuItem>
         );
       })}
+      {/* Many companies: the current one and the most recently opened come first; the rest unfold in place. */}
+      {workspace.workspaces.length > WORKSPACES_SHOWN && (
+        <DropdownMenuItem
+          className="gap-3 text-left text-muted-foreground md:py-2"
+          onSelect={(event) => {
+            event.preventDefault();
+            setShowAll((v) => !v);
+          }}
+        >
+          <span aria-hidden className="flex size-8 shrink-0 items-center justify-center">
+            <ChevronDown className={cn("size-4 transition-transform", showAll && "rotate-180")} />
+          </span>
+          {showAll ? "Show fewer" : `Show all ${workspace.workspaces.length} workspaces`}
+        </DropdownMenuItem>
+      )}
       {workspace.isSuperAdmin && (
         <DropdownMenuItem className="gap-3 text-left md:py-2" onSelect={() => router.push("/admin")}>
           <span aria-hidden className="flex size-8 shrink-0 items-center justify-center rounded-md border border-dashed border-divider">
@@ -128,6 +168,18 @@ function WorkspaceSwitcherItems() {
       <DropdownMenuSeparator />
     </>
   );
+}
+
+/**
+ * The workspaces to list: all of them when unfolded or few; otherwise the current one, then the most recently opened,
+ * then the rest by name — capped at WORKSPACES_SHOWN and kept in the server's (alphabetical) order so rows don't jump.
+ */
+function visibleWorkspaces<T extends { slug: string }>(all: T[], currentSlug: string, recent: string[], showAll: boolean): T[] {
+  if (showAll || all.length <= WORKSPACES_SHOWN) return all;
+  const known = new Set(all.map((w) => w.slug));
+  const picked = new Set([currentSlug, ...recent.filter((s) => known.has(s))].slice(0, WORKSPACES_SHOWN));
+  for (const w of all) if (picked.size < WORKSPACES_SHOWN) picked.add(w.slug);
+  return all.filter((w) => picked.has(w.slug));
 }
 
 /** The avatar dropdown's body — shared by the header (mobile sheet + desktop dropdown) and the sidebar so they can't drift apart. */
