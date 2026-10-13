@@ -55,7 +55,7 @@ function NavIcon({
     <span
       className={cn(
         "relative flex h-11 items-center justify-center transition-all duration-300",
-        isActive ? "px-4" : "w-11"
+        isActive ? "px-3" : "w-10"
       )}
     >
       {isActive && (
@@ -67,7 +67,7 @@ function NavIcon({
       )}
       <span
         className={cn(
-          "relative z-10 flex items-center gap-2 transition-colors",
+          "relative z-10 flex items-center gap-1.5 transition-colors",
           isActive ? "text-ink" : "text-sidebar-foreground-muted"
         )}
       >
@@ -150,12 +150,12 @@ export function BottomNav({ activeHref, badges, user, variant = "responsive", cl
           e.stopPropagation();
         }}
         onPointerDown={() => (dragged.current = false)}
-        className="pointer-events-auto flex w-max touch-none items-center justify-between gap-1 overflow-hidden rounded-pill border border-sidebar-border bg-sidebar px-2 py-1.5"
+        className="pointer-events-auto flex w-max touch-none items-center justify-between gap-0.5 overflow-hidden rounded-pill border border-sidebar-border bg-sidebar/85 px-1.5 py-1.5 backdrop-blur-md"
       >
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.div
             key={section.id}
-            className="flex items-center gap-1"
+            className="flex items-center gap-0.5"
             initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -24 }}
             animate={{ opacity: 1, y: 0 }}
             exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 24 }}
@@ -237,7 +237,7 @@ export function BottomNav({ activeHref, badges, user, variant = "responsive", cl
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button type="button" aria-label="Account menu" className="flex flex-1 items-center justify-center transition-all">
-                <span className="flex h-11 w-11 items-center justify-center">
+                <span className="flex h-11 w-10 items-center justify-center">
                   <span className="flex size-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-sidebar-foreground">
                     {user.initials}
                   </span>
