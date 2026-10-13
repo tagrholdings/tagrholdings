@@ -1,6 +1,6 @@
 # Plano — Módulo Traction (EOS) no CRM
 
-> Status (2026-10-13): **implementado.** Módulos `modules/traction/` (EOS: Scorecard, Rocks, Issues/IDS, L10 ao vivo com agenda fixa e lembretes, V/TO, Accountability Chart, People Analyzer, processos) e `modules/team/` (pessoas do time, com ou sem login — todo dono aponta para uma pessoa). Telas: Traction (`/traction/*`), EOS (`/eos/vision`, `/eos/people`, `/eos/process`), aba Team em Contacts, Portfolio em `/admin/portfolio`. Migrations 0023–0027. Ainda **não feito**: template de scorecard padrão do portfólio, Organizational Checkup salvo, integração com o FieldRoutes.
+> Status (2026-10-13): **implementado.** Módulos `modules/traction/` (EOS: Scorecard, Rocks, Issues/IDS, L10 ao vivo com agenda fixa e lembretes, V/TO, Accountability Chart, People Analyzer, processos) e `modules/team/` (pessoas do time, com ou sem login — todo dono aponta para uma pessoa). Telas: Traction (`/traction/*`), EOS (`/eos/vision`, `/eos/people`, `/eos/process`), aba Team em Contacts, Portfolio em `/admin/portfolio`. Migrations 0023–0029, incluindo o Organizational Checkup salvo (`/eos/checkup`) e o Scorecard padrão do portfólio (`modules/portfolio`). Ainda **não feito**: integração com o FieldRoutes (a documentação da API só existe para clientes logados; falta o acesso).
 >
 > Ponto de partida: a planilha EOS da Grounded Pest Control (V/TO, Leadership L10, Scorecard Q1-26) e o playbook do Tanner que já está publicado no portal (`components/portal/operating-playbook.tsx`).
 
