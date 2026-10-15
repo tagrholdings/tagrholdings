@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { PRESENTATION_HTML } from "./presentation-html";
 
-const ROOT = join(__dirname, "..", "..", "..", "..", "..", "..");
+const ROOT = join(__dirname, "..", "..");
 
 describe("platform tour", () => {
   it("is built from content/presentation/index.html — run `npm run presentation:build` after editing it", () => {

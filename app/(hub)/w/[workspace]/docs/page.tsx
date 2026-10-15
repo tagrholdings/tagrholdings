@@ -351,10 +351,11 @@ export default async function DocsPage({ params }: { params: Promise<{ workspace
             A 15-minute interactive presentation of the whole CRM — what each page is for, with real examples — for anyone who has never used it. Works on a phone too.
           </p>
         </div>
-        <Link href={workspacePath(slug, "/docs/presentation")} className={buttonVariants({ className: "shrink-0" })}>
+        {/* A full page of its own (a route handler, not a hub page): a plain link, not a client-side navigation. */}
+        <a href={`/tour?from=${encodeURIComponent(slug)}`} className={buttonVariants({ className: "shrink-0" })}>
           See presentation
           <ArrowUpRight className="size-4" aria-hidden />
-        </Link>
+        </a>
       </section>
 
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">

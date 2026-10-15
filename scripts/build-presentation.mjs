@@ -1,10 +1,10 @@
-// Turns content/presentation/index.html (the source — edit that file) into the module the Documentation →
-// Presentation page renders. Run after every edit:  npm run presentation:build
+// Turns content/presentation/index.html (the source — edit that file) into the module the platform tour (/tour)
+// serves. Run after every edit:  npm run presentation:build
 // presentation.test.ts fails while the two are out of step.
 import { readFileSync, writeFileSync } from "node:fs";
 
 const source = "content/presentation/index.html";
-const target = "app/(hub)/w/[workspace]/docs/presentation/presentation-html.ts";
+const target = "app/tour/presentation-html.ts";
 
 const html = readFileSync(source, "utf8").replace(/\r\n/g, "\n");
 writeFileSync(

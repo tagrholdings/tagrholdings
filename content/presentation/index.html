@@ -214,6 +214,9 @@ table.t td.num,table.t th.num{text-align:right;font-variant-numeric:tabular-nums
 
 /* ── chrome outside the stage ── */
 #progress{position:fixed;left:0;top:0;height:3px;background:var(--accent);transition:width .3s;z-index:20}
+#back{position:fixed;left:14px;top:12px;z-index:25;display:inline-flex;align-items:center;gap:6px;font-family:var(--sans);font-size:13px;font-weight:600;text-decoration:none;color:var(--paper);background:rgba(27,29,31,.82);border:1px solid rgba(237,232,223,.22);border-radius:999px;padding:7px 14px;backdrop-filter:blur(6px)}
+#back:hover{background:var(--ink);border-color:var(--gold)}
+body.reader .slide:first-child{padding-top:72px}
 #hud{position:fixed;right:14px;bottom:12px;display:flex;gap:6px;align-items:center;z-index:20;font-family:var(--mono);font-size:12px;color:rgba(245,242,236,.75)}
 #hud button{background:rgba(27,29,31,.75);color:var(--paper);border-radius:8px;padding:6px 10px;border:1px solid rgba(237,232,223,.18)}
 #hud button:hover{background:var(--ink)}
@@ -281,6 +284,7 @@ body.reader .slide>.notes{display:none}
 </head>
 <body>
 <div id="progress"></div>
+<a id="back" href="__BACK_HREF__">← Back to the CRM</a>
 <div id="stage">
 
 <!-- ═════════════ TITLE ═════════════ -->
@@ -1702,7 +1706,7 @@ body.reader .slide>.notes{display:none}
     <div><div class="big" style="color:var(--gold)">1</div><p style="color:rgba(245,242,236,.7);margin-top:6px">Portfolio view across every company</p></div>
   </div>
   <div class="gap"></div>
-  <p class="hint">Want the details? Open Documentation from the account menu, or press <span class="kbd">M</span> to jump to any page of this tour.</p>
+  <p class="hint">Want the details? <a href="__BACK_HREF__" style="color:var(--gold)">Back to the CRM</a> → Documentation has every page in full. Press <span class="kbd">M</span> to jump to any page of this tour.</p>
   <aside class="notes"><ul><li>Every page in the app also has its own (?) help and guided tour.</li></ul></aside>
 </section>
 
