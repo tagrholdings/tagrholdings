@@ -12,7 +12,7 @@ export type WeekDateField = "dueDate" | "createdAt";
 function WeekActivityCard({ activity, onSelect }: { activity: ActivityRow; onSelect: (id: string) => void }) {
   const disabled = activity.id.startsWith("optimistic-");
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: activity.id, disabled });
-  const context = activity.pipelineItemTitle ?? activity.contactName ?? activity.organizationName;
+  const context = activity.pipelineItemTitle ?? activity.rockTitle ?? activity.contactName ?? activity.organizationName;
 
   return (
     <button

@@ -1,7 +1,7 @@
 "use client";
 
 import { useOptimistic, useState, useTransition } from "react";
-import { Bell, CalendarClock, CheckSquare, ChevronLeft, ChevronRight, LayoutGrid, Link2, List, ListChecks } from "lucide-react";
+import { Bell, CalendarClock, CheckSquare, ChevronLeft, ChevronRight, Gem, LayoutGrid, Link2, List, ListChecks } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { dueBucket, formatDateUS, getCurrentWeekDays, type DueBucket } from "@/utils/date";
 import { useIsMobile } from "@/hooks/ui/use-device";
@@ -193,7 +193,8 @@ export function ActivitiesView({
           a.subject.toLowerCase().includes(query) ||
           a.contactName?.toLowerCase().includes(query) ||
           a.organizationName?.toLowerCase().includes(query) ||
-          a.pipelineItemTitle?.toLowerCase().includes(query)
+          a.pipelineItemTitle?.toLowerCase().includes(query) ||
+          a.rockTitle?.toLowerCase().includes(query)
       )
     : optimisticActivities;
   const listed = searched
@@ -418,12 +419,19 @@ export function ActivitiesView({
                               {activity.subject}
                             </span>
                           </p>
-                          {(activity.pipelineItemTitle || context) && (
+                          {(activity.pipelineItemTitle || activity.rockTitle || context) && (
                             <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
                               {activity.pipelineItemTitle && (
                                 <>
                                   <Link2 className="size-3 shrink-0" />
                                   <span className="truncate">{activity.pipelineItemTitle}</span>
+                                  {(activity.rockTitle || context) && <span>·</span>}
+                                </>
+                              )}
+                              {activity.rockTitle && (
+                                <>
+                                  <Gem className="size-3 shrink-0" aria-label="Rock" />
+                                  <span className="truncate">{activity.rockTitle}</span>
                                   {context && <span>·</span>}
                                 </>
                               )}

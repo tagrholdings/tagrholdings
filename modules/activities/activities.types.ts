@@ -26,6 +26,7 @@ const activityFieldsSchema = insertActivitySchema
     contactId: true,
     organizationId: true,
     pipelineItemId: true,
+    rockId: true,
     assignedToPersonId: true,
     assignedToContactId: true,
     notify: true,
@@ -93,6 +94,9 @@ export interface ActivityRow {
   organizationName: string | null;
   pipelineItemId: string | null;
   pipelineItemTitle: string | null;
+  /** The Rock this activity moves forward (Traction). */
+  rockId: string | null;
+  rockTitle: string | null;
   assignedToPersonId: string | null;
   assignedToContactId: string | null;
   assignedToContactName: string | null;

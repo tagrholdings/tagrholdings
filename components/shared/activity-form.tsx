@@ -10,6 +10,7 @@ import { CommandSelect } from "@/components/shared/command-select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { hasTimeComponent, parseLocalDateTime, toDateInputValue, toTimeInputValue } from "@/utils/date";
+import { quarterLabel } from "@/modules/traction/traction.logic";
 import {
   ACTIVITY_TYPES,
   ACTIVITY_PRIORITIES,
@@ -58,6 +59,7 @@ export const activityFormSchema = z.object({
   contactId: z.string().optional(),
   organizationId: z.string().optional(),
   pipelineItemId: z.string().optional(),
+  rockId: z.string().optional(),
   /** "Enable notification" — a push reminder at the due time. Only meaningful with a due date AND time. */
   notify: z.boolean().optional(),
 });
@@ -77,6 +79,7 @@ export function activityFormDefaults(overrides: Partial<ActivityFormValues> = {}
     contactId: undefined,
     organizationId: undefined,
     pipelineItemId: undefined,
+    rockId: undefined,
     notify: false,
     ...overrides,
   };
@@ -104,6 +107,7 @@ export function activityToFormValues(activity: ActivityRow): ActivityFormValues 
     contactId: activity.contactId ?? undefined,
     organizationId: activity.organizationId ?? undefined,
     pipelineItemId: activity.pipelineItemId ?? undefined,
+    rockId: activity.rockId ?? undefined,
     notify: activity.notify,
   };
 }
@@ -119,6 +123,7 @@ export function toNewActivity(values: ActivityFormValues): NewActivity {
     contactId: values.contactId || undefined,
     organizationId: values.organizationId || undefined,
     pipelineItemId: values.pipelineItemId || undefined,
+    rockId: values.rockId || undefined,
     assignedToPersonId: assignedKind === "person" ? assignedId : undefined,
     assignedToContactId: assignedKind === "contact" ? assignedId : undefined,
     // A reminder needs an exact moment: if the time was cleared after ticking the box, it's dropped rather than sent at midnight.
@@ -131,6 +136,8 @@ export interface ActivityLookups {
   organizations: { id: string; name: string }[];
   members: { id: string; name: string | null; email: string }[];
   pipelineItems: PipelineItemSummary[];
+  /** Rocks an activity can move forward. The "Linked Rock" picker shows only when a page passes them. */
+  rocks?: { id: string; title: string; quarter: string }[];
 }
 
 /** The row an optimistic "add" shows until the server's revalidated list replaces it. */
@@ -151,6 +158,8 @@ export function buildOptimisticActivity(input: NewActivity, lookups: ActivityLoo
     organizationName: nameOf(lookups.organizations, input.organizationId),
     pipelineItemId: input.pipelineItemId ?? null,
     pipelineItemTitle: lookups.pipelineItems.find((i) => i.id === input.pipelineItemId)?.title ?? null,
+    rockId: input.rockId ?? null,
+    rockTitle: lookups.rocks?.find((r) => r.id === input.rockId)?.title ?? null,
     assignedToPersonId: input.assignedToPersonId ?? null,
     assignedToContactId: input.assignedToContactId ?? null,
     assignedToContactName: nameOf(lookups.contacts, input.assignedToContactId),
@@ -203,6 +212,8 @@ interface ActivityFormFieldsProps {
   lookups: ActivityLookups;
   /** Hidden when the activity is created from inside a pipeline item — the link is implied. */
   showPipelineItem?: boolean;
+  /** Hidden when the activity is created from inside a Rock — the link is implied. */
+  showRock?: boolean;
   /** Compact mode (inline in a detail panel): the secondary fields sit behind a "More options" toggle. */
   collapsibleExtras?: boolean;
 }
@@ -214,7 +225,7 @@ interface ActivityFormFieldsProps {
  * Drawer) and the small enums are pill groups for the same reason — see
  * design.md's "Relational pickers" section.
  */
-export function ActivityFormFields({ form, lookups, showPipelineItem = true, collapsibleExtras = false }: ActivityFormFieldsProps) {
+export function ActivityFormFields({ form, lookups, showPipelineItem = true, showRock = true, collapsibleExtras = false }: ActivityFormFieldsProps) {
   const { register, control, watch, formState: { errors } } = form;
   const [showExtras, setShowExtras] = useState(!collapsibleExtras);
   const selectedType = watch("type");
@@ -337,6 +348,24 @@ export function ActivityFormFields({ form, lookups, showPipelineItem = true, col
                       label: item.title,
                       description: item.boardIsSystem ? "Lead" : item.boardName,
                     }))}
+                  />
+                )}
+              />
+            </VaultField>
+          )}
+
+          {showRock && lookups.rocks && lookups.rocks.length > 0 && (
+            <VaultField label="Linked Rock">
+              <Controller
+                control={control}
+                name="rockId"
+                render={({ field }) => (
+                  <CommandSelect
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder="None"
+                    searchPlaceholder="Search Rocks…"
+                    options={lookups.rocks!.map((rock) => ({ value: rock.id, label: rock.title, description: quarterLabel(rock.quarter) }))}
                   />
                 )}
               />

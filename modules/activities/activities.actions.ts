@@ -5,9 +5,10 @@ import { protectedAction } from "@/lib/safe-action";
 import { activitiesService } from "./activities.service";
 import { createActivitySchema, setActivityDoneSchema, updateActivityDateSchema, updateActivitySchema } from "./activities.types";
 
-/** Activities show up on /activities, inside pipeline items (Projects, Leads) and on a contact's panel. */
+/** Activities show up on /activities, inside pipeline items (Projects, Leads), on a contact's panel and under their Rock. */
 function revalidateActivityPages(slug: string) {
   revalidateWorkspace(slug, "/activities");
+  revalidateWorkspace(slug, "/traction/rocks");
   revalidateWorkspace(slug, "/projects");
   revalidateWorkspace(slug, "/leads");
   revalidateWorkspace(slug, "/contacts");

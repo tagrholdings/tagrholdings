@@ -40,6 +40,7 @@ import {
   type ProcessUpdate,
   type ResolveIssueInput,
   type ReviewInput,
+  type RockActivity,
   type RockRow,
   type RockStatus,
   type RockUpdate,
@@ -179,6 +180,20 @@ export const tractionService = {
     return { rocks, focusQuarter: focusQuarter(rocks, todayIso()), currentQuarter: quarterOf(todayIso()) };
   },
 
+  /** Every Rock's milestones / to-dos (activities linked to a Rock), oldest due first. */
+  async getRockActivities(tenantId: string): Promise<RockActivity[]> {
+    const activities = await activitiesService.listForTenant(tenantId);
+    return activities.flatMap((a) => (a.rockId ? [{ id: a.id, rockId: a.rockId, subject: a.subject, done: a.done, dueDate: a.dueDate }] : []));
+  },
+
+  /** Rocks an activity can still be linked to: the open ones (on or off track), any quarter. */
+  async listOpenRocks(tenantId: string) {
+    const rocks = await tractionRepository.findRocks(tenantId);
+    return rocks
+      .filter((r) => r.status === "on_track" || r.status === "off_track")
+      .map((r) => ({ id: r.id, title: r.title, quarter: r.quarter }));
+  },
+
   async createRock(tenantId: string, data: NewRock) {
     await assertPerson(tenantId, data.ownerPersonId);
     return tractionRepository.insertRock(tenantId, rockValues(data));
@@ -225,6 +240,7 @@ export const tractionService = {
   },
 
   async deleteRock(tenantId: string, id: string) {
+    await activitiesService.unlinkRock(tenantId, id);
     const deleted = await tractionRepository.deleteRock(tenantId, id);
     if (!deleted) throw new UserFacingError("Rock not found.");
   },

@@ -118,6 +118,49 @@ function fromForm(v: FormValues): VtoContent {
   };
 }
 
+/**
+ * The guided setup: the V/TO's six parts in the order EOS builds them, each with what it is and an example.
+ * `done` decides where "Continue guided setup" resumes.
+ */
+const GUIDE_STEPS: { title: string; what: string; example: string; done: (c: VtoContent) => boolean }[] = [
+  {
+    title: "Core values",
+    what: "3 to 7 rules that define who you are and who fits. Each one needs 2–3 behaviors you can actually see, so it can be used to hire, review and fire.",
+    example: "“Own the outcome” — we finish what we start; we don't pass blame; we raise problems early.",
+    done: (c) => c.coreValues.length > 0,
+  },
+  {
+    title: "Core focus",
+    what: "Why the company exists (purpose) and what it is the best at (niche). Anything outside it is a distraction.",
+    example: "Purpose: help owners of great small businesses retire well. Niche: buying and growing service companies in Arizona.",
+    done: (c) => !!c.purpose && !!c.niche,
+  },
+  {
+    title: "10-year target",
+    what: "One big, long-range goal everyone can rally around — a date, a number and a short picture.",
+    example: "By 2036: $50M in revenue across 10 operating companies.",
+    done: (c) => c.tenYear.revenue !== null || !!c.tenYear.picture,
+  },
+  {
+    title: "Marketing strategy",
+    what: "Who your ideal customer is, the three things that make you different, the name of your proven process and the promise you make.",
+    example: "Target: owners aged 55+ of $2–10M service businesses in AZ. Uniques: we close fast, we keep the team, we keep the name.",
+    done: (c) => !!c.marketing.targetMarket || c.marketing.uniques.length > 0,
+  },
+  {
+    title: "3-year picture",
+    what: "Where the company is in three years: revenue, profit, people and a few lines of what it looks like.",
+    example: "$12M revenue, 15% profit, 80 people — 4 companies, a shared back office, an ops leader in each.",
+    done: (c) => c.threeYear.revenue !== null || c.threeYear.picture.length > 0,
+  },
+  {
+    title: "1-year plan",
+    what: "This year's numbers and 3–7 goals. Every quarter's Rocks should move one of these goals.",
+    example: "$5M revenue; goals: close 2 acquisitions, hire a CFO, 750 active Grounded customers.",
+    done: (c) => c.oneYear.goals.length > 0,
+  },
+];
+
 /** Profit as a share of revenue, when both are set — "$450K (15%)". */
 function profitText(profit: number | null, revenue: number | null) {
   if (profit === null) return "";
@@ -159,8 +202,154 @@ export function VtoView({
 
   const rocksFor = (goalId: string) => rocks.filter((r) => r.oneYearGoalId === goalId).length;
 
+  // A blank V/TO opens straight into the guided setup; a half-built one offers to resume where it stopped.
+  const nextStep = GUIDE_STEPS.findIndex((s) => !s.done(content));
+  const blank = GUIDE_STEPS.every((s) => !s.done(content));
+  const [step, setStep] = useState<number | null>(blank ? 0 : null);
+
+  const openGuide = (at: number) => {
+    reset(toForm(content));
+    setEditing(false);
+    setStep(at);
+  };
+
+  // Each step saves the whole V/TO, so leaving halfway keeps everything written so far.
+  const saveStep = handleSubmit(async (values) => {
+    const result = await saveVtoAction({ content: fromForm(values) });
+    if (result?.serverError || result?.validationErrors) {
+      notify.error(result.serverError ?? "Couldn't save the V/TO.");
+      return;
+    }
+    if (step !== null && step < GUIDE_STEPS.length - 1) setStep(step + 1);
+    else {
+      notify.success("Your V/TO is set up. Revisit it at every quarterly.");
+      setStep(null);
+    }
+  });
+
+  const stepFields = (index: number) => {
+    switch (index) {
+      case 0:
+        return <CoreValuesEditor control={control} register={register} />;
+      case 1:
+        return (
+          <>
+            <Pair label="Purpose / cause / passion"><Field {...f} name="purpose" label="Purpose" placeholder="Why the company exists" /></Pair>
+            <Pair label="Niche"><Field {...f} name="niche" label="Niche" placeholder="What you're the best at" /></Pair>
+          </>
+        );
+      case 2:
+        return (
+          <>
+            <Pair label="Date"><DateField {...f} name="tenYearDate" label="10-year target date" /></Pair>
+            <Pair label="Revenue"><MoneyField {...f} name="tenYearRevenue" label="10-year revenue" /></Pair>
+            <Pair label="Picture"><Field {...f} name="tenYearPicture" label="10-year picture" /></Pair>
+          </>
+        );
+      case 3:
+        return (
+          <>
+            <Pair label="Target market"><Field {...f} name="targetMarket" label="Target market" placeholder="Who, where, and the list of ideal customers" /></Pair>
+            <Pair label="Three uniques">
+              <div className="flex flex-col gap-2">
+                <Field {...f} name="unique1" label="Unique 1" placeholder="1." />
+                <Field {...f} name="unique2" label="Unique 2" placeholder="2." />
+                <Field {...f} name="unique3" label="Unique 3" placeholder="3." />
+              </div>
+            </Pair>
+            <Pair label="Proven process"><Field {...f} name="provenProcess" label="Proven process" placeholder="Its name — the steps live in EOS → Process" /></Pair>
+            <Pair label="Guarantee"><Field {...f} name="guarantee" label="Guarantee" /></Pair>
+          </>
+        );
+      case 4:
+        return (
+          <>
+            <Pair label="Date"><DateField {...f} name="threeYearDate" label="3-year picture date" /></Pair>
+            <Pair label="Revenue"><MoneyField {...f} name="threeYearRevenue" label="3-year revenue" /></Pair>
+            <Pair label="Profit"><MoneyField {...f} name="threeYearProfit" label="3-year profit" /></Pair>
+            <Pair label="People"><CountField {...f} name="threeYearHeadcount" label="3-year headcount" /></Pair>
+            <Pair label="Customers"><CountField {...f} name="threeYearCustomers" label="3-year customers" /></Pair>
+            <Pair label="Measurables"><Field {...f} name="threeYearMeasurables" label="3-year measurables" /></Pair>
+            <Pair label="What it looks like"><Area {...f} name="threeYearPicture" label="3-year picture" hint="One per line" /></Pair>
+          </>
+        );
+      default:
+        return (
+          <>
+            <Pair label="Date"><DateField {...f} name="oneYearDate" label="1-year plan date" /></Pair>
+            <Pair label="Revenue"><MoneyField {...f} name="oneYearRevenue" label="1-year revenue" /></Pair>
+            <Pair label="Profit"><MoneyField {...f} name="oneYearProfit" label="1-year profit" /></Pair>
+            <Pair label="Measurables"><Field {...f} name="oneYearMeasurables" label="1-year measurables" /></Pair>
+            <Pair label="Budget"><Field {...f} name="oneYearBudget" label="1-year budget" /></Pair>
+            <Pair label="Goals for the year (3–7)"><GoalsEditor control={control} register={register} /></Pair>
+          </>
+        );
+    }
+  };
+
+  if (step !== null) {
+    const current = GUIDE_STEPS[step];
+    return (
+      <section className="mx-auto flex w-full max-w-3xl flex-col gap-4">
+        <div className="flex flex-col gap-2">
+          <p className="label-kicker text-muted-foreground">
+            Guided setup · Step {step + 1} of {GUIDE_STEPS.length}
+          </p>
+          <ol className="flex gap-1" aria-label="Setup progress">
+            {GUIDE_STEPS.map((s, i) => (
+              <li key={s.title} className="flex-1">
+                <button
+                  type="button"
+                  onClick={() => setStep(i)}
+                  aria-label={`Step ${i + 1}: ${s.title}`}
+                  aria-current={i === step ? "step" : undefined}
+                  className={cn("block h-1.5 w-full rounded-full transition-colors", i === step ? "bg-accent" : s.done(content) ? "bg-accent/40" : "bg-muted")}
+                />
+              </li>
+            ))}
+          </ol>
+        </div>
+        <form onSubmit={saveStep} className="overflow-hidden rounded-lg border border-divider bg-surface">
+          <div className="space-y-3 border-b border-divider px-5 py-4">
+            <h3 className="font-serif text-xl font-semibold">{current.title}</h3>
+            <p className="text-sm text-foreground">{current.what}</p>
+            <p className="rounded-md bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">Example: </span>
+              {current.example}
+            </p>
+          </div>
+          <div className="flex flex-col gap-3 px-5 py-4">{stepFields(step)}</div>
+          <div className="flex flex-wrap items-center gap-2 border-t border-divider px-5 py-3">
+            <Button type="button" variant="ghost" onClick={() => setStep(null)}>
+              Finish later
+            </Button>
+            <span className="flex-1" />
+            {step > 0 && (
+              <Button type="button" variant="outline" onClick={() => setStep(step - 1)}>
+                Back
+              </Button>
+            )}
+            <Button type="submit" loading={isSubmitting}>
+              {step < GUIDE_STEPS.length - 1 ? "Save & continue" : "Save & finish"}
+            </Button>
+          </div>
+        </form>
+      </section>
+    );
+  }
+
   return (
     <section className="flex flex-col gap-3">
+      {nextStep !== -1 && !editing && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-accent/40 bg-accent/5 px-4 py-3">
+          <p className="min-w-0 flex-1 text-sm text-foreground">
+            {GUIDE_STEPS.filter((s) => s.done(content)).length} of {GUIDE_STEPS.length} parts of the V/TO are filled in. Next up: <span className="font-medium">{GUIDE_STEPS[nextStep].title}</span>.
+          </p>
+          <Button variant="outline" size="sm" onClick={() => openGuide(nextStep)}>
+            Continue guided setup
+          </Button>
+        </div>
+      )}
       <div className="flex flex-wrap items-end gap-2">
         <p className="min-w-0 flex-1 text-sm text-muted-foreground">
           {updatedAt ? `Last updated ${formatDateUS(updatedAt)}.` : "Not filled in yet."} Share it with the whole company; revisit it at every quarterly.

@@ -301,6 +301,15 @@ export interface RockRow {
   oneYearGoalId: string | null;
 }
 
+/** An activity linked to a Rock — one of its milestones / to-dos. */
+export interface RockActivity {
+  id: string;
+  rockId: string;
+  subject: string;
+  done: boolean;
+  dueDate: string | Date | null;
+}
+
 export interface IssueRow {
   id: string;
   title: string;

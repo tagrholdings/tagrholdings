@@ -1,0 +1,2 @@
+ALTER TABLE "activities" ADD COLUMN "rock_id" uuid;--> statement-breakpoint
+ALTER TABLE "activities" ADD CONSTRAINT "activities_rock_same_tenant_fk" FOREIGN KEY ("tenant_id","rock_id") REFERENCES "public"."traction_rocks"("tenant_id","id") ON DELETE no action ON UPDATE no action;

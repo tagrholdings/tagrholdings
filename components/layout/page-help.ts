@@ -844,6 +844,8 @@ const ENTRIES: Entry[] = [
             "When a Rock is off track, drop it to Issues so the L10 can solve it.",
             "After a quarter ends, close out each unfinished Rock: complete it, carry it into the next quarter, or drop it.",
             "Click a Rock to edit it, move it to another quarter or delete it.",
+            "Break a Rock into milestones and to-dos from inside it. They also show in Activities, and the Rock shows how many are done.",
+            "Switch to the board to see the quarter by status, and drag a Rock to another column to change it.",
           ],
         },
       ],
@@ -859,6 +861,11 @@ const ENTRIES: Entry[] = [
           title: "The quarter's Rocks",
           text: "Company Rocks first, then each person's individual Rocks. Each shows its owner, finish line, due date, status and the 1-Year goal it moves.",
           demo: { kind: "table", columns: ["Rock", "Owner", "Status"] },
+        },
+        {
+          target: "rocks-view",
+          title: "List or board",
+          text: "The board shows the quarter's Rocks in columns by status — drag one to move it. Each card shows how many of its to-dos are done.",
         },
         {
           target: "rocks-rate",
@@ -1076,6 +1083,10 @@ const ENTRIES: Entry[] = [
             "A 3-year picture with revenue, profit, people and customers.",
             "A 1-year plan with 3 to 7 specific, measurable goals — and Rocks that move each of them.",
           ],
+        },
+        {
+          heading: "Guided setup",
+          body: "An empty V/TO opens as a step-by-step setup: core values, core focus, 10-year target, marketing strategy, 3-year picture and 1-year plan, each with what it is and an example. Every step saves as you go, so you can finish later — a banner on the page picks up where you stopped.",
         },
         {
           heading: "Good to know",

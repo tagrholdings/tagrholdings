@@ -5,6 +5,7 @@ import { activitiesTable } from "./activities.schema";
 import { contactsTable } from "@/modules/contacts/contacts.schema";
 import { organizationsTable } from "@/modules/organizations/organizations.schema";
 import { pipelineItemsTable } from "@/modules/pipeline/pipeline.schema";
+import { tractionRocksTable } from "@/modules/traction/traction.schema";
 import type { ActivityLink, ActivityUpdate, NewActivity } from "./activities.types";
 
 // aliased separately from contactsTable — `contactId` ("about this contact") and
@@ -26,6 +27,8 @@ const withRelationsSelection = {
   organizationName: organizationsTable.name,
   pipelineItemId: activitiesTable.pipelineItemId,
   pipelineItemTitle: pipelineItemsTable.title,
+  rockId: activitiesTable.rockId,
+  rockTitle: tractionRocksTable.title,
   assignedToPersonId: activitiesTable.assignedToPersonId,
   assignedToContactId: activitiesTable.assignedToContactId,
   assignedToContactName: assignedContactsTable.name,
@@ -44,6 +47,7 @@ export const activitiesRepository = {
         .leftJoin(organizationsTable, eq(activitiesTable.organizationId, organizationsTable.id))
         .leftJoin(assignedContactsTable, eq(activitiesTable.assignedToContactId, assignedContactsTable.id))
         .leftJoin(pipelineItemsTable, eq(activitiesTable.pipelineItemId, pipelineItemsTable.id))
+        .leftJoin(tractionRocksTable, eq(activitiesTable.rockId, tractionRocksTable.id))
         .where(eq(activitiesTable.tenantId, tenantId))
         .orderBy(activitiesTable.dueDate)
     );
@@ -90,6 +94,7 @@ export const activitiesRepository = {
           contactId: data.contactId ?? null,
           organizationId: data.organizationId ?? null,
           pipelineItemId: data.pipelineItemId ?? null,
+          rockId: data.rockId ?? null,
           assignedToPersonId: data.assignedToPersonId ?? null,
           assignedToContactId: data.assignedToContactId ?? null,
           notify,
@@ -133,6 +138,16 @@ export const activitiesRepository = {
         .update(activitiesTable)
         .set({ issueId: null, updatedAt: new Date() })
         .where(and(eq(activitiesTable.tenantId, tenantId), eq(activitiesTable.issueId, issueId)))
+    );
+  },
+
+  /** Detaches activities from a Rock about to be deleted — the activities themselves stay. */
+  async unlinkRock(tenantId: string, rockId: string) {
+    await withTenant(tenantId, (tx) =>
+      tx
+        .update(activitiesTable)
+        .set({ rockId: null, updatedAt: new Date() })
+        .where(and(eq(activitiesTable.tenantId, tenantId), eq(activitiesTable.rockId, rockId)))
     );
   },
 

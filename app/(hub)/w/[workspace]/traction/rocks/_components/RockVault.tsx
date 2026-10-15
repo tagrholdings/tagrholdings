@@ -24,7 +24,8 @@ import { notify } from "@/components/ui/toaster";
 import { ChoicePills, OwnerPicker } from "@/components/traction/traction-ui";
 import { createRockAction, deleteRockAction, updateRockAction } from "@/modules/traction/traction.actions";
 import { planningQuarters, quarterLabel, quarterRange } from "@/modules/traction/traction.logic";
-import { SETTABLE_ROCK_STATUSES, ROCK_STATUS_LABELS, type RockRow, type TractionMember } from "@/modules/traction/traction.types";
+import { SETTABLE_ROCK_STATUSES, ROCK_STATUS_LABELS, type RockActivity, type RockRow, type TractionMember } from "@/modules/traction/traction.types";
+import { RockTodos } from "./RockTodos";
 import { CommandSelect } from "@/components/shared/command-select";
 
 const NO_GOAL = "__none__";
@@ -59,6 +60,7 @@ export function RockVault({
   members,
   goals,
   rock,
+  todos = [],
   defaultQuarter,
   currentQuarter,
   open,
@@ -68,6 +70,8 @@ export function RockVault({
   /** The V/TO's 1-Year Plan goals — a Rock should move one of them. */
   goals: { id: string; text: string }[];
   rock?: RockRow;
+  /** The edited Rock's milestones / to-dos. */
+  todos?: RockActivity[];
   defaultQuarter: string;
   currentQuarter: string;
   open: boolean;
@@ -121,6 +125,7 @@ export function RockVault({
           <VaultTitle>{rock ? "Edit Rock" : "New Rock"}</VaultTitle>
         </VaultHeader>
         <VaultDescription className="mb-4">A 90-day priority: one owner, a due date and a finish line anyone could check.</VaultDescription>
+        {rock && <RockTodos rockId={rock.id} ownerPersonId={rock.ownerPersonId} todos={todos} />}
         <VaultForm onSubmit={(e) => e.preventDefault()}>
           <VaultField label="Rock" required error={errors.title?.message}>
             <VaultInput placeholder="e.g. 500 customers by July" {...register("title")} />

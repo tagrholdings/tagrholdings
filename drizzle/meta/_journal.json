@@ -211,6 +211,13 @@
       "when": 1791895977411,
       "tag": "0029_checkups_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1792089023090,
+      "tag": "0030_activities_rock",
+      "breakpoints": true
     }
   ]
 }

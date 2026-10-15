@@ -48,6 +48,10 @@ export const activitiesService = {
     await activitiesRepository.unlinkIssue(tenantId, issueId);
   },
 
+  async unlinkRock(tenantId: string, rockId: string) {
+    await activitiesRepository.unlinkRock(tenantId, rockId);
+  },
+
   async unlinkPipelineItems(tenantId: string, pipelineItemIds: string[]) {
     await activitiesRepository.unlinkPipelineItems(tenantId, pipelineItemIds);
   },

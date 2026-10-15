@@ -2,7 +2,11 @@
 
 import { useOptimistic, useState, useTransition } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { CircleAlert, Gem, Plus } from "lucide-react";
+import { CircleAlert, Gem, LayoutGrid, List, Plus } from "lucide-react";
+import { SegmentedControl } from "@/components/shared/segmented-control";
+import { ActivityProgressBadge } from "@/components/pipeline/ActivityProgressBadge";
+import type { ActivityProgress } from "@/components/pipeline/types";
+import { RocksBoard } from "./RocksBoard";
 import { cn } from "@/lib/utils";
 import { notify } from "@/components/ui/toaster";
 import { Button } from "@/components/ui/button";
@@ -11,7 +15,7 @@ import { OwnerBadge, RockBar, RockStatusMenu } from "@/components/traction/tract
 import { RuleChecks } from "@/components/traction/rule-checks";
 import { closeOutRockAction, createIssueAction, setRockStatusAction } from "@/modules/traction/traction.actions";
 import { memberName, percent, planningQuarters, quarterLabel, shiftQuarter, type RuleCheck } from "@/modules/traction/traction.logic";
-import type { RockRow, RockStatus, TractionMember } from "@/modules/traction/traction.types";
+import type { RockActivity, RockRow, RockStatus, TractionMember } from "@/modules/traction/traction.types";
 import { formatDateUS } from "@/utils/date";
 import { RockVault } from "./RockVault";
 
@@ -24,6 +28,7 @@ export function RocksView({
   members,
   goals,
   checks,
+  todos,
 }: {
   rocks: RockRow[];
   quarter: string;
@@ -31,12 +36,21 @@ export function RocksView({
   members: TractionMember[];
   goals: Goal[];
   checks: RuleCheck[];
+  /** Every Rock's milestones / to-dos (activities linked to it). */
+  todos: RockActivity[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const [rocks, setStatus] = useOptimistic(initialRocks, (state, patch: { id: string; status: RockStatus }) => state.map((r) => (r.id === patch.id ? { ...r, status: patch.status } : r)));
   const [, startTransition] = useTransition();
   const [vault, setVault] = useState<{ open: boolean; rock?: RockRow }>({ open: false });
+  const [view, setView] = useState<"list" | "board">("list");
+  const progressByRock: Record<string, ActivityProgress> = {};
+  for (const todo of todos) {
+    const p = (progressByRock[todo.rockId] ??= { done: 0, total: 0 });
+    p.total++;
+    if (todo.done) p.done++;
+  }
 
   const quarters = planningQuarters(currentQuarter, [...rocks.map((r) => r.quarter), quarter]);
   const visible = rocks.filter((r) => r.quarter === quarter);
@@ -86,6 +100,9 @@ export function RocksView({
           {goal && <span className="block text-xs text-accent-text">Moves: {goal.text}</span>}
         </button>
         <OwnerBadge members={members} userId={rock.ownerPersonId} className="w-32" />
+        <span className="w-12">
+          <ActivityProgressBadge progress={progressByRock[rock.id]} />
+        </span>
         <span className="w-24 text-xs text-muted-foreground tabular-nums">{rock.dueDate ? `Due ${formatDateUS(new Date(`${rock.dueDate}T12:00:00`), { month: "short", day: "numeric" })}` : "No due date"}</span>
         <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
           {finished && open ? (
@@ -136,6 +153,15 @@ export function RocksView({
             </button>
           ))}
         </div>
+        <SegmentedControl
+          tourId="rocks-view"
+          value={view}
+          onChange={setView}
+          options={[
+            { value: "list", ariaLabel: "List view", icon: List },
+            { value: "board", ariaLabel: "Board view", icon: LayoutGrid },
+          ]}
+        />
         <Button data-tour="rocks-add" onClick={() => setVault({ open: true })}>
           <Plus />
           New Rock
@@ -179,6 +205,18 @@ export function RocksView({
               New Rock
             </Button>
           </Empty>
+        ) : view === "board" ? (
+          <div className="p-3">
+            {finished && <p className="mb-3 text-xs text-muted-foreground">This quarter is over: close out its open Rocks from the list view (complete, carry or drop).</p>}
+            <RocksBoard
+              rocks={visible}
+              members={members}
+              progressByRock={progressByRock}
+              readOnly={finished}
+              onSelect={(rock) => rock.status !== "rolled_over" && setVault({ open: true, rock })}
+              onMove={changeStatus}
+            />
+          </div>
         ) : (
           <>
             <p className="label-kicker border-b border-divider/50 bg-muted/30 px-4 py-2 text-muted-foreground">Company Rocks · {company.length}</p>
@@ -199,6 +237,7 @@ export function RocksView({
         members={members}
         goals={goals}
         rock={vault.rock}
+        todos={vault.rock ? todos.filter((t) => t.rockId === vault.rock!.id) : []}
         defaultQuarter={quarter}
         currentQuarter={currentQuarter}
         open={vault.open}

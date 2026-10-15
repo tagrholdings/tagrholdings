@@ -5,7 +5,7 @@ import { tenantsTable, tenantIsolationPolicy } from "@/modules/tenancy/tenancy.s
 import { contactsTable } from "@/modules/contacts/contacts.schema";
 import { organizationsTable } from "@/modules/organizations/organizations.schema";
 import { pipelineItemsTable } from "@/modules/pipeline/pipeline.schema";
-import { tractionIssuesTable } from "@/modules/traction/traction.schema";
+import { tractionIssuesTable, tractionRocksTable } from "@/modules/traction/traction.schema";
 import { teamPeopleTable } from "@/modules/team/team.schema";
 
 // type: "call" | "meeting" | "task" | "email" | "follow_up" — free text, not a DB enum.
@@ -42,6 +42,8 @@ export const activitiesTable = pgTable(
     l10Todo: boolean("l10_todo").notNull().default(false),
     /** The Issue this To-Do came out of, when it was created by solving one. */
     issueId: uuid("issue_id"),
+    /** The Rock this activity moves forward — a Rock's milestones and to-dos (Traction). */
+    rockId: uuid("rock_id"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
@@ -76,6 +78,11 @@ export const activitiesTable = pgTable(
       columns: [t.tenantId, t.issueId],
       foreignColumns: [tractionIssuesTable.tenantId, tractionIssuesTable.id],
     }),
+    foreignKey({
+      name: "activities_rock_same_tenant_fk",
+      columns: [t.tenantId, t.rockId],
+      foreignColumns: [tractionRocksTable.tenantId, tractionRocksTable.id],
+    }),
     tenantIsolationPolicy("activities"),
   ]
 );
@@ -84,5 +91,6 @@ export const insertActivitySchema = createInsertSchema(activitiesTable, {
   subject: (s) => s.max(200),
   notes: z.string().max(10_000).nullish(),
   assignedToPersonId: z.uuid().nullish(),
+  rockId: z.uuid().nullish(),
 });
 export const selectActivitySchema = createSelectSchema(activitiesTable);
