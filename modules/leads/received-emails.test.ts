@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupReceivedEmails, type EmailDigestRow } from "./received-emails";
+import { emailBodyFrom, groupReceivedEmails, type EmailDigestRow } from "./received-emails";
 
 const head = (from: string, subject: string) => `From: ${from}\nSubject: ${subject}\n\nbody`;
 const row = (over: Partial<EmailDigestRow>): EmailDigestRow => ({
@@ -46,5 +46,19 @@ describe("groupReceivedEmails", () => {
     const [email] = groupReceivedEmails([row({ sourceUrl: "javascript:alert(1)", head: "no header here" })]);
     expect(email.listings[0].link).toBeNull();
     expect(email).toMatchObject({ from: "Unknown sender", subject: "(no subject)" });
+  });
+});
+
+describe("emailBodyFrom", () => {
+  const header = "From: a@b.test\nSubject: Hi\n\n";
+  const pointer = "Listing 2 of 2 in this email (full text stored with the first listing).\nMesa, AZ";
+
+  it("takes the email text from the row that kept it, without the header", () => {
+    expect(emailBodyFrom([header + pointer, header + "Two businesses for sale.\n\nMore below."])).toBe("Two businesses for sale.\n\nMore below.");
+  });
+
+  it("is null when no row has the text", () => {
+    expect(emailBodyFrom([header + pointer])).toBeNull();
+    expect(emailBodyFrom(["From: a@b.test\nSubject: Hi"])).toBeNull();
   });
 });

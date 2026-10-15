@@ -6,7 +6,7 @@ import { contactsService } from "@/modules/contacts/contacts.service";
 import { evaluateFit } from "@/modules/search-profiles/fit";
 import type { ExtractedFields } from "./leads.schema";
 import type { RawLeadSummary } from "./leads.types";
-import { groupReceivedEmails, type ReceivedEmail } from "./received-emails";
+import { emailBodyFrom, groupReceivedEmails, type ReceivedEmail, type ReceivedEmailDetail } from "./received-emails";
 
 /** Scraped values are untrusted — only http(s) URLs may reach an <a href> (see createOrganizationSchema). */
 function safeWebsite(value: string | null | undefined) {
@@ -55,6 +55,14 @@ export const leadsService = {
   /** The emails the inbox received, each with the listings read from it (Settings → Inbox). */
   async listReceivedEmails(tenantId: string): Promise<ReceivedEmail[]> {
     return groupReceivedEmails(await leadsRepository.findEmailDigests(tenantId));
+  },
+
+  /** One received email, with its text, to read it in full (Settings → Inbox → an email). Null when it isn't this tenant's. */
+  async getReceivedEmail(tenantId: string, emailId: string): Promise<ReceivedEmailDetail | null> {
+    const rows = await leadsRepository.findEmailRows(tenantId, emailId);
+    const [email] = groupReceivedEmails(rows);
+    if (!email) return null;
+    return { ...email, body: emailBodyFrom(rows.map((r) => r.rawText ?? "")) };
   },
 
   async getById(tenantId: string, id: string) {

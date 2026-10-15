@@ -40,7 +40,29 @@ export interface ReceivedEmail {
   fallbackLeadId: string | null;
 }
 
+/** A received email with the text it brought — what the reading page shows. */
+export interface ReceivedEmailDetail extends ReceivedEmail {
+  /** The email as text (links kept as `label (url)`), or null when it wasn't kept — see emailBodyFrom. */
+  body: string | null;
+}
+
 const NOTHING = "No business for sale was recognised";
+/** The note ingestEmailListings stores on listings 2..N instead of copying the whole email again. */
+const POINTER = /^Listing \d+ of \d+ in this email \(full text stored with the first listing\)/;
+
+/**
+ * The email's own text, out of the `rawText` of the leads read from it: every row starts with the
+ * "From: / Subject:" header and a blank line; only one row carries the full text, the others a pointer to it.
+ * Null when no row has it (the first listing was skipped as already known, so its text was never saved). Pure.
+ */
+export function emailBodyFrom(rawTexts: string[]): string | null {
+  for (const raw of rawTexts) {
+    const split = raw.indexOf("\n\n");
+    const body = split === -1 ? "" : raw.slice(split + 2).trim();
+    if (body && !POINTER.test(body)) return body;
+  }
+  return null;
+}
 const LISTING_KEY = /^email:[^:]+:\d+$/;
 
 function header(head: string, name: string): string {

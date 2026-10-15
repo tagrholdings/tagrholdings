@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
 import { Inbox as InboxIcon } from "lucide-react";
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatDateUS } from "@/utils/date";
 import type { ReceivedEmail } from "@/modules/leads/received-emails";
-import { EmailVault } from "./EmailVault";
+import { useWorkspacePath } from "@/hooks/ui/use-workspace-path";
 
 const OUTCOME: Record<ReceivedEmail["outcome"], { label: (count: number) => string; className: string }> = {
   read: { label: (n) => `${n} listing${n === 1 ? "" : "s"}`, className: "border-accent bg-accent/15 text-foreground" },
@@ -17,8 +17,7 @@ const OUTCOME: Record<ReceivedEmail["outcome"], { label: (count: number) => stri
 };
 
 export function InboxView({ emails, inboxAddress }: { emails: ReceivedEmail[]; inboxAddress: string | null }) {
-  const [openId, setOpenId] = useState<string | null>(null);
-  const opened = emails.find((e) => e.emailId === openId) ?? null;
+  const path = useWorkspacePath();
 
   if (emails.length === 0) {
     return (
@@ -72,16 +71,15 @@ export function InboxView({ emails, inboxAddress }: { emails: ReceivedEmail[]; i
                   {formatDateUS(email.receivedAt, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
                 </TableCell>
                 <TableCell hideBorderMobile className="md:justify-end">
-                  <Button size="sm" variant="outline" onClick={() => setOpenId(email.emailId)}>
-                    View
-                  </Button>
+                  <Link href={path(`/settings/inbox/${encodeURIComponent(email.emailId)}`)} className={buttonVariants({ size: "sm", variant: "outline" })}>
+                    Open
+                  </Link>
                 </TableCell>
               </TableRow>
             );
           })}
         </TableBody>
       </Table>
-      <EmailVault email={opened} onOpenChange={(open) => !open && setOpenId(null)} />
     </div>
   );
 }

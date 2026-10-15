@@ -132,6 +132,35 @@ export const leadsRepository = {
     );
   },
 
+  /** Every lead read out of ONE received email, with the full `rawText` (the email's text is kept on its first row). */
+  async findEmailRows(tenantId: string, emailId: string) {
+    const key = `email:${emailId}`;
+    // Same rule as existsForEmail: only plain-character ids get the prefix (LIKE) form.
+    const prefixSafe = /^[A-Za-z0-9_-]+$/.test(emailId);
+    return withTenant(tenantId, (tx) =>
+      tx
+        .select({
+          id: rawLeadsTable.id,
+          dedupeKey: rawLeadsTable.dedupeKey,
+          businessName: rawLeadsTable.businessName,
+          sourceUrl: rawLeadsTable.sourceUrl,
+          extractedFields: rawLeadsTable.extractedFields,
+          status: rawLeadsTable.status,
+          createdAt: rawLeadsTable.createdAt,
+          head: sql<string>`left(${rawLeadsTable.rawText}, 600)`,
+          rawText: rawLeadsTable.rawText,
+        })
+        .from(rawLeadsTable)
+        .where(
+          and(
+            eq(rawLeadsTable.tenantId, tenantId),
+            eq(rawLeadsTable.sourceType, "email_digest"),
+            prefixSafe ? or(eq(rawLeadsTable.dedupeKey, key), like(rawLeadsTable.dedupeKey, `${key}:%`)) : eq(rawLeadsTable.dedupeKey, key)
+          )
+        )
+    );
+  },
+
   async findById(tenantId: string, id: string) {
     const [row] = await withTenant(tenantId, (tx) =>
       tx
