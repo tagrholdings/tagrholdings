@@ -30,6 +30,7 @@ export default async function ContactsPage({ params, searchParams }: { params: P
 
   return (
     <HubPage
+      fitViewport
       user={{ name: user.name || user.email, initials: initialsFor(user.name || user.email) }}
       kicker="Relationships"
       title="Contacts"

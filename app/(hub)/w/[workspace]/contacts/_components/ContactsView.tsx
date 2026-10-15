@@ -21,6 +21,13 @@ import { CreateOrganizationVault } from "./CreateOrganizationVault";
 import { ContactDetailPanel } from "./ContactDetailPanel";
 import { OrganizationDetailPanel } from "./OrganizationDetailPanel";
 import { TeamPanel, type TeamTabData } from "./TeamPanel";
+import { Pagination } from "@/components/ui/pagination";
+import { useFitPageSize } from "@/hooks/ui/use-fit-page-size";
+import { paginate } from "@/utils/pagination";
+
+// Table geometry for the one-screen page (see useFitPageSize): one line per row, the initials chip the tallest.
+const ROW_HEIGHT = 62;
+const RESERVED_HEIGHT = 104;
 
 export type { ContactRow };
 
@@ -50,6 +57,9 @@ export function ContactsView({
 }) {
   const [tab, setTab] = useState<Tab>(initialTab);
   const [peopleSearch, setPeopleSearch] = useState("");
+  const [peoplePage, setPeoplePage] = useState(1);
+  const [orgPage, setOrgPage] = useState(1);
+  const { ref: fitRef, pageSize } = useFitPageSize({ rowHeight: ROW_HEIGHT, reserved: RESERVED_HEIGHT });
   const [orgSearch, setOrgSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(initialSelectedOrgId);
@@ -178,9 +188,9 @@ export function ContactsView({
 
   if (tab === "team") {
     return (
-      <div className="flex min-w-0 flex-1 flex-col gap-4">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
         <div className="sticky top-14 z-10 bg-background pt-4 md:top-20">{tabs}</div>
-        <div>
+        <div className="md:min-h-0 md:flex-1 md:overflow-y-auto">
           <TeamPanel {...team} />
         </div>
       </div>
@@ -223,13 +233,15 @@ export function ContactsView({
 
   const orgQuery = orgSearch.trim().toLowerCase();
   const filteredOrgs = orgQuery ? organizations.filter((o) => o.name.toLowerCase().includes(orgQuery)) : organizations;
+  const pagedContacts = paginate(filteredContacts, peoplePage, pageSize);
+  const pagedOrgs = paginate(filteredOrgs, orgPage, pageSize);
 
   return (
     // See components/shared/side-panel.tsx — this row is what lets opening a
     // contact's or organization's detail panel push/shrink the table instead
     // of overlaying it.
-    <div className="flex min-w-0 flex-1 gap-4">
-      <div className="flex min-w-0 flex-1 flex-col gap-4">
+    <div className="flex min-h-0 min-w-0 flex-1 gap-4">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
         {/* One line on a phone (the tab labels collapse to icons, and the row scrolls sideways if it still doesn't fit); wraps from md up. */}
         <div className="no-scrollbar sticky top-14 z-10 flex items-center gap-2 overflow-x-auto bg-background pb-4 pt-4 md:top-20 md:flex-wrap md:overflow-visible">
           {tabs}
@@ -237,7 +249,10 @@ export function ContactsView({
             <SearchInput
               placeholder="Filter by name, email, or organization"
               value={peopleSearch}
-              onChange={(e) => setPeopleSearch(e.target.value)}
+              onChange={(e) => {
+                setPeopleSearch(e.target.value);
+                setPeoplePage(1);
+              }}
               className="h-9"
               containerClassName="hidden min-w-0 md:block md:w-auto md:flex-1 md:max-w-xs"
             />
@@ -245,7 +260,10 @@ export function ContactsView({
             <SearchInput
               placeholder="Filter by organization name"
               value={orgSearch}
-              onChange={(e) => setOrgSearch(e.target.value)}
+              onChange={(e) => {
+                setOrgSearch(e.target.value);
+                setOrgPage(1);
+              }}
               className="h-9"
               containerClassName="hidden min-w-0 md:block md:w-auto md:flex-1 md:max-w-xs"
             />
@@ -256,7 +274,7 @@ export function ContactsView({
           </div>
         </div>
 
-        <div data-tour="contacts-table" className="flex min-h-0 flex-1 flex-col">
+        <div ref={fitRef} data-tour="contacts-table" className="flex min-h-0 flex-1 flex-col gap-4 md:overflow-hidden">
         {tab === "people" ? (
           filteredContacts.length === 0 ? (
             <Empty>
@@ -265,7 +283,8 @@ export function ContactsView({
               </EmptyTitle>
             </Empty>
           ) : (
-            <Table>
+            <>
+            <Table className="md:min-h-0 md:overflow-y-auto">
               <TableHeader>
                 <tr>
                   <TableHead>Name</TableHead>
@@ -275,7 +294,7 @@ export function ContactsView({
                 </tr>
               </TableHeader>
               <TableBody>
-                {filteredContacts.map((contact) => (
+                {pagedContacts.items.map((contact) => (
                   <TableRow key={contact.id} className="cursor-pointer" onClick={() => setSelectedId(contact.id)}>
                     <TableCell mobileLabel="Name">
                       <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-surface-alt text-xs font-semibold text-foreground">
@@ -296,6 +315,8 @@ export function ContactsView({
                 ))}
               </TableBody>
             </Table>
+            <Pagination slice={pagedContacts} onPageChange={setPeoplePage} noun="contacts" className="shrink-0" />
+            </>
           )
         ) : filteredOrgs.length === 0 ? (
           <Empty>
@@ -304,7 +325,8 @@ export function ContactsView({
             </EmptyTitle>
           </Empty>
         ) : (
-          <Table>
+          <>
+          <Table className="md:min-h-0 md:overflow-y-auto">
             <TableHeader>
               <tr>
                 <TableHead>Name</TableHead>
@@ -314,7 +336,7 @@ export function ContactsView({
               </tr>
             </TableHeader>
             <TableBody>
-              {filteredOrgs.map((org) => {
+              {pagedOrgs.items.map((org) => {
                 const counts = orgCounts[org.id];
                 return (
                   <TableRow key={org.id} className="cursor-pointer" onClick={() => setSelectedOrgId(org.id)}>
@@ -345,6 +367,8 @@ export function ContactsView({
               })}
             </TableBody>
           </Table>
+          <Pagination slice={pagedOrgs} onPageChange={setOrgPage} noun="organizations" className="shrink-0" />
+          </>
         )}
         </div>
       </div>
