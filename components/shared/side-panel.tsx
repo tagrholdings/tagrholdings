@@ -10,6 +10,8 @@ interface SidePanelProps {
   description?: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
+  /** Defaults to 400px; something meant to be read (an email) can ask for more. */
+  width?: number;
 }
 
 const PANEL_WIDTH = 400;
@@ -37,13 +39,13 @@ const PANEL_WIDTH = 400;
  * own content from squishing/reflowing mid-animation while its container
  * width (and therefore the main content's available space) actually changes.
  */
-export function SidePanel({ open, onOpenChange, title, description, children, footer }: SidePanelProps) {
+export function SidePanel({ open, onOpenChange, title, description, children, footer, width = PANEL_WIDTH }: SidePanelProps) {
   return (
     <AnimatePresence>
       {open && (
         <motion.div
           initial={{ width: 0, opacity: 0 }}
-          animate={{ width: PANEL_WIDTH, opacity: 1 }}
+          animate={{ width, opacity: 1 }}
           exit={{ width: 0, opacity: 0 }}
           transition={{ type: "spring", stiffness: 340, damping: 34 }}
           className="flex shrink-0 self-stretch overflow-hidden"
@@ -51,7 +53,7 @@ export function SidePanel({ open, onOpenChange, title, description, children, fo
           <div
             role="dialog"
             aria-label={title}
-            style={{ width: PANEL_WIDTH }}
+            style={{ width }}
             className="flex h-full shrink-0 flex-col overflow-hidden rounded-lg border border-divider bg-surface shadow-md"
           >
             <div className="flex items-start justify-between gap-2 border-b border-divider px-5 py-4">

@@ -547,38 +547,8 @@ const ENTRIES: Entry[] = [
         {
           target: "inbox-table",
           title: "Every email that arrived",
-          text: "One row per message, with what the AI found in it. Use Open to read the email in full and see the businesses it read out.",
+          text: "One row per message, with what the AI found in it. Click one (or Open) to read the email beside the list, with the businesses it read out.",
           demo: { kind: "table", columns: ["Email", "Result", "Received"] },
-        },
-        HELP_AGAIN,
-      ],
-    }),
-  },
-  {
-    path: "/settings/inbox/[emailId]",
-    build: () => ({
-      title: "Email",
-      summary: "One email the leads inbox received, read in full, with the businesses for sale the AI found in it.",
-      sections: [
-        {
-          heading: "What it's for",
-          body: "Reading what an email actually said — to check what the AI read out of it, or to pick out a business it missed. Links in the email open in a new tab.",
-        },
-        {
-          heading: "Found in this email",
-          body: "Each business found also became a lead in the Leads Inbox; open it from here to review it. If nothing was found, the email was still kept as one lead.",
-        },
-      ],
-      tour: [
-        {
-          target: "email-message",
-          title: "The email",
-          text: "Who sent it, when it arrived, and its text as the inbox received it.",
-        },
-        {
-          target: "email-listings",
-          title: "What the AI read out of it",
-          text: "The businesses for sale found in this email, each one a lead in the Leads Inbox. Open one to review it, or go to the original listing.",
         },
         HELP_AGAIN,
       ],

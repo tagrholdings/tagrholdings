@@ -8,12 +8,24 @@ import { InboxView } from "./_components/InboxView";
 
 export const dynamic = "force-dynamic";
 
-/** What the leads inbox received by email, and the businesses for sale the AI read out of each message. */
-export default async function InboxSettingsPage({ params }: { params: Promise<{ workspace: string }> }) {
-  const { workspace: slug } = await params;
+/**
+ * What the leads inbox received by email, and the businesses for sale the AI read out of each message.
+ * `?email=<id>` opens that email beside the list — its text is only loaded for the one being read.
+ */
+export default async function InboxSettingsPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ workspace: string }>;
+  searchParams: Promise<{ email?: string }>;
+}) {
+  const [{ workspace: slug }, { email: openedId }] = await Promise.all([params, searchParams]);
   const workspace = await getWorkspace(slug);
   const { user } = workspace;
-  const emails = await leadsService.listReceivedEmails(user.tenantId);
+  const [emails, opened] = await Promise.all([
+    leadsService.listReceivedEmails(user.tenantId),
+    openedId ? leadsService.getReceivedEmail(user.tenantId, openedId) : null,
+  ]);
 
   return (
     <HubPage
@@ -22,7 +34,7 @@ export default async function InboxSettingsPage({ params }: { params: Promise<{ 
       title="Inbox"
     >
       <SettingsTabs active="inbox" />
-      <InboxView emails={emails} inboxAddress={inboundAddressFor(workspace.inboundLocalPart)} />
+      <InboxView emails={emails} opened={opened} inboxAddress={inboundAddressFor(workspace.inboundLocalPart)} />
     </HubPage>
   );
 }
