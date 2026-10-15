@@ -6,11 +6,12 @@ import { DEFAULT_BOARD_COLUMNS, DEFAULT_BOARD_NAME } from "../modules/pipeline/p
 /**
  * Imports a Pipedrive "Activities" CSV export into an EXISTING workspace (default: tagr-holdings):
  *   - "Activity - Organization"          → organizations (found by name, else created)
- *   - "Activity - Contact person" + email/phone columns → contacts (found by name, else created; the assignee's own
- *     name is not a contact — Pipedrive puts the owner there on internal to-dos)
+ *   - "Activity - Contact person" + email/phone columns → contacts (found by name, else created; a name in
+ *     KNOWN_EMAILS — the owner, whom Pipedrive lists as the contact on internal to-dos — gets that email)
  *   - "Activity - Deal"                  → a card on the workspace's Leads board, first stage (found by title, else created)
  *   - each row                           → an activity, assigned to the team person named in "Activity - Assigned to user"
- *     (found by name, else created — linked to the CRM login with IMPORT_ASSIGNEE_EMAIL when given)
+ *     (found by name, else created with its KNOWN_EMAILS email, so the login links itself once they accept an
+ *     invite; IMPORT_ASSIGNEE_EMAIL links an account that already exists)
  * Type is read from the subject: "Call…" → call, lunch/meeting/committee → meeting, anything else → task.
  * "Activity - Duration" goes into the notes (activities have no duration). Dates are Phoenix time (UTC-7, no DST);
  * a date without a time is stored as local midnight — what the app's own date-only picker stores.
@@ -157,6 +158,15 @@ function durationNote(value: string): string | null {
 
 const PRIORITIES = new Set(["low", "medium", "high"]);
 
+/**
+ * Emails the export doesn't carry, by (lower-case) name. Used for the team person — when that person later signs up
+ * with the same email and joins the workspace, team.service's syncMembers links the login to them on its own — and
+ * for the contact of the same name (Pipedrive lists the owner as the contact on internal to-dos).
+ */
+const KNOWN_EMAILS: Record<string, string> = {
+  "tanner milne": "tanner@tagrholdings.com",
+};
+
 // ───────────────────────────── DB ─────────────────────────────
 
 type Row = Record<string, unknown>;
@@ -225,13 +235,18 @@ async function main() {
     for (const a of activities) {
       if (!a.subject) continue;
 
+      const personEmail = KNOWN_EMAILS[a.assignedTo.toLowerCase()] ?? assigneeEmail;
       const person = a.assignedTo
         ? await findPerson(a.assignedTo, async (id) => {
-            await insert(db, "team_people", { id, tenant_id: T, name: a.assignedTo, email: assigneeEmail, user_id: loginId });
+            await insert(db, "team_people", { id, tenant_id: T, name: a.assignedTo, email: personEmail, user_id: loginId });
             counts.people++;
-            console.log(`  + team person ${a.assignedTo}`);
+            console.log(`  + team person ${a.assignedTo}${personEmail ? ` <${personEmail}>` : ""}`);
           })
         : null;
+      // An existing person without an email gets it, so the invite still links them.
+      if (person && !person.created && personEmail) {
+        await db.query(`update public.team_people set email = $1, updated_at = now() where tenant_id = $2 and id = $3 and email is null`, [personEmail, T, person.id]);
+      }
 
       const org = a.organization
         ? await findOrg(a.organization, async (id) => {
@@ -241,16 +256,14 @@ async function main() {
           })
         : null;
 
-      // On internal to-dos Pipedrive lists the owner as the contact — that is not someone to keep in Contacts.
-      const isSelf = !!a.contact && a.contact.toLowerCase() === a.assignedTo.toLowerCase();
-      const contact =
-        a.contact && !isSelf
-          ? await findContact(a.contact, async (id) => {
-              await insert(db, "contacts", { id, tenant_id: T, name: a.contact, email: a.email || null, phone: a.phone || null, organization_id: org?.id ?? null });
-              counts.contacts++;
-              console.log(`  + contact ${a.contact}${org ? ` (${a.organization})` : ""}`);
-            })
-          : null;
+      const contactEmail = a.email || KNOWN_EMAILS[a.contact.toLowerCase()] || null;
+      const contact = a.contact
+        ? await findContact(a.contact, async (id) => {
+            await insert(db, "contacts", { id, tenant_id: T, name: a.contact, email: contactEmail, phone: a.phone || null, organization_id: org?.id ?? null });
+            counts.contacts++;
+            console.log(`  + contact ${a.contact}${contactEmail ? ` <${contactEmail}>` : ""}${org ? ` (${a.organization})` : ""}`);
+          })
+        : null;
 
       const deal = a.deal
         ? await findDeal(a.deal, async (id) => {
