@@ -19,7 +19,7 @@ html,body{height:100%;background:#0f1012;overflow:hidden;font-family:var(--sans)
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 
 /* ── stage ── */
-#stage{position:absolute;left:50%;top:50%;width:1600px;height:900px;transform-origin:center;background:var(--paper);overflow:hidden}
+#stage{position:absolute;left:0;top:0;width:1600px;height:900px;transform-origin:0 0;background:var(--ink);overflow:hidden}
 .slide{position:absolute;inset:0;padding:64px 84px 70px;display:flex;flex-direction:column;opacity:0;visibility:hidden;transition:opacity .35s ease,visibility .35s}
 .slide.active{opacity:1;visibility:visible}
 .slide:not(:has(.cols)){justify-content:center}
@@ -1736,9 +1736,13 @@ body.reader .slide>.notes{display:none}
   function fit(){
     var want = readerWanted();
     if (want !== reader) { reader = want; document.body.classList.toggle("reader", reader); document.documentElement.classList.toggle("reader", reader); if (!reader) show(cur); }
-    if (reader) { stage.style.transform = "none"; return; }
-    var s = Math.min(window.innerWidth / 1600, window.innerHeight / 900);
-    stage.style.transform = "translate(-50%,-50%) scale(" + s + ")";
+    if (reader) { stage.style.transform = "none"; stage.style.width = "auto"; stage.style.height = "auto"; return; }
+    // Fill the whole window: the height sets the scale and the width is whatever the window gives at that scale,
+    // so the slides reflow into any aspect ratio instead of leaving bars at the sides.
+    var s = window.innerHeight / 900;
+    stage.style.width = (window.innerWidth / s) + "px";
+    stage.style.height = "900px";
+    stage.style.transform = "scale(" + s + ")";
   }
 
   /* ── app frames: browser bar + sidebar ── */
