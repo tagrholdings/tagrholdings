@@ -4,9 +4,9 @@ import { notificationsService } from "@/modules/notifications/notifications.serv
 
 /**
  * /api/cron/task-reminders — sends the push reminders for tasks whose due time has arrived, and the L10 reminders
- * (push + email, one hour before each workspace's standing meeting). Called every few
- * minutes by a scheduler (.github/workflows/task-reminders.yml; a Vercel Cron job works too, it sends the
- * same header). Not a Server Action: the caller has no session, it authenticates with a shared secret.
+ * (push + email, one hour before each workspace's standing meeting). Called every 20 minutes by cron-job.org
+ * (.github/workflows/task-reminders.yml is the manual backup and explains the interval).
+ * Not a Server Action: the caller has no session, it authenticates with a shared secret.
  *
  *   Authorization: Bearer <CRON_SECRET>
  *

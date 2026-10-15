@@ -74,7 +74,8 @@ export function NotificationsPanel() {
             A task only notifies if you tick <span className="font-medium text-foreground">Enable notification</span> when creating it (it needs a due date and time).
           </li>
           <li>A task assigned to a teammate notifies that teammate; an unassigned one notifies the whole team.</li>
-          <li>Reminders are checked every few minutes, so one can arrive slightly after its due time.</li>
+          <li>Reminders are checked every 20 minutes, so one can arrive up to 20 minutes after its due time.</li>
+          <li>When someone assigns you a task, call or meeting, you are notified right away.</li>
         </ul>
       </section>
     </div>

@@ -90,7 +90,8 @@ export const notificationsService = {
   },
 
   /**
-   * The reminder sweep, run every few minutes by a scheduler (GitHub Actions → /api/cron/task-reminders).
+   * The reminder sweep, run every 20 minutes by cron-job.org → /api/cron/task-reminders (see the comment at the top
+   * of .github/workflows/task-reminders.yml for why that scheduler and that interval).
    * For every workspace: take the reminders that came due (each is claimed exactly once), and push each one to
    * its assignee — or, when it isn't assigned to a team member, to everyone on the team.
    */

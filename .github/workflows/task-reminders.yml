@@ -1,21 +1,22 @@
 name: Task reminders
 
-# Sends the push reminders for tasks that just came due ("Enable notification" on a task).
+# MANUAL BACKUP ONLY — the reminder sweep's real scheduler is cron-job.org (since 2026-10-15), which POSTs to
+# https://crm.tagrholdings.com/api/cron/task-reminders every 20 minutes with `Authorization: Bearer <CRON_SECRET>`.
 #
-# The CRM can't wake itself up, so this pings its cron endpoint every 5 minutes. The endpoint is idempotent —
-# each reminder is claimed atomically and sent once — so overlapping or repeated runs are harmless.
+# Why not GitHub's schedule: it is best-effort and, for this repo, ran every 2–9 hours instead of every 5 minutes
+# (median 5h), so reminders arrived hours late and the L10 heads-up rarely went out at all.
+# Why every 20 minutes, not every minute: each sweep queries Postgres, and Neon only suspends the compute after
+# 5 idle minutes — a sweep every ≤5 min keeps it on 24/7 (~183 CU-hours/month), past the Free plan's 100, which
+# suspends the database until the next month. Every 20 min is ~45 CU-hours/month. Reminders can be up to 20 min late.
 #
-# GitHub's scheduler is best-effort: a tick can start several minutes late, so a reminder may arrive a little
-# after the due time. For minute-accurate delivery use Vercel Cron (Pro plan) instead — it can call the same URL
-# with the same `Authorization: Bearer <CRON_SECRET>` header — and delete this workflow.
+# Run this by hand ("Run workflow") to send due reminders right now, e.g. if cron-job.org is down. The endpoint is
+# idempotent — each reminder is claimed atomically and sent once — so extra runs are harmless.
 #
 # Required repository secrets (Settings → Secrets and variables → Actions):
 #   CRON_SECRET   the same value as the CRM's CRON_SECRET env var (Vercel → Production)
 #   APP_URL       the CRM's origin, e.g. https://crm.tagrholdings.com (no trailing slash)
 
 on:
-  schedule:
-    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 concurrency:
