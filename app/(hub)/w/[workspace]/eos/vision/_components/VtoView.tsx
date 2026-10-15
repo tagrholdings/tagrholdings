@@ -290,7 +290,8 @@ export function VtoView({
   if (step !== null) {
     const current = GUIDE_STEPS[step];
     return (
-      <section className="mx-auto flex w-full max-w-3xl flex-col gap-4">
+      // Uses the whole page: the steps and the explanation on the left, the fields on the right (stacked on a phone).
+      <section className="flex w-full flex-1 flex-col gap-4">
         <div className="flex flex-col gap-2">
           <p className="label-kicker text-muted-foreground">
             Guided setup · Step {step + 1} of {GUIDE_STEPS.length}
@@ -309,17 +310,45 @@ export function VtoView({
             ))}
           </ol>
         </div>
-        <form onSubmit={saveStep} className="overflow-hidden rounded-lg border border-divider bg-surface">
-          <div className="space-y-3 border-b border-divider px-5 py-4">
-            <h3 className="font-serif text-xl font-semibold">{current.title}</h3>
-            <p className="text-sm text-foreground">{current.what}</p>
-            <p className="rounded-md bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">Example: </span>
-              {current.example}
-            </p>
+        <form onSubmit={saveStep} className="flex flex-1 flex-col overflow-hidden rounded-lg border border-divider bg-surface">
+          <div className="grid flex-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+            <aside className="flex flex-col gap-4 border-b border-divider bg-muted/30 px-6 py-6 lg:border-r lg:border-b-0">
+              <div className="space-y-3">
+                <h3 className="font-serif text-2xl font-semibold">{current.title}</h3>
+                <p className="text-sm leading-relaxed text-foreground">{current.what}</p>
+                <p className="rounded-md border border-divider bg-surface px-4 py-3 text-sm leading-relaxed text-muted-foreground">
+                  <span className="font-medium text-foreground">Example: </span>
+                  {current.example}
+                </p>
+              </div>
+              <ol className="mt-auto hidden flex-col gap-1 lg:flex" aria-label="All steps">
+                {GUIDE_STEPS.map((s, i) => (
+                  <li key={s.title}>
+                    <button
+                      type="button"
+                      onClick={() => setStep(i)}
+                      className={cn(
+                        "flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors",
+                        i === step ? "bg-accent/15 font-medium text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
+                          s.done(content) ? "bg-accent text-ink" : i === step ? "border border-accent text-accent-text" : "border border-divider"
+                        )}
+                      >
+                        {s.done(content) ? "✓" : i + 1}
+                      </span>
+                      {s.title}
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            </aside>
+            <div className="flex flex-col gap-4 px-6 py-6">{stepFields(step)}</div>
           </div>
-          <div className="flex flex-col gap-3 px-5 py-4">{stepFields(step)}</div>
-          <div className="flex flex-wrap items-center gap-2 border-t border-divider px-5 py-3">
+          <div className="flex flex-wrap items-center gap-2 border-t border-divider px-6 py-3">
             <Button type="button" variant="ghost" onClick={() => setStep(null)}>
               Finish later
             </Button>

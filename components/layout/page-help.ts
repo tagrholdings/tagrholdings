@@ -1312,9 +1312,43 @@ const ENTRIES: Entry[] = [
       ],
       tour: [
         {
+          target: "docs-presentation",
+          title: "The short version",
+          text: "New to the CRM, or short on time? The platform tour is a 15-minute interactive presentation of every page, with real examples.",
+        },
+        {
           target: "docs-nav",
           title: "Jump to a topic",
           text: "This is the long-form guide. For a quick reminder about the page you are on, use the (?) button in the header instead.",
+        },
+        HELP_AGAIN,
+      ],
+    }),
+  },
+  {
+    path: "/docs/presentation",
+    build: () => ({
+      title: "Platform tour",
+      summary: "A short, interactive presentation of the whole CRM, for someone who has never used it.",
+      sections: [
+        {
+          heading: "How to use it",
+          body: [
+            "On a computer: the arrow keys (or the → and ← buttons) move between pages, M opens the contents, N shows the notes about each page, F goes full screen.",
+            "On a phone: the pages stack — just scroll. The ☰ button jumps to any page.",
+            "The screens in it are interactive: try the filters, tick boxes, the board, the Scorecard cells and the L10 timer.",
+          ],
+        },
+        {
+          heading: "Good to know",
+          body: "The deal examples come from a demo workspace with fictional companies; the Traction and EOS examples are Grounded Pest Control's real data. For every detail, the full guide is one page back.",
+        },
+      ],
+      tour: [
+        {
+          target: "presentation-frame",
+          title: "The tour",
+          text: "Move with the arrows (or scroll on a phone), and press M for the contents. Every screen in it can be clicked.",
         },
         HELP_AGAIN,
       ],

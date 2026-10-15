@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowUpRight, Bell, BookOpen, Building2, Coins, Compass, FolderKanban, Inbox, ListChecks, Mail, Radar, Target, UserRound, Users } from "lucide-react";
+import { ArrowUpRight, Bell, BookOpen, Building2, Coins, Compass, FolderKanban, Inbox, ListChecks, Mail, Presentation, Radar, Target, UserRound, Users } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
 import { getWorkspace } from "@/lib/auth-server";
 import { workspacePath } from "@/lib/workspace-path";
 import { HubPage } from "@/components/layout/HubPage";
@@ -340,6 +341,22 @@ export default async function DocsPage({ params }: { params: Promise<{ workspace
       kicker="Help"
       title="How to use the CRM"
     >
+      <section data-tour="docs-presentation" className="flex flex-col gap-4 rounded-lg border border-accent/40 bg-accent/5 p-5 sm:flex-row sm:items-center">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent text-ink">
+          <Presentation className="size-5" aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 className="font-serif text-lg font-semibold text-foreground">Short on time? Take the platform tour</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            A 15-minute interactive presentation of the whole CRM — what each page is for, with real examples — for anyone who has never used it. Works on a phone too.
+          </p>
+        </div>
+        <Link href={workspacePath(slug, "/docs/presentation")} className={buttonVariants({ className: "shrink-0" })}>
+          See presentation
+          <ArrowUpRight className="size-4" aria-hidden />
+        </Link>
+      </section>
+
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
         <nav aria-label="On this page" data-tour="docs-nav" className="rounded-lg border border-divider bg-surface p-4 lg:sticky lg:top-24 lg:w-56 lg:shrink-0">
           <p className="label-kicker mb-2">On this page</p>
