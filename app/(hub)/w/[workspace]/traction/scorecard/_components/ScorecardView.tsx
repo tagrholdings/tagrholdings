@@ -244,7 +244,7 @@ export function ScorecardView({
     <>
       {toolbar}
       <RuleChecks checks={checks} tourId="scorecard-checks" />
-      <div data-tour="scorecard-grid">
+      <div data-tour="scorecard-grid" className="md:min-h-0 md:overflow-y-auto">
       <ul className="flex flex-col gap-3 md:hidden">
         {measurables.map((m) => (
           <MeasurableCard

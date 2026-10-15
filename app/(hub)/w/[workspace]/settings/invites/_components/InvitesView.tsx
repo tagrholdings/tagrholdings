@@ -11,6 +11,13 @@ import { formatDateUS } from "@/utils/date";
 import { resendInviteAction, revokeInviteAction } from "@/modules/invites/invites.actions";
 import type { InviteStatus, InviteSummary } from "@/modules/invites/invites.types";
 import { InviteVault } from "./InviteVault";
+import { Pagination } from "@/components/ui/pagination";
+import { useFitPageSize } from "@/hooks/ui/use-fit-page-size";
+import { paginate } from "@/utils/pagination";
+
+// Table geometry for the one-screen page (see useFitPageSize).
+const ROW_HEIGHT = 66;
+const RESERVED_HEIGHT = 104;
 
 const STATUS: Record<InviteStatus, { label: string; className: string }> = {
   pending: { label: "Pending", className: "bg-accent/15 text-foreground" },
@@ -22,6 +29,9 @@ const STATUS: Record<InviteStatus, { label: string; className: string }> = {
 export function InvitesView({ invites }: { invites: InviteSummary[] }) {
   const [inviting, setInviting] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const { ref: fitRef, pageSize } = useFitPageSize({ rowHeight: ROW_HEIGHT, reserved: RESERVED_HEIGHT });
+  const paged = paginate(invites, page, pageSize);
 
   async function run(id: string, action: () => Promise<{ serverError?: string; data?: unknown } | undefined>, success: string, failure: string) {
     setBusyId(id);
@@ -63,10 +73,11 @@ export function InvitesView({ invites }: { invites: InviteSummary[] }) {
   }
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-4">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
       <div className="flex justify-end">{inviteButton}</div>
 
-      <Table data-tour="invites-table">
+      <div ref={fitRef} className="flex min-h-0 flex-1 flex-col gap-4 md:overflow-hidden">
+      <Table data-tour="invites-table" className="md:min-h-0 md:overflow-y-auto">
         <TableHeader>
           <tr>
             <TableHead>Email</TableHead>
@@ -79,7 +90,7 @@ export function InvitesView({ invites }: { invites: InviteSummary[] }) {
           </tr>
         </TableHeader>
         <TableBody>
-          {invites.map((invite) => {
+          {paged.items.map((invite) => {
             const open = invite.status === "pending" || invite.status === "expired";
             const status = STATUS[invite.status];
             return (
@@ -125,6 +136,8 @@ export function InvitesView({ invites }: { invites: InviteSummary[] }) {
           })}
         </TableBody>
       </Table>
+      <Pagination slice={paged} onPageChange={setPage} noun="invites" className="shrink-0" />
+      </div>
 
       {vault}
     </div>

@@ -23,7 +23,7 @@ export default async function L10HistoryPage({ params }: { params: Promise<{ wor
   const overall = rated.length ? Math.round((rated.reduce((sum, m) => sum + (m.averageRating ?? 0), 0) / rated.length) * 10) / 10 : null;
 
   return (
-    <HubPage
+    <HubPage fitViewport
       user={{ name: user.name || user.email, initials: initialsFor(user.name || user.email) }}
       kicker="Traction · L10"
       title="Meeting history"
@@ -49,7 +49,7 @@ export default async function L10HistoryPage({ params }: { params: Promise<{ wor
           </EmptyHeader>
         </Empty>
       ) : (
-        <ol data-tour="l10-history-list" className="flex flex-col gap-3">
+        <ol data-tour="l10-history-list" className="flex flex-col gap-3 md:min-h-0 md:overflow-y-auto">
           {meetings.map((m) => {
             const todos = percent(m.todosDone, m.todosTotal);
             return (

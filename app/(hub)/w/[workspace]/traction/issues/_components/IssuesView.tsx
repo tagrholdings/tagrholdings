@@ -41,7 +41,7 @@ export function IssuesView({ issues, members, checks, initialHorizon }: { issues
 
       <RuleChecks checks={checks} />
 
-      <div data-tour="issues-list" className="overflow-hidden rounded-lg border border-divider bg-surface">
+      <div data-tour="issues-list" className="overflow-hidden md:min-h-0 md:overflow-y-auto rounded-lg border border-divider bg-surface">
         <IssueList
           key={horizon}
           issues={issues}

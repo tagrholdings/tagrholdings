@@ -21,7 +21,7 @@ export default async function RocksPage({ params, searchParams }: { params: Prom
   const quarter = query.quarter && isQuarter(query.quarter) ? query.quarter : focusQuarter;
 
   return (
-    <HubPage user={{ name: user.name || user.email, initials: initialsFor(user.name || user.email) }} kicker="Traction" title="Rocks">
+    <HubPage fitViewport user={{ name: user.name || user.email, initials: initialsFor(user.name || user.email) }} kicker="Traction" title="Rocks">
       <RocksView rocks={rocks} quarter={quarter} currentQuarter={currentQuarter} members={members} goals={vto.content.oneYear.goals} checks={checks.filter((c) => c.area === "rocks")} todos={todos} />
     </HubPage>
   );

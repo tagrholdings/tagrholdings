@@ -26,7 +26,7 @@ export default async function ScorecardPage({ params, searchParams }: { params: 
   const missingStandard = await tractionService.missingStandardMeasurables(user.tenantId, template);
 
   return (
-    <HubPage user={{ name: user.name || user.email, initials: initialsFor(user.name || user.email) }} kicker="Traction" title="Scorecard">
+    <HubPage fitViewport user={{ name: user.name || user.email, initials: initialsFor(user.name || user.email) }} kicker="Traction" title="Scorecard">
       <ScorecardView key={`${cadence}:${end}`} cadence={cadence} windowEnd={end} today={today} {...scorecard} members={members} checks={checks.filter((c) => c.area === "scorecard")} missingStandard={missingStandard.map((m) => m.name)} />
     </HubPage>
   );

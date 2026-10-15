@@ -54,7 +54,7 @@ export function ProcessView({ processes, members }: { processes: ProcessRow[]; m
         </p>
       )}
 
-      <div data-tour="process-list" className="flex flex-col gap-4">
+      <div data-tour="process-list" className="flex flex-col gap-4 md:min-h-0 md:overflow-y-auto">
         {processes.length === 0 ? (
           <Empty className="border border-dashed border-divider">
             <EmptyHeader>

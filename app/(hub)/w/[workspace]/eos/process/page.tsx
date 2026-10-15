@@ -13,7 +13,7 @@ export default async function ProcessPage({ params }: { params: Promise<{ worksp
   const [processes, members] = await Promise.all([tractionService.getProcesses(user.tenantId), tractionService.listOwners(user.tenantId)]);
 
   return (
-    <HubPage user={{ name: user.name || user.email, initials: initialsFor(user.name || user.email) }} kicker="EOS · Process" title="Core processes">
+    <HubPage fitViewport user={{ name: user.name || user.email, initials: initialsFor(user.name || user.email) }} kicker="EOS · Process" title="Core processes">
       <ProcessView processes={processes} members={members} />
     </HubPage>
   );

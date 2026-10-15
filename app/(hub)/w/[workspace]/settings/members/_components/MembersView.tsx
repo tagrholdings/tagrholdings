@@ -8,10 +8,20 @@ import { notify } from "@/components/ui/toaster";
 import { SegmentedControl } from "@/components/shared/segmented-control";
 import { changeMemberRoleAction, removeMemberAction } from "@/modules/tenancy/tenancy.actions";
 import type { MemberSummary, WorkspaceRole } from "@/modules/tenancy/tenancy.types";
+import { Pagination } from "@/components/ui/pagination";
+import { useFitPageSize } from "@/hooks/ui/use-fit-page-size";
+import { paginate } from "@/utils/pagination";
+
+// Table geometry for the one-screen page (see useFitPageSize).
+const ROW_HEIGHT = 66;
+const RESERVED_HEIGHT = 104;
 
 /** Admin view of the workspace's people: change a role, or take someone out (a workspace always keeps one admin). */
 export function MembersView({ members, currentUserId }: { members: MemberSummary[]; currentUserId: string }) {
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const { ref: fitRef, pageSize } = useFitPageSize({ rowHeight: ROW_HEIGHT, reserved: RESERVED_HEIGHT });
+  const paged = paginate(members, page, pageSize);
 
   async function run(id: string, action: () => Promise<{ serverError?: string; data?: unknown } | undefined>, success: string, failure: string) {
     setBusyId(id);
@@ -25,11 +35,12 @@ export function MembersView({ members, currentUserId }: { members: MemberSummary
   }
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-4">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
       <p className="text-sm text-muted-foreground">
         Admins can invite people, manage members and see the engine&rsquo;s spend. To add someone, send an invite from the Invites tab.
       </p>
-      <Table data-tour="members-table">
+      <div ref={fitRef} className="flex min-h-0 flex-1 flex-col gap-4 md:overflow-hidden">
+      <Table data-tour="members-table" className="md:min-h-0 md:overflow-y-auto">
         <TableHeader>
           <tr>
             <TableHead>Name</TableHead>
@@ -41,7 +52,7 @@ export function MembersView({ members, currentUserId }: { members: MemberSummary
           </tr>
         </TableHeader>
         <TableBody>
-          {members.map((member) => {
+          {paged.items.map((member) => {
             const isYou = member.id === currentUserId;
             return (
               <TableRow key={member.id}>
@@ -82,6 +93,8 @@ export function MembersView({ members, currentUserId }: { members: MemberSummary
           })}
         </TableBody>
       </Table>
+      <Pagination slice={paged} onPageChange={setPage} noun="members" className="shrink-0" />
+      </div>
     </div>
   );
 }

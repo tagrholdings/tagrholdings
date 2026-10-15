@@ -170,7 +170,7 @@ export function RocksView({
 
       <RuleChecks checks={checks} />
 
-      <div data-tour="rocks-list" className="overflow-hidden rounded-lg border border-divider bg-surface">
+      <div data-tour="rocks-list" className="overflow-hidden md:min-h-0 md:overflow-y-auto rounded-lg border border-divider bg-surface">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-divider px-4 py-3">
           <div className="min-w-0 flex-1">
             <p className="label-kicker text-muted-foreground">{quarterLabel(quarter)}</p>

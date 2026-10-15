@@ -13,7 +13,7 @@ export default async function IssuesPage({ params, searchParams }: { params: Pro
   const [issues, members, checks] = await Promise.all([tractionService.getIssues(user.tenantId), tractionService.listOwners(user.tenantId), tractionService.getRuleChecks(user.tenantId)]);
 
   return (
-    <HubPage user={{ name: user.name || user.email, initials: initialsFor(user.name || user.email) }} kicker="Traction" title="Issues">
+    <HubPage fitViewport user={{ name: user.name || user.email, initials: initialsFor(user.name || user.email) }} kicker="Traction" title="Issues">
       <IssuesView issues={issues} members={members} checks={checks.filter((c) => c.area === "issues")} initialHorizon={query.list === "long_term" ? "long_term" : "short_term"} />
     </HubPage>
   );

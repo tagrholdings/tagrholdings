@@ -18,6 +18,7 @@ export default async function MembersSettingsPage({ params }: { params: Promise<
 
   return (
     <HubPage
+      fitViewport
       user={{ name: user.name || user.email, initials: initialsFor(user.name || user.email) }}
       kicker="Settings"
       title="Members"
