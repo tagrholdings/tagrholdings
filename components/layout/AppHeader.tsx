@@ -108,7 +108,7 @@ function DesktopHeader({
     <header
       className={cn(
         "sticky top-0 z-20 h-20 shrink-0 items-center gap-4 border-b border-transparent px-6 pt-4 transition-[background-color,border-color] duration-200",
-        scrolled && "rounded-b-lg border-divider bg-background/80 backdrop-blur-md",
+        scrolled && "border-divider bg-background/80 backdrop-blur-md",
         className
       )}
     >
