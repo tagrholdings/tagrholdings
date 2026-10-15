@@ -189,7 +189,7 @@ export function ContactsView({
   if (tab === "team") {
     return (
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
-        <div className="sticky top-14 z-10 bg-background pt-4 md:top-20">{tabs}</div>
+        <div className="sticky top-14 z-10 bg-background pt-4 md:static md:pt-0">{tabs}</div>
         <div className="md:min-h-0 md:flex-1 md:overflow-y-auto">
           <TeamPanel {...team} />
         </div>
@@ -203,7 +203,7 @@ export function ContactsView({
     // dashed box below them.
     return (
       <div className="flex min-w-0 flex-1 flex-col gap-4">
-        <div className="sticky top-14 z-10 bg-background pt-4 md:top-20">{tabs}</div>
+        <div className="sticky top-14 z-10 bg-background pt-4 md:static md:pt-0">{tabs}</div>
         <Empty data-tour="contacts-table" className="border border-dashed border-divider">
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -243,7 +243,7 @@ export function ContactsView({
     <div className="flex min-h-0 min-w-0 flex-1 gap-4">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
         {/* One line on a phone (the tab labels collapse to icons, and the row scrolls sideways if it still doesn't fit); wraps from md up. */}
-        <div className="no-scrollbar sticky top-14 z-10 flex items-center gap-2 overflow-x-auto bg-background pb-4 pt-4 md:top-20 md:flex-wrap md:overflow-visible">
+        <div className="no-scrollbar sticky top-14 z-10 flex shrink-0 items-center gap-2 overflow-x-auto bg-background pb-4 pt-4 md:static md:py-0 md:flex-wrap md:overflow-visible">
           {tabs}
           {tab === "people" ? (
             <SearchInput
