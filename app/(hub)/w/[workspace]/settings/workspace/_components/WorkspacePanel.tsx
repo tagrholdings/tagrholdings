@@ -37,7 +37,7 @@ export function WorkspacePanel({ name, inboundAddress, buyer }: { name: string; 
   };
 
   return (
-    <div className="flex max-w-2xl flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <section data-tour="workspace-address" className="rounded-lg border border-divider bg-surface p-5">
         <div className="flex items-start gap-4">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-foreground">

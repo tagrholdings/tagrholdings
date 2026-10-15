@@ -5,7 +5,7 @@ export default function ApplicationSettingsLoading() {
   return (
     <HubLoading>
       <Skeleton className="h-9 w-56" />
-      <Skeleton className="h-36 w-full max-w-2xl" />
+      <Skeleton className="h-36 w-full" />
     </HubLoading>
   );
 }

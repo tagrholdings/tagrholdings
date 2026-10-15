@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { BookOpen, Briefcase, Check, ChevronDown, Loader2, LogOut, Moon, Settings, ShieldCheck, Sun } from "lucide-react";
+import { BookOpen, Briefcase, Check, ChevronDown, Loader2, LogOut, Moon, Settings, ShieldCheck, Sun, UserRound } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { notify } from "@/components/ui/toaster";
 import { useTheme } from "@/hooks/ui/use-theme";
@@ -214,6 +214,10 @@ export function AccountMenuContent({
       <DropdownMenuSeparator />
       <WorkspaceSwitcherItems />
       {/* Every row: icon + label, same left edge. */}
+      <DropdownMenuItem className="gap-3 text-left" onSelect={() => router.push(workspacePath(workspace.slug, "/profile"))}>
+        <UserRound aria-hidden />
+        Profile
+      </DropdownMenuItem>
       <DropdownMenuItem className="gap-3 text-left" onSelect={() => router.push(workspacePath(workspace.slug, "/settings"))}>
         <Settings aria-hidden />
         Settings

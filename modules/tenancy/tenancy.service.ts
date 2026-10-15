@@ -68,6 +68,11 @@ export const tenancyService = {
     return (await tenancyRepository.findWorkspacesForUser(userId)).map((w) => ({ ...w, role: w.role as WorkspaceRole }));
   },
 
+  /** The workspaces the person actually belongs to, with their role — never every workspace, even for a super admin. */
+  async listMembershipsFor(userId: string) {
+    return (await tenancyRepository.findWorkspacesForUser(userId)).map((w) => ({ ...w, role: w.role as WorkspaceRole }));
+  },
+
   /** Cross-checks a tenant id that came from OUTSIDE a session (an API caller, an env var) against a real tenant. */
   async tenantExists(tenantId: string) {
     return !!(await tenancyRepository.findTenantById(tenantId));

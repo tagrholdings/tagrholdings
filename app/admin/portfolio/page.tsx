@@ -28,8 +28,8 @@ export default async function PortfolioPage() {
   const year = new Date().getFullYear();
 
   return (
-    <div className="min-h-screen bg-background px-4 py-10">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
+    <div className="min-h-screen bg-background px-4 py-10 md:px-8">
+      <div className="flex w-full flex-col gap-6">
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="label-kicker text-muted-foreground">Platform</p>

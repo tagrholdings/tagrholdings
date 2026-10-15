@@ -555,6 +555,47 @@ const ENTRIES: Entry[] = [
     }),
   },
   {
+    path: "/profile",
+    build: () => ({
+      title: "Profile",
+      summary: "Your own account: the name and email you use, and where you belong.",
+      sections: [
+        {
+          heading: "What it's for",
+          body: "Change how your name shows to your team, change the email you sign in with, and see your role and title in each workspace you belong to.",
+        },
+        {
+          heading: "Good to know",
+          body: [
+            "A new name also updates you on the team of every workspace you belong to — owners, assignees and the Team list.",
+            "Changing your email sends a 6-digit code to the new address; it only changes once you type that code here.",
+            "Your title is set by your team on Contacts → Team; your role (admin or member) by a workspace admin.",
+          ],
+        },
+      ],
+      tour: [
+        {
+          target: "profile-name",
+          title: "Your display name",
+          text: "How you appear to everyone: the account menu, the owners of Rocks and Issues, the assignee of a task.",
+        },
+        {
+          target: "profile-email",
+          title: "Your sign-in email",
+          text: "Type the new address and we send it a code. Type the code back to confirm — until then, the old email keeps working.",
+          demo: { kind: "vault", fields: ["New email", "Code"], button: "Confirm new email" },
+        },
+        {
+          target: "profile-workspaces",
+          title: "Where you belong",
+          text: "Every workspace you are a member of, with your role there and your title on its team.",
+          demo: { kind: "table", columns: ["Workspace", "Title", "Role"] },
+        },
+        HELP_AGAIN,
+      ],
+    }),
+  },
+  {
     path: "/settings/notifications",
     build: () => ({
       title: "Notifications",

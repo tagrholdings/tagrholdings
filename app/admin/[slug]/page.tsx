@@ -32,8 +32,8 @@ export default async function ManageWorkspacePage({ params }: { params: Promise<
   const openInvites = invites.filter((invite) => invite.status === "pending" || invite.status === "expired");
 
   return (
-    <div className="min-h-screen bg-background px-4 py-10">
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+    <div className="min-h-screen bg-background px-4 py-10 md:px-8">
+      <div className="flex w-full flex-col gap-6">
         <header className="space-y-3">
           <Link href="/admin" className="inline-flex items-center gap-1 text-sm font-medium text-accent-text hover:text-accent-hover">
             <ChevronLeft className="size-4" aria-hidden />

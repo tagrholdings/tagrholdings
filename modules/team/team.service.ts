@@ -78,6 +78,19 @@ export const teamService = {
     await teamRepository.update(tenantId, personId, { userId: null });
   },
 
+  /**
+   * Someone changed their own display name or email (on their profile): the person their login is in this workspace
+   * follows, so Traction owners and assignee pickers show the new name. Nothing when the login has no person here.
+   */
+  async syncLoginDetails(tenantId: string, userId: string, details: { name?: string; email?: string }) {
+    const person = await this.personForUser(tenantId, userId);
+    if (!person) return;
+    await teamRepository.update(tenantId, person.id, {
+      ...(details.name ? { name: details.name.trim() } : {}),
+      ...(details.email ? { email: normalizeEmail(details.email) } : {}),
+    });
+  },
+
   /** Throws unless the id is an active person of this workspace — used before assigning work to them. */
   async assertActivePerson(tenantId: string, personId: string | null | undefined) {
     if (!personId) return;
