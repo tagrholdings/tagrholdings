@@ -188,23 +188,26 @@ export function ContactsView({
   }
 
   if (contacts.length === 0 && organizations.length === 0) {
+    // Same shape as the other empty pages (Leads, Projects): the tabs stay up
+    // top — so Team is still one click away — and the empty state sits in a
+    // dashed box below them.
     return (
-      <Empty data-tour="contacts-table">
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <Building2 />
-          </EmptyMedia>
-          <EmptyTitle>No contacts yet</EmptyTitle>
-          <EmptyDescription>Contacts and organizations you add will show up here.</EmptyDescription>
-        </EmptyHeader>
-        <div className="flex items-center gap-2">
-          {createOrgVault}
-          {createContactVault}
-        </div>
-        <button type="button" onClick={() => setTab("team")} className="text-sm font-medium text-accent-text hover:text-accent-hover">
-          See the team
-        </button>
-      </Empty>
+      <div className="flex min-w-0 flex-1 flex-col gap-4">
+        <div className="sticky top-14 z-10 bg-background pt-4 md:top-20">{tabs}</div>
+        <Empty data-tour="contacts-table" className="border border-dashed border-divider">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <Building2 />
+            </EmptyMedia>
+            <EmptyTitle>No contacts yet</EmptyTitle>
+            <EmptyDescription>Contacts and organizations you add will show up here.</EmptyDescription>
+          </EmptyHeader>
+          <div className="flex items-center gap-2">
+            {createOrgVault}
+            {createContactVault}
+          </div>
+        </Empty>
+      </div>
     );
   }
 
