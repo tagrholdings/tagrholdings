@@ -2,6 +2,7 @@
 
 import { DndContext, useDraggable, useDroppable, type DragEndEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
+import { useEffect, useRef } from "react";
 import { CheckSquare, Link2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isSameDate, type WeekDay } from "@/utils/date";
@@ -73,7 +74,7 @@ function DayColumn({
   const { setNodeRef, isOver } = useDroppable({ id: day.date.toISOString() });
 
   return (
-    <div className="flex w-[220px] shrink-0 flex-col bg-kanban-column rounded-lg p-2 md:min-h-0">
+    <div data-today={day.isToday ? "" : undefined} className="flex w-[220px] shrink-0 flex-col rounded-lg bg-kanban-column p-2 max-md:w-[82vw] max-md:snap-start md:min-h-0">
       <div className="mb-3 flex items-center gap-2 px-1">
         <h3 className={cn("font-serif text-xs font-semibold uppercase tracking-wide", day.isToday ? "text-accent-text" : "text-foreground")}>
           {day.label} {day.dayNumber}
@@ -110,6 +111,18 @@ export function WeekBoard({
 }) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
+  // On a phone a day is nearly a screen wide, so open on today's column (or the week's first) instead of wherever the
+  // last week left the scroll. Keyed on the week, not on `days` (a new array every render), so edits never reset it.
+  const scroller = useRef<HTMLDivElement>(null);
+  const weekKey = days[0]?.date.getTime();
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el || !window.matchMedia("(max-width: 767px)").matches) return;
+    const today = el.querySelector<HTMLElement>("[data-today]");
+    const left = today ? el.scrollLeft + today.getBoundingClientRect().left - el.getBoundingClientRect().left - 16 : 0;
+    el.scrollTo({ left });
+  }, [weekKey]);
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over) return;
@@ -139,7 +152,7 @@ export function WeekBoard({
     // client — without it the id is a module-level counter that drifts across navigations/hot-reloads and
     // React flags a hydration mismatch (harmless, but noisy) on every page load. See PipelineBoard.tsx.
     <DndContext id="week-board-dnd" sensors={sensors} onDragEnd={handleDragEnd}>
-      <div className="kanban-scroll flex min-h-0 flex-1 gap-4 overflow-x-auto pb-2">
+      <div ref={scroller} className="kanban-scroll flex min-h-0 flex-1 gap-4 overflow-x-auto pb-2 max-md:-mx-4 max-md:snap-x max-md:snap-mandatory max-md:px-4 max-md:scroll-px-4">
         {days.map((day) => (
           <DayColumn
             key={day.label}

@@ -264,7 +264,7 @@ export function ActivitiesView({
         <div
           data-tour="activities-filters"
           className={cn(
-            "self-center md:self-start sticky top-14 z-10 flex shrink-0 items-center gap-2 overflow-x-auto no-scrollbar bg-background pb-4 pt-2 md:static md:flex-wrap md:overflow-visible md:pb-0 md:pt-0",
+            "sticky top-14 z-10 flex shrink-0 items-center gap-2 bg-background pb-3 pt-2 max-md:flex-wrap md:static md:flex-wrap md:self-start md:pb-0 md:pt-0",
             resolvedView === "list" && "max-md:hidden"
           )}
         >
@@ -279,19 +279,19 @@ export function ActivitiesView({
           {resolvedView === "board" && (
             <>
               {mineToggle}
-              <div className="flex shrink-0 items-center gap-1 rounded-sm border border-divider bg-surface px-1 py-0.5">
+              <div className="flex shrink-0 items-center gap-1 rounded-sm border border-divider bg-surface px-1 py-0.5 max-md:order-first max-md:w-full">
                 <button
                   type="button"
                   aria-label="Previous week"
                   onClick={() => setWeekOffset((w) => w - 1)}
-                  className="flex size-7 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+                  className="flex size-7 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground max-md:size-9"
                 >
                   <ChevronLeft className="size-4" />
                 </button>
                 <button
                   type="button"
                   onClick={() => setWeekOffset(0)}
-                  className="min-w-24 px-1 text-xs font-medium text-foreground"
+                  className="min-w-24 px-1 text-xs font-medium text-foreground max-md:flex-1 max-md:py-2 max-md:text-sm"
                   title="Back to this week"
                 >
                   {weekLabel}
@@ -300,7 +300,7 @@ export function ActivitiesView({
                   type="button"
                   aria-label="Next week"
                   onClick={() => setWeekOffset((w) => w + 1)}
-                  className="flex size-7 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+                  className="flex size-7 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground max-md:size-9"
                 >
                   <ChevronRight className="size-4" />
                 </button>
