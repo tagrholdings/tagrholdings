@@ -65,7 +65,7 @@ function RockCard({
 function Column({ status, dot, children, count }: { status: BoardStatus; dot: string; children: React.ReactNode; count: number }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
   return (
-    <div className="flex w-[260px] shrink-0 flex-col rounded-lg bg-surface/50 p-2">
+    <div className="flex w-[260px] shrink-0 flex-col rounded-lg bg-kanban-column p-2">
       <div className="mb-3 flex items-center gap-2 px-1">
         <span className={cn("size-2 rounded-full", dot)} />
         <h3 className="font-serif text-xs font-semibold uppercase tracking-wide text-foreground">{ROCK_STATUS_LABELS[status]}</h3>

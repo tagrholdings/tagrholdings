@@ -15,6 +15,7 @@
   /* — CRM extensions, built from the same palette (not new colors) — */
   --surface: #faf8f4;                   /* cards, inputs — lighter than the page background so they lift off it */
   --surface-alt: var(--paper-2);        /* secondary surface, e.g. hovered rows, muted panels */
+  --kanban-column: rgb(0 0 0 / 0.045);  /* a kanban stage: a shade darker than whatever it sits on (page or card) */
   --divider: color-mix(in srgb, var(--ink) 22%, transparent);
   /* Contrast (WCAG AA = 4.5:1 for text). The logo's exact brass (--brass, 3.9:1 with ink or cream text) can't carry
      text in either color, so UI fills use a slightly lighter gold that gives ink text 4.7:1, and text set IN the accent
@@ -91,6 +92,7 @@
     --foreground: var(--paper);
     --surface: #1d1e22;
     --surface-alt: #26272c;
+    --kanban-column: rgb(0 0 0 / 0.22);
     --divider: color-mix(in srgb, var(--paper) 14%, transparent);
     --muted: #1d1e22;
     --muted-foreground: color-mix(in srgb, var(--paper) 60%, transparent);
@@ -111,6 +113,7 @@
   --foreground: var(--paper);
   --surface: #1d1e22;
   --surface-alt: #26272c;
+  --kanban-column: rgb(0 0 0 / 0.22);
   --divider: color-mix(in srgb, var(--paper) 14%, transparent);
   --muted: #1d1e22;
   --muted-foreground: color-mix(in srgb, var(--paper) 60%, transparent);
@@ -140,6 +143,7 @@
      border-divider, rounded-pill, shadow-md, etc. */
   --color-surface: var(--surface);
   --color-surface-alt: var(--surface-alt);
+  --color-kanban-column: var(--kanban-column);
   --color-divider: var(--divider);
   --color-accent: var(--accent);
   --color-accent-text: var(--accent-text);

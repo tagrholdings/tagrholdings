@@ -60,7 +60,7 @@ function Column({
 
   return (
     // Every column is the board's full height; its cards scroll inside it (desktop — a phone scrolls the page).
-    <div className="flex w-[250px] shrink-0 flex-col bg-surface/50 rounded-lg p-2 md:min-h-0">
+    <div className="flex w-[250px] shrink-0 flex-col bg-kanban-column rounded-lg p-2 md:min-h-0">
       <div className="mb-3 flex items-center gap-2 px-1">
         <span className={cn("size-2 rounded-full", dotClassName)} />
         <h3 className="font-serif text-xs font-semibold uppercase tracking-wide text-foreground">{column.label}</h3>
