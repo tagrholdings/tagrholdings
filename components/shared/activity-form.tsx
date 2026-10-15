@@ -52,8 +52,11 @@ export const activityFormSchema = z.object({
   type: z.enum(ACTIVITY_TYPES),
   dueDate: z.string().optional(),
   dueTime: z.string().optional(),
-  priority: z.enum(ACTIVITY_PRIORITIES).optional(),
+  /** "" = cleared (react-hook-form puts a field set to undefined back to its default, so clearing uses ""). */
+  priority: z.enum(ACTIVITY_PRIORITIES).or(z.literal("")).optional(),
   notes: z.string().optional(),
+  // Pickers clear to "", not undefined: react-hook-form puts a field set to undefined back to its default value, so
+  // clearing a prefilled one (the card's contact, say) used to snap right back. "" is read as "none" everywhere below.
   /** "person:<id>" (a team person) or "contact:<id>" — one picker over two different owner kinds. */
   assignedTo: z.string().optional(),
   contactId: z.string().optional(),
@@ -118,7 +121,7 @@ export function toNewActivity(values: ActivityFormValues): NewActivity {
     subject: values.subject.trim(),
     type: values.type,
     dueDate: values.dueDate ? parseLocalDateTime(values.dueDate, values.dueTime || undefined) : undefined,
-    priority: values.priority,
+    priority: values.priority || undefined,
     notes: values.notes?.trim() || undefined,
     contactId: values.contactId || undefined,
     organizationId: values.organizationId || undefined,
@@ -287,7 +290,7 @@ export function ActivityFormFields({ form, lookups, showPipelineItem = true, sho
             <PillGroup
               allowNone
               value={field.value}
-              onChange={field.onChange}
+              onChange={(v) => field.onChange(v ?? "")}
               options={ACTIVITY_PRIORITIES.map((p) => ({ value: p, label: ACTIVITY_PRIORITY_LABELS[p] }))}
             />
           )}
@@ -319,7 +322,7 @@ export function ActivityFormFields({ form, lookups, showPipelineItem = true, sho
                 render={({ field }) => (
                   <CommandSelect
                     value={field.value}
-                    onChange={field.onChange}
+                    onChange={(v) => field.onChange(v ?? "")}
                     placeholder="Unassigned"
                     searchPlaceholder="Search team or contacts…"
                     groups={[
@@ -340,7 +343,7 @@ export function ActivityFormFields({ form, lookups, showPipelineItem = true, sho
                 render={({ field }) => (
                   <CommandSelect
                     value={field.value}
-                    onChange={field.onChange}
+                    onChange={(v) => field.onChange(v ?? "")}
                     placeholder="None"
                     searchPlaceholder="Search leads and projects…"
                     options={lookups.pipelineItems.map((item) => ({
@@ -362,7 +365,7 @@ export function ActivityFormFields({ form, lookups, showPipelineItem = true, sho
                 render={({ field }) => (
                   <CommandSelect
                     value={field.value}
-                    onChange={field.onChange}
+                    onChange={(v) => field.onChange(v ?? "")}
                     placeholder="None"
                     searchPlaceholder="Search Rocks…"
                     options={lookups.rocks!.map((rock) => ({ value: rock.id, label: rock.title, description: quarterLabel(rock.quarter) }))}
@@ -379,7 +382,7 @@ export function ActivityFormFields({ form, lookups, showPipelineItem = true, sho
               render={({ field }) => (
                 <CommandSelect
                   value={field.value}
-                  onChange={field.onChange}
+                  onChange={(v) => field.onChange(v ?? "")}
                   placeholder="None"
                   searchPlaceholder="Search contacts…"
                   options={lookups.contacts.map((c) => ({ value: c.id, label: c.name }))}
@@ -395,7 +398,7 @@ export function ActivityFormFields({ form, lookups, showPipelineItem = true, sho
               render={({ field }) => (
                 <CommandSelect
                   value={field.value}
-                  onChange={field.onChange}
+                  onChange={(v) => field.onChange(v ?? "")}
                   placeholder="None"
                   searchPlaceholder="Search organizations…"
                   options={lookups.organizations.map((org) => ({ value: org.id, label: org.name }))}

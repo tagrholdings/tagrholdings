@@ -130,7 +130,7 @@ export function CreatePipelineItemVault({
               render={({ field }) => (
                 <CommandSelect
                   value={field.value}
-                  onChange={field.onChange}
+                  onChange={(v) => field.onChange(v ?? "")}
                   placeholder="None"
                   searchPlaceholder="Search organizations…"
                   options={organizations.map((org) => ({ value: org.id, label: org.name }))}
@@ -146,7 +146,7 @@ export function CreatePipelineItemVault({
               render={({ field }) => (
                 <CommandSelect
                   value={field.value}
-                  onChange={field.onChange}
+                  onChange={(v) => field.onChange(v ?? "")}
                   placeholder="None"
                   searchPlaceholder="Search contacts…"
                   options={contacts.map((c) => ({ value: c.id, label: c.name }))}

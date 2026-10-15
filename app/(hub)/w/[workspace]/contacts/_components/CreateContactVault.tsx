@@ -99,7 +99,7 @@ export function CreateContactVault({
               render={({ field }) => (
                 <CommandSelect
                   value={field.value}
-                  onChange={field.onChange}
+                  onChange={(v) => field.onChange(v ?? "")}
                   placeholder="None"
                   searchPlaceholder="Search or create an organization…"
                   options={organizations.map((org) => ({ value: org.id, label: org.name }))}
