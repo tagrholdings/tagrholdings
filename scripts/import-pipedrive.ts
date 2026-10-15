@@ -17,7 +17,7 @@ import { DEFAULT_BOARD_COLUMNS, DEFAULT_BOARD_NAME } from "../modules/pipeline/p
  *     and moved — per company later, when each company gets its own workspace.
  *   - Activities → activities, linked to whatever their deal became (a card, or an Issue). ACTIVITY_AS_ISSUE lists
  *     the ones that are really an idea for the Issues List, not a to-do.
- *   Activity type is read from the subject: "Call…" → call, lunch/meeting/committee → meeting, anything else → task.
+ *   Activity type is read from the subject: "Call…" → call, "Lunch…"/"Go to lunch…"/a committee → meeting, else task.
  *   "Activity - Duration" goes into the notes. Dates are Phoenix time (UTC-7, no DST); a date without a time is stored
  *   as local midnight — what the app's own date-only picker stores.
  *
@@ -331,9 +331,10 @@ function dealNotes(deal: CsvDeal): string | null {
   return lines.filter(Boolean).join("\n") || null;
 }
 
+/** A meeting is one that IS a lunch/meeting ("Lunch with…", "Go to lunch…", a committee) — not a to-do about one ("Did the meeting happen?"). */
 function activityType(subject: string): "call" | "meeting" | "task" {
   if (/^call\b/i.test(subject)) return "call";
-  if (/\b(lunch|meeting|committee)/i.test(subject)) return "meeting";
+  if (/^(lunch|meeting|go to lunch)\b|\bcommittee\b/i.test(subject)) return "meeting";
   return "task";
 }
 
