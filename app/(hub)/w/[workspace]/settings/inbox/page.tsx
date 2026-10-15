@@ -29,6 +29,7 @@ export default async function InboxSettingsPage({
 
   return (
     <HubPage
+      fitViewport
       user={{ name: user.name || user.email, initials: initialsFor(user.name || user.email) }}
       kicker="Settings"
       title="Inbox"

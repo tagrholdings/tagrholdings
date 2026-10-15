@@ -4,19 +4,27 @@ import { Pool, type PoolClient } from "pg";
 import { DEFAULT_BOARD_COLUMNS, DEFAULT_BOARD_NAME } from "../modules/pipeline/pipeline.constants";
 
 /**
- * Imports a Pipedrive "Activities" CSV export into an EXISTING workspace (default: tagr-holdings):
- *   - "Activity - Organization"          → organizations (found by name, else created)
- *   - "Activity - Contact person" + email/phone columns → contacts (found by name, else created; a name in
- *     KNOWN_EMAILS — the owner, whom Pipedrive lists as the contact on internal to-dos — gets that email)
- *   - "Activity - Deal"                  → a card on the workspace's Leads board, first stage (found by title, else created)
- *   - each row                           → an activity, assigned to the team person named in "Activity - Assigned to user"
- *     (found by name, else created with its KNOWN_EMAILS email, so the login links itself once they accept an
- *     invite; IMPORT_ASSIGNEE_EMAIL links an account that already exists)
- * Type is read from the subject: "Call…" → call, lunch/meeting/committee → meeting, anything else → task.
- * "Activity - Duration" goes into the notes (activities have no duration). Dates are Phoenix time (UTC-7, no DST);
- * a date without a time is stored as local midnight — what the app's own date-only picker stores.
+ * Imports Pipedrive exports (Deals and/or Activities CSV) into an EXISTING workspace (default: tagr-holdings).
  *
- * Re-runnable: an activity with the same subject, due date, contact and deal already in the workspace is skipped.
+ * Deals (IMPORT_DEALS_CSV), read first:
+ *   - each row → a card on the workspace's Leads board, first stage (found by title, else created), linked to its
+ *     organization and contact; a non-zero value and the expected close date go into the card's notes
+ *   - "Deal - Organization" / "Deal - Contact person" → organizations / contacts (found by name, else created)
+ *   - "Deal - Owner" → a team person (see below); a card has no owner field, so it isn't linked to the card itself
+ * Activities (IMPORT_ACTIVITIES_CSV):
+ *   - "Activity - Organization" / "Activity - Contact person" + email/phone columns → organizations / contacts
+ *   - "Activity - Deal" → the card of that title (created when the deals export didn't have it)
+ *   - each row → an activity, assigned to the team person named in "Activity - Assigned to user"
+ *   Type is read from the subject: "Call…" → call, lunch/meeting/committee → meeting, anything else → task.
+ *   "Activity - Duration" goes into the notes (activities have no duration). Dates are Phoenix time (UTC-7, no DST);
+ *   a date without a time is stored as local midnight — what the app's own date-only picker stores.
+ *
+ * People: a team person is found by name, else created with its KNOWN_EMAILS email, so their login links itself once
+ * they accept an invite with that email; IMPORT_ASSIGNEE_EMAIL links an account that already exists. A contact named
+ * in KNOWN_EMAILS (the owner, whom Pipedrive lists as the contact on internal to-dos) gets that email too.
+ *
+ * Re-runnable: organizations, contacts and cards are matched by name/title, and an activity with the same subject,
+ * due date, contact and card is skipped.
  *
  * Like scripts/migrate-explicit.ts it never reads the repo's env files or `.neon`: you type the database and the host
  * must match. Without IMPORT_APPLY=yes everything runs in a transaction that is ROLLED BACK (a dry run that still
@@ -25,21 +33,23 @@ import { DEFAULT_BOARD_COLUMNS, DEFAULT_BOARD_NAME } from "../modules/pipeline/p
  * Usage:
  *   SEED_DATABASE_URL="postgresql://...unpooled-host.../neondb?..." \
  *   SEED_EXPECT_HOST="ep-your-branch-id" \
- *   IMPORT_CSV="C:/path/activities.csv" \
+ *   IMPORT_DEALS_CSV="C:/path/deals.csv" \
+ *   IMPORT_ACTIVITIES_CSV="C:/path/activities.csv" \
  *   [IMPORT_WORKSPACE_SLUG="tagr-holdings"] \
- *   [IMPORT_ASSIGNEE_EMAIL="tanner@example.com"] \
+ *   [IMPORT_ASSIGNEE_EMAIL="someone@example.com"] \
  *   [IMPORT_APPLY=yes] \
- *   npx tsx scripts/import-pipedrive-activities.ts
+ *   npx tsx scripts/import-pipedrive.ts
  */
 const connectionString = process.env.SEED_DATABASE_URL;
 const expectHost = process.env.SEED_EXPECT_HOST;
-const csvPath = process.env.IMPORT_CSV;
+const activitiesPath = process.env.IMPORT_ACTIVITIES_CSV;
+const dealsPath = process.env.IMPORT_DEALS_CSV;
 const slug = process.env.IMPORT_WORKSPACE_SLUG?.trim() || "tagr-holdings";
 const assigneeEmail = process.env.IMPORT_ASSIGNEE_EMAIL?.trim().toLowerCase() || null;
 const apply = process.env.IMPORT_APPLY === "yes";
 if (!connectionString) throw new Error("Set SEED_DATABASE_URL to the exact connection string to write to.");
 if (!expectHost) throw new Error("Set SEED_EXPECT_HOST to a substring of the expected database host, as a safety check.");
-if (!csvPath) throw new Error("Set IMPORT_CSV to the path of the Pipedrive activities export.");
+if (!activitiesPath && !dealsPath) throw new Error("Set IMPORT_DEALS_CSV and/or IMPORT_ACTIVITIES_CSV to the Pipedrive export(s).");
 const host = new URL(connectionString).host;
 if (!host.includes(expectHost)) throw new Error(`Refusing to run: host "${host}" does not contain expected "${expectHost}".`);
 
@@ -78,6 +88,17 @@ function parseCsv(text: string): string[][] {
   return rows.filter((r) => r.some((f) => f.trim()));
 }
 
+/** The CSV's rows, with a getter per named column — a missing column is an error, not a silent blank. */
+function readCsv(path: string, kind: string) {
+  const [header, ...rows] = parseCsv(readFileSync(path, "utf8").replace(/^\uFEFF/, ""));
+  const col = (name: string) => {
+    const index = header.indexOf(name);
+    if (index === -1) throw new Error(`The CSV has no "${name}" column — is this a Pipedrive ${kind} export?`);
+    return (row: string[]) => (row[index] ?? "").trim();
+  };
+  return { rows, col };
+}
+
 interface CsvActivity {
   done: boolean;
   subject: string;
@@ -93,12 +114,7 @@ interface CsvActivity {
 }
 
 function readActivities(path: string): CsvActivity[] {
-  const [header, ...rows] = parseCsv(readFileSync(path, "utf8").replace(/^\uFEFF/, ""));
-  const col = (name: string) => {
-    const index = header.indexOf(name);
-    if (index === -1) throw new Error(`The CSV has no "${name}" column — is this a Pipedrive activities export?`);
-    return (row: string[]) => (row[index] ?? "").trim();
-  };
+  const { rows, col } = readCsv(path, "activities");
   const [done, subject, deal, due, priority, contact, duration, org, assigned] = [
     "Activity - Done",
     "Activity - Subject",
@@ -127,6 +143,42 @@ function readActivities(path: string): CsvActivity[] {
     duration: duration(row),
     assignedTo: assigned(row),
   }));
+}
+
+interface CsvDeal {
+  title: string;
+  value: string;
+  organization: string;
+  contact: string;
+  expectedClose: string;
+  owner: string;
+}
+
+function readDeals(path: string): CsvDeal[] {
+  const { rows, col } = readCsv(path, "deals");
+  const [title, value, org, contact, expectedClose, owner] = [
+    "Deal - Title",
+    "Deal - Value",
+    "Deal - Organization",
+    "Deal - Contact person",
+    "Deal - Expected close date",
+    "Deal - Owner",
+  ].map(col);
+  return rows.map((row) => ({
+    title: title(row),
+    value: value(row),
+    organization: org(row),
+    contact: contact(row),
+    expectedClose: expectedClose(row),
+    owner: owner(row),
+  }));
+}
+
+/** What a deal carries that a lead card has no field for: its value and expected close date. */
+function dealNotes(deal: CsvDeal): string | null {
+  const value = Number(deal.value.replace(/[^0-9.]/g, ""));
+  const lines = [value > 0 ? `Value: $${value.toLocaleString("en-US")}` : null, deal.expectedClose ? `Expected close: ${deal.expectedClose.slice(0, 10)}` : null];
+  return lines.filter(Boolean).join("\n") || null;
 }
 
 function activityType(subject: string): "call" | "meeting" | "task" {
@@ -159,7 +211,7 @@ function durationNote(value: string): string | null {
 const PRIORITIES = new Set(["low", "medium", "high"]);
 
 /**
- * Emails the export doesn't carry, by (lower-case) name. Used for the team person — when that person later signs up
+ * Emails the exports don't carry, by (lower-case) name. Used for the team person — when that person later signs up
  * with the same email and joins the workspace, team.service's syncMembers links the login to them on its own — and
  * for the contact of the same name (Pipedrive lists the owner as the contact on internal to-dos).
  */
@@ -195,12 +247,13 @@ function finder(db: PoolClient, tenantId: string, table: string, nameColumn: str
 }
 
 async function main() {
-  const activities = readActivities(csvPath!);
+  const deals = dealsPath ? readDeals(dealsPath) : [];
+  const activities = activitiesPath ? readActivities(activitiesPath) : [];
   const pool = new Pool({ connectionString });
   const db = await pool.connect();
   const counts = { organizations: 0, contacts: 0, deals: 0, people: 0, activities: 0, skipped: 0 };
   try {
-    console.log(`${apply ? "APPLYING to" : "Dry run (rolled back) on"} ${host} — ${activities.length} rows from ${csvPath}\n`);
+    console.log(`${apply ? "APPLYING to" : "Dry run (rolled back) on"} ${host} — ${deals.length} deals, ${activities.length} activities\n`);
     await db.query("begin");
 
     const tenant = await db.query<{ id: string; name: string }>(`select id::text as id, name from public.tenants where slug = $1`, [slug]);
@@ -220,6 +273,7 @@ async function main() {
       await insert(db, "pipeline_boards", { id: board.id, tenant_id: T, name: DEFAULT_BOARD_NAME, columns: DEFAULT_BOARD_COLUMNS, is_system: true });
       console.log(`Created the ${DEFAULT_BOARD_NAME} board`);
     }
+    const boardId = board.id;
     const firstStage = board.columns[0]?.id ?? "sourced";
 
     const loginId = assigneeEmail
@@ -230,56 +284,76 @@ async function main() {
     const findOrg = finder(db, T, "organizations", "name");
     const findContact = finder(db, T, "contacts", "name");
     const findPerson = finder(db, T, "team_people", "name", "and archived_at is null");
-    const findDeal = finder(db, T, "pipeline_items", "title", "and board_id = $3", [board.id]);
+    const findDeal = finder(db, T, "pipeline_items", "title", "and board_id = $3", [boardId]);
+
+    const ensurePerson = async (name: string) => {
+      if (!name) return null;
+      const email = KNOWN_EMAILS[name.toLowerCase()] ?? assigneeEmail;
+      const person = await findPerson(name, async (id) => {
+        await insert(db, "team_people", { id, tenant_id: T, name, email, user_id: loginId });
+        counts.people++;
+        console.log(`  + team person ${name}${email ? ` <${email}>` : ""}`);
+      });
+      // An existing person without an email gets it, so the invite still links them.
+      if (!person.created && email) {
+        await db.query(`update public.team_people set email = $1, updated_at = now() where tenant_id = $2 and id = $3 and email is null`, [email, T, person.id]);
+      }
+      return person;
+    };
+
+    const ensureOrg = async (name: string) =>
+      name
+        ? findOrg(name, async (id) => {
+            await insert(db, "organizations", { id, tenant_id: T, name });
+            counts.organizations++;
+            console.log(`  + organization ${name}`);
+          })
+        : null;
+
+    const ensureContact = async (name: string, details: { email?: string; phone?: string; orgId?: string; orgName?: string }) => {
+      if (!name) return null;
+      const email = details.email || KNOWN_EMAILS[name.toLowerCase()] || null;
+      return findContact(name, async (id) => {
+        await insert(db, "contacts", { id, tenant_id: T, name, email, phone: details.phone || null, organization_id: details.orgId ?? null });
+        counts.contacts++;
+        console.log(`  + contact ${name}${email ? ` <${email}>` : ""}${details.orgName ? ` (${details.orgName})` : ""}`);
+      });
+    };
+
+    const ensureDeal = async (title: string, details: { contactId?: string; orgId?: string; notes?: string | null }) =>
+      title
+        ? findDeal(title, async (id) => {
+            await insert(db, "pipeline_items", {
+              id,
+              tenant_id: T,
+              board_id: boardId,
+              title,
+              stage: firstStage,
+              contact_id: details.contactId ?? null,
+              organization_id: details.orgId ?? null,
+              notes: details.notes ?? null,
+            });
+            counts.deals++;
+            console.log(`  + lead ${title}`);
+          })
+        : null;
+
+    // Deals first: they say which organization and contact each card belongs to (activities only sometimes do).
+    for (const d of deals) {
+      if (!d.title) continue;
+      await ensurePerson(d.owner);
+      const org = await ensureOrg(d.organization);
+      const contact = await ensureContact(d.contact, { orgId: org?.id, orgName: d.organization });
+      await ensureDeal(d.title, { contactId: contact?.id, orgId: org?.id, notes: dealNotes(d) });
+    }
 
     for (const a of activities) {
       if (!a.subject) continue;
 
-      const personEmail = KNOWN_EMAILS[a.assignedTo.toLowerCase()] ?? assigneeEmail;
-      const person = a.assignedTo
-        ? await findPerson(a.assignedTo, async (id) => {
-            await insert(db, "team_people", { id, tenant_id: T, name: a.assignedTo, email: personEmail, user_id: loginId });
-            counts.people++;
-            console.log(`  + team person ${a.assignedTo}${personEmail ? ` <${personEmail}>` : ""}`);
-          })
-        : null;
-      // An existing person without an email gets it, so the invite still links them.
-      if (person && !person.created && personEmail) {
-        await db.query(`update public.team_people set email = $1, updated_at = now() where tenant_id = $2 and id = $3 and email is null`, [personEmail, T, person.id]);
-      }
-
-      const org = a.organization
-        ? await findOrg(a.organization, async (id) => {
-            await insert(db, "organizations", { id, tenant_id: T, name: a.organization });
-            counts.organizations++;
-            console.log(`  + organization ${a.organization}`);
-          })
-        : null;
-
-      const contactEmail = a.email || KNOWN_EMAILS[a.contact.toLowerCase()] || null;
-      const contact = a.contact
-        ? await findContact(a.contact, async (id) => {
-            await insert(db, "contacts", { id, tenant_id: T, name: a.contact, email: contactEmail, phone: a.phone || null, organization_id: org?.id ?? null });
-            counts.contacts++;
-            console.log(`  + contact ${a.contact}${contactEmail ? ` <${contactEmail}>` : ""}${org ? ` (${a.organization})` : ""}`);
-          })
-        : null;
-
-      const deal = a.deal
-        ? await findDeal(a.deal, async (id) => {
-            await insert(db, "pipeline_items", {
-              id,
-              tenant_id: T,
-              board_id: board.id,
-              title: a.deal,
-              stage: firstStage,
-              contact_id: contact?.id ?? null,
-              organization_id: org?.id ?? null,
-            });
-            counts.deals++;
-            console.log(`  + lead ${a.deal}`);
-          })
-        : null;
+      const person = await ensurePerson(a.assignedTo);
+      const org = await ensureOrg(a.organization);
+      const contact = await ensureContact(a.contact, { email: a.email, phone: a.phone, orgId: org?.id, orgName: a.organization });
+      const deal = await ensureDeal(a.deal, { contactId: contact?.id, orgId: org?.id });
 
       const due = phoenixToUtc(a.due);
       const exists = await db.query(
@@ -316,8 +390,8 @@ async function main() {
     }
 
     console.log(
-      `\n${counts.activities} activities, ${counts.deals} leads, ${counts.contacts} contacts, ${counts.organizations} organizations, ${counts.people} team people` +
-        (counts.skipped ? ` — ${counts.skipped} already there, skipped` : "")
+      `\n${counts.deals} leads, ${counts.activities} activities, ${counts.contacts} contacts, ${counts.organizations} organizations, ${counts.people} team people` +
+        (counts.skipped ? ` — ${counts.skipped} activities already there, skipped` : "")
     );
     await db.query(apply ? "commit" : "rollback");
     console.log(apply ? "Committed." : "Rolled back (dry run). Re-run with IMPORT_APPLY=yes to write it.");

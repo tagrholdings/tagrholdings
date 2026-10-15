@@ -6,6 +6,9 @@ import { Inbox as InboxIcon } from "lucide-react";
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
 import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/ui/pagination";
+import { useFitPageSize } from "@/hooks/ui/use-fit-page-size";
+import { paginate } from "@/utils/pagination";
 import { cn } from "@/lib/utils";
 import { formatDateUS } from "@/utils/date";
 import type { ReceivedEmail, ReceivedEmailDetail } from "@/modules/leads/received-emails";
@@ -17,6 +20,10 @@ const OUTCOME: Record<ReceivedEmail["outcome"], { label: (count: number) => stri
   nothing: { label: () => "No listing found", className: "border-divider bg-transparent text-muted-foreground" },
   failed: { label: () => "Couldn’t be read", className: "border-destructive/40 bg-destructive/10 text-destructive" },
 };
+
+// Table geometry for the one-screen page (see useFitPageSize): a row is two lines (subject + sender).
+const ROW_HEIGHT = 69;
+const RESERVED_HEIGHT = 104;
 
 export function InboxView({
   emails,
@@ -34,12 +41,16 @@ export function InboxView({
   // Set right away so the panel opens on click; its text arrives with the server render the URL change triggers.
   const [selectedId, setSelectedId] = useState<string | null>(opened?.emailId ?? null);
   const selected = emails.find((e) => e.emailId === selectedId) ?? null;
+  const [page, setPage] = useState(1);
+  const { ref: fitRef, pageSize } = useFitPageSize({ rowHeight: ROW_HEIGHT, reserved: RESERVED_HEIGHT });
 
   const select = (emailId: string | null) => {
     setSelectedId(emailId);
     const href = emailId ? `${path("/settings/inbox")}?email=${encodeURIComponent(emailId)}` : path("/settings/inbox");
     startTransition(() => router.replace(href, { scroll: false }));
   };
+
+  const paged = paginate(emails, page, pageSize);
 
   if (emails.length === 0) {
     return (
@@ -62,9 +73,10 @@ export function InboxView({
 
   return (
     // See components/shared/side-panel.tsx — this row lets the opened email push the table aside instead of covering it.
-    <div className="flex min-w-0 flex-1 gap-4">
-      <div className="flex min-w-0 flex-1 flex-col gap-4">
-        <Table data-tour="inbox-table">
+    // The page is one screen tall (HubPage fitViewport): the list pages to fit, and the email scrolls inside its panel.
+    <div className="flex min-h-0 min-w-0 flex-1 gap-4">
+      <div ref={fitRef} className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 md:overflow-hidden">
+        <Table data-tour="inbox-table" className="md:min-h-0 md:overflow-y-auto">
           <TableHeader>
             <tr>
               <TableHead>Email</TableHead>
@@ -76,7 +88,7 @@ export function InboxView({
             </tr>
           </TableHeader>
           <TableBody>
-            {emails.map((email) => {
+            {paged.items.map((email) => {
               const outcome = OUTCOME[email.outcome];
               return (
                 <TableRow
@@ -115,6 +127,7 @@ export function InboxView({
             })}
           </TableBody>
         </Table>
+        <Pagination slice={paged} onPageChange={setPage} noun="emails" className="shrink-0" />
       </div>
       <EmailPanel email={selected} detail={opened?.emailId === selectedId ? opened : null} onOpenChange={(open) => !open && select(null)} />
     </div>
