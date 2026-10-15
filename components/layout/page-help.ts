@@ -562,7 +562,15 @@ const ENTRIES: Entry[] = [
       sections: [
         {
           heading: "What it's for",
-          body: "Turn on push notifications so the CRM can warn you on this device — for example when a new lead arrives — even when the app is closed.",
+          body: "Turn on push notifications so the CRM can reach you on this device even when the app is closed.",
+        },
+        {
+          heading: "What you'll get",
+          body: [
+            "A new task, call or meeting someone assigns to you (or hands over to you) — including L10 To-Dos and Rock to-dos.",
+            "A reminder when a task with \"Enable notification\" comes due.",
+            "A heads-up one hour before your workspace's L10.",
+          ],
         },
         { heading: "Good to know", body: "The setting is per device and browser. If you blocked notifications in the browser, you have to allow them there first." },
       ],

@@ -1,6 +1,8 @@
 "use server";
 
+import { after } from "next/server";
 import { revalidateWorkspace } from "@/lib/revalidate";
+import { notificationsService } from "@/modules/notifications/notifications.service";
 import { protectedAction } from "@/lib/safe-action";
 import { activitiesService } from "./activities.service";
 import { createActivitySchema, setActivityDoneSchema, updateActivityDateSchema, updateActivitySchema } from "./activities.types";
@@ -19,14 +21,19 @@ export const createActivityAction = protectedAction
   .action(async ({ parsedInput, ctx }) => {
     const activity = await activitiesService.create(ctx.user.tenantId, parsedInput, ctx.user.id);
     revalidateActivityPages(ctx.workspace.slug);
+    after(() => notificationsService.notifyAssigned(ctx.user.tenantId, ctx.workspace.slug, [activity], ctx.user));
     return { activity };
   });
 
 export const updateActivityAction = protectedAction
   .schema(updateActivitySchema)
   .action(async ({ parsedInput, ctx }) => {
-    const activity = await activitiesService.update(ctx.user.tenantId, parsedInput);
+    const { previousAssignedToPersonId, ...activity } = await activitiesService.update(ctx.user.tenantId, parsedInput);
     revalidateActivityPages(ctx.workspace.slug);
+    // Only a hand-over is news to the assignee — not every edit of a task already theirs.
+    if (activity.assignedToPersonId !== previousAssignedToPersonId) {
+      after(() => notificationsService.notifyAssigned(ctx.user.tenantId, ctx.workspace.slug, [activity], ctx.user));
+    }
     return { activity };
   });
 

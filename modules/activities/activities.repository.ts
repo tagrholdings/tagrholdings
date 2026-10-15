@@ -78,7 +78,10 @@ export const activitiesRepository = {
   async update(tenantId: string, data: ActivityUpdate) {
     return withTenant(tenantId, async (tx) => {
       const where = and(eq(activitiesTable.tenantId, tenantId), eq(activitiesTable.id, data.id));
-      const [existing] = await tx.select({ dueDate: activitiesTable.dueDate, notify: activitiesTable.notify }).from(activitiesTable).where(where);
+      const [existing] = await tx
+        .select({ dueDate: activitiesTable.dueDate, notify: activitiesTable.notify, assignedToPersonId: activitiesTable.assignedToPersonId })
+        .from(activitiesTable)
+        .where(where);
       if (!existing) return undefined;
 
       const dueChanged = (existing.dueDate?.getTime() ?? null) !== (data.dueDate?.getTime() ?? null);
@@ -103,7 +106,8 @@ export const activitiesRepository = {
         })
         .where(where)
         .returning();
-      return row;
+      // Who it was assigned to before, so the caller can tell a hand-over (worth a push) from an ordinary edit.
+      return row && { ...row, previousAssignedToPersonId: existing.assignedToPersonId };
     });
   },
 

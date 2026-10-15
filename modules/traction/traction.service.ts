@@ -298,14 +298,18 @@ export const tractionService = {
     for (const todo of todos) await assertPerson(tenantId, todo.assignedToPersonId);
 
     await tractionRepository.setIssueStatus(tenantId, input.id, effect.status, input.solution?.trim() || null, { outcome: input.outcome, horizon: effect.horizon });
+    const created = [];
     for (const todo of todos) {
-      await activitiesService.create(
-        tenantId,
-        { type: "task", subject: todo.subject.trim(), dueDate: todo.dueDate ?? null, assignedToPersonId: todo.assignedToPersonId },
-        userId,
-        { l10Todo: true, issueId: input.id }
+      created.push(
+        await activitiesService.create(
+          tenantId,
+          { type: "task", subject: todo.subject.trim(), dueDate: todo.dueDate ?? null, assignedToPersonId: todo.assignedToPersonId },
+          userId,
+          { l10Todo: true, issueId: input.id }
+        )
       );
     }
+    return { todos: created };
   },
 
   async dropIssue(tenantId: string, id: string) {

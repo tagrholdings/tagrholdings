@@ -167,3 +167,35 @@ describe("sendDueL10Reminders", () => {
     expect(sendPush).not.toHaveBeenCalled();
   });
 });
+
+describe("notifyAssigned", () => {
+  const tanner = { id: "u1", name: "Tanner" };
+
+  it("pushes a new task to its assignee's devices, saying who it came from", async () => {
+    await notificationsService.notifyAssigned("t1", "acme", [reminder({ assignedToPersonId: "p2" })], tanner);
+    expect(notificationsRepository.findByUserIds).toHaveBeenCalledWith(["u2"]);
+    expect(sendPush).toHaveBeenCalledWith(
+      expect.objectContaining({ endpoint: "https://fcm.googleapis.com/s1" }),
+      expect.objectContaining({ title: "New call for you", url: "/w/acme/activities?activity=act-1", tag: "activity-assigned-act-1" })
+    );
+    expect(vi.mocked(sendPush).mock.calls[0][1]).toMatchObject({ body: expect.stringContaining("Call the seller") });
+    expect(vi.mocked(sendPush).mock.calls[0][1]).toMatchObject({ body: expect.stringContaining("from Tanner") });
+  });
+
+  it("stays quiet when you assign something to yourself, to someone with no login, or to no one", async () => {
+    await notificationsService.notifyAssigned(
+      "t1",
+      "acme",
+      [reminder({ assignedToPersonId: "p1" }), reminder({ assignedToPersonId: "p-tech" }), reminder({ assignedToPersonId: null })],
+      tanner
+    );
+    expect(sendPush).not.toHaveBeenCalled();
+  });
+
+  it("never throws — a failed push must not undo the save", async () => {
+    vi.mocked(teamService.listPeople).mockRejectedValue(new Error("db down"));
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    await expect(notificationsService.notifyAssigned("t1", "acme", [reminder({ assignedToPersonId: "p2" })], tanner)).resolves.toBeUndefined();
+    spy.mockRestore();
+  });
+});

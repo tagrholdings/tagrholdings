@@ -10,10 +10,20 @@ import { sendEmail } from "@/lib/email/send";
 import { l10ReminderEmail, l10ReminderEmailText } from "@/lib/email/templates/l10-reminder";
 import { crmUrl } from "@/lib/app-url";
 import { workspacePath } from "@/lib/workspace-path";
+import { formatDateUS } from "@/utils/date";
 import { notificationsRepository } from "./notifications.repository";
 import { isAllowedPushEndpoint, type PushPayload, type SubscribePushInput } from "./notifications.types";
 
 type Subscription = Awaited<ReturnType<typeof notificationsRepository.findByUserIds>>[number];
+
+/** What an assignment push needs to know about the activity. */
+export interface AssignedActivity {
+  id: string;
+  type: string;
+  subject: string;
+  dueDate: Date | string | null;
+  assignedToPersonId: string | null;
+}
 
 /** Sends one payload to a set of devices and forgets the ones the push service says are gone. Returns how many got it. */
 async function deliver(subscriptions: Subscription[], payload: PushPayload): Promise<number> {
@@ -49,6 +59,34 @@ export const notificationsService = {
     });
     if (sent === 0) throw new UserFacingError("The test couldn't be delivered. Turn notifications off and on again.");
     return { sent };
+  },
+
+  /**
+   * "You have a new task": a push to the assignee's devices when an activity is created for them or handed to them.
+   * Nothing when it's unassigned, assigned to a contact, assigned to someone with no login, or when people assign
+   * something to themselves. Never throws — a failed push must not undo the save; it's called after the response.
+   */
+  async notifyAssigned(tenantId: string, workspaceSlug: string, activities: AssignedActivity[], actor: { id: string; name: string | null }) {
+    try {
+      const assigned = activities.filter((a) => a.assignedToPersonId);
+      if (assigned.length === 0 || !isPushConfigured()) return;
+      const loginOf = new Map((await teamService.listPeople(tenantId)).map((p) => [p.id, p.userId]));
+      for (const activity of assigned) {
+        const login = loginOf.get(activity.assignedToPersonId!);
+        if (!login || login === actor.id) continue;
+        const subscriptions = await notificationsRepository.findByUserIds([login]);
+        if (subscriptions.length === 0) continue;
+        const due = activity.dueDate ? ` · due ${formatDateUS(activity.dueDate, { month: "short", day: "numeric" })}` : "";
+        await deliver(subscriptions, {
+          title: `New ${(ACTIVITY_TYPE_LABELS[activity.type as keyof typeof ACTIVITY_TYPE_LABELS] ?? "task").toLowerCase()} for you`,
+          body: `${activity.subject}${due}${actor.name ? ` — from ${actor.name}` : ""}`,
+          url: `${workspacePath(workspaceSlug, "/activities")}?activity=${activity.id}`,
+          tag: `activity-assigned-${activity.id}`,
+        });
+      }
+    } catch (error) {
+      console.error("Assignment push failed:", error);
+    }
   },
 
   /**

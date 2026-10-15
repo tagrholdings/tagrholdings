@@ -1,7 +1,9 @@
 "use server";
 
+import { after } from "next/server";
 import { z } from "zod";
 import { revalidateWorkspace } from "@/lib/revalidate";
+import { notificationsService } from "@/modules/notifications/notifications.service";
 import { adminAction, protectedAction } from "@/lib/safe-action";
 import { EOS_CHECKUP_STATEMENTS } from "@/lib/eos-checkup";
 import { portfolioService } from "@/modules/portfolio/portfolio.service";
@@ -128,9 +130,10 @@ export const updateIssueAction = protectedAction.schema(updateIssueSchema).actio
 });
 
 export const resolveIssueAction = protectedAction.schema(resolveIssueSchema).action(async ({ parsedInput, ctx }) => {
-  await tractionService.resolveIssue(ctx.user.tenantId, parsedInput, ctx.user.id);
+  const { todos } = await tractionService.resolveIssue(ctx.user.tenantId, parsedInput, ctx.user.id);
   revalidateTraction(ctx.workspace.slug);
   revalidateWorkspace(ctx.workspace.slug, "/activities");
+  after(() => notificationsService.notifyAssigned(ctx.user.tenantId, ctx.workspace.slug, todos, ctx.user));
   return { success: true };
 });
 
@@ -161,9 +164,10 @@ export const deleteIssueAction = protectedAction.schema(issueIdSchema).action(as
 // ───────────── L10 ─────────────
 
 export const createTodoAction = protectedAction.schema(createTodoSchema).action(async ({ parsedInput, ctx }) => {
-  await tractionService.createTodo(ctx.user.tenantId, parsedInput, ctx.user.id);
+  const todo = await tractionService.createTodo(ctx.user.tenantId, parsedInput, ctx.user.id);
   revalidateTraction(ctx.workspace.slug);
   revalidateWorkspace(ctx.workspace.slug, "/activities");
+  after(() => notificationsService.notifyAssigned(ctx.user.tenantId, ctx.workspace.slug, [todo], ctx.user));
   return { success: true };
 });
 
