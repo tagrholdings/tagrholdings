@@ -3,8 +3,9 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useClosedNavSections } from "@/hooks/ui/use-closed-nav-sections";
 import { NAV_SECTIONS, isNavItemActive, type NavItem } from "@/lib/navigation";
 import { AnimatedWaves } from "@/components/shared/animated-waves";
 import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -53,6 +54,7 @@ export function Sidebar({
   const pathname = usePathname();
   const currentHref = activeHref ?? pathname;
   const workspace = useWorkspace();
+  const [closedSections, toggleSection] = useClosedNavSections();
 
   return (
     <aside
@@ -105,26 +107,42 @@ export function Sidebar({
         </div>
 
         <nav className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-3">
-          {NAV_SECTIONS.map((section, index) => (
-            <div key={section.id} className={cn("space-y-0.5", index > 0 && "mt-4")}>
-              {/* Collapsed, a section's label shrinks to a hairline so the groups still read as two. */}
-              {collapsed ? (
-                index > 0 && <div className="mx-2 mb-3 border-t border-sidebar-border" aria-hidden />
-              ) : (
-                <p className="label-kicker px-3 pb-1 text-sidebar-foreground-muted">{section.label}</p>
-              )}
-              {section.items.map((item) => (
-                <SidebarLink
-                  key={item.href}
-                  item={item}
-                  href={workspacePath(workspace.slug, item.href)}
-                  isActive={isNavItemActive(currentHref, item.href, item.exact)}
-                  badgeCount={item.badgeKey ? badges?.[item.badgeKey] : undefined}
-                  collapsed={collapsed}
-                />
-              ))}
-            </div>
-          ))}
+          {NAV_SECTIONS.map((section, index) => {
+            // Only the expanded sidebar folds sections: the icon rail has no label to click, so it lists everything.
+            const folded = !collapsed && !!section.collapsible && closedSections.has(section.id);
+            // A folded section still shows the page you are on, so the sidebar never loses where you are.
+            const items = folded ? section.items.filter((item) => isNavItemActive(currentHref, item.href, item.exact)) : section.items;
+            return (
+              <div key={section.id} className={cn("space-y-0.5", index > 0 && "mt-4")}>
+                {/* Collapsed, a section's label shrinks to a hairline so the groups still read as two. */}
+                {collapsed ? (
+                  index > 0 && <div className="mx-2 mb-3 border-t border-sidebar-border" aria-hidden />
+                ) : section.collapsible ? (
+                  <button
+                    type="button"
+                    onClick={() => toggleSection(section.id)}
+                    aria-expanded={!folded}
+                    className="label-kicker flex w-full items-center justify-between rounded-md px-3 pb-1 text-sidebar-foreground-muted transition-colors hover:text-sidebar-foreground"
+                  >
+                    {section.label}
+                    <ChevronDown className={cn("size-3.5 transition-transform", folded && "-rotate-90")} aria-hidden />
+                  </button>
+                ) : (
+                  <p className="label-kicker px-3 pb-1 text-sidebar-foreground-muted">{section.label}</p>
+                )}
+                {items.map((item) => (
+                  <SidebarLink
+                    key={item.href}
+                    item={item}
+                    href={workspacePath(workspace.slug, item.href)}
+                    isActive={isNavItemActive(currentHref, item.href, item.exact)}
+                    badgeCount={item.badgeKey ? badges?.[item.badgeKey] : undefined}
+                    collapsed={collapsed}
+                  />
+                ))}
+              </div>
+            );
+          })}
         </nav>
         <div className={cn("mt-auto border-t border-sidebar-border py-4", collapsed ? "px-2" : "px-3")}>
           {/* The avatar is the account menu — it also holds the workspace switcher (same menu as the header's avatar). */}

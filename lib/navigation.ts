@@ -19,6 +19,8 @@ export interface NavSection {
   id: NavSectionId;
   label: string;
   items: NavItem[];
+  /** The desktop Sidebar lets this section fold away under its label (the bottom nav shows one section at a time anyway). */
+  collapsible?: boolean;
 }
 
 /**
@@ -57,8 +59,8 @@ export const EOS_NAV_ITEMS: NavItem[] = [
  */
 export const NAV_SECTIONS: NavSection[] = [
   { id: "crm", label: "CRM", items: NAV_ITEMS },
-  { id: "traction", label: "Traction", items: TRACTION_NAV_ITEMS },
-  { id: "eos", label: "EOS", items: EOS_NAV_ITEMS },
+  { id: "traction", label: "Traction", items: TRACTION_NAV_ITEMS, collapsible: true },
+  { id: "eos", label: "EOS", items: EOS_NAV_ITEMS, collapsible: true },
 ];
 
 /** Bottom nav shows the first N items as tabs; the rest collapse into "More". */
