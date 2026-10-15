@@ -22,6 +22,7 @@ export default async function ActivitiesPage({ params, searchParams }: { params:
     teamService.listOptions(user.tenantId),
     tractionService.listOpenRocks(user.tenantId),
   ]);
+  const me = await teamService.personForUser(user.tenantId, user.id);
 
   return (
     <HubPage
@@ -35,6 +36,7 @@ export default async function ActivitiesPage({ params, searchParams }: { params:
         lookups={{ contacts, organizations, members, pipelineItems, rocks }}
         initialSelectedId={activity ?? null}
         initialFilter={filter}
+        myPersonId={me?.id ?? null}
       />
     </HubPage>
   );

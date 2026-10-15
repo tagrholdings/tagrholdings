@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Mono, Public_Sans, Source_Serif_4 } from "next/font/google";
 import { Toaster } from "@/components/ui/toaster";
+import { ScrollbarAutoHide } from "@/components/shared/scrollbar-autohide";
 import { THEME_COLORS } from "@/lib/theme-colors";
 import "./globals.css";
 
@@ -121,6 +122,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         {children}
         <Toaster />
+        <ScrollbarAutoHide />
       </body>
     </html>
   );

@@ -431,7 +431,7 @@ const ENTRIES: Entry[] = [
           body: [
             "Create an activity and set who does it and when. Whoever you assign it to gets a push right away.",
             "Link it to a lead or project, a person, an organization or a Rock — a Rock's to-dos show here too.",
-            "Filter by Overdue, Today, Next 7 days or Done.",
+            "Filter by Today (the default), Overdue, Next 7 days or Done — and press Only mine to see just what is assigned to you.",
             "Open one to see or edit what it is linked to.",
           ],
         },
@@ -441,6 +441,11 @@ const ENTRIES: Entry[] = [
           target: "activities-filters",
           title: "Finding what needs doing",
           text: "Search by title, contact or lead (on a phone, with the search icon in the header). On the week board you move between weeks and choose which date it follows here; the list can be filtered by Overdue, Today or Next 7 days.",
+        },
+        {
+          target: "activities-mine",
+          title: "Only your tasks",
+          text: "Shows just the activities assigned to you, on the week board and in the list. Press it again to see everyone's.",
         },
         {
           target: "activities-view",

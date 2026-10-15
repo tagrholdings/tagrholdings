@@ -203,6 +203,34 @@ html {
   } 
 }
 
+/* Desktop: thin, low-contrast scrollbars, drawn only while something is scrolling and gone about a second after
+   (components/shared/scrollbar-autohide.tsx sets data-scrolling on the element being scrolled). The rule for phones
+   and the installed app below comes later, so there they stay hidden altogether. */
+@media (min-width: 768px) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+  [data-scrolling] {
+    scrollbar-color: color-mix(in srgb, var(--foreground) 24%, transparent) transparent;
+  }
+  /* Safari, which has no scrollbar-color. */
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 999px;
+  }
+  [data-scrolling]::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--foreground) 24%, transparent);
+  }
+}
+
 /* Phones and the installed app (PWA) show no scrollbars at all — every list, table, tab strip and vault still
    scrolls by touch, the bar just isn't drawn. Desktop browsers keep theirs (there they're how a mouse scrolls). */
 @media (max-width: 767px), (display-mode: standalone) {

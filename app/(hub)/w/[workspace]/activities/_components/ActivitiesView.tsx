@@ -1,7 +1,7 @@
 "use client";
 
 import { useOptimistic, useState, useTransition } from "react";
-import { Bell, CalendarClock, CheckSquare, ChevronLeft, ChevronRight, Gem, LayoutGrid, Link2, List, ListChecks } from "lucide-react";
+import { Bell, CalendarClock, CheckSquare, ChevronLeft, ChevronRight, Gem, LayoutGrid, Link2, List, ListChecks, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { dueBucket, formatDateUS, getCurrentWeekDays, type DueBucket } from "@/utils/date";
 import { useIsMobile } from "@/hooks/ui/use-device";
@@ -93,24 +93,30 @@ export function ActivitiesView({
   activities: initialActivities,
   lookups,
   initialSelectedId,
-  initialFilter = "open",
+  initialFilter,
+  myPersonId,
 }: {
   activities: ActivityRow[];
   lookups: ActivityLookups;
   initialSelectedId: string | null;
   /** `?filter=` from the URL — e.g. "l10" when Traction links to the week's To-Dos. */
   initialFilter?: string;
+  /** The signed-in person's team entry here — what "Only mine" keeps. Null when they have none (a super admin visiting). */
+  myPersonId: string | null;
 }) {
   const isMobile = useIsMobile();
   // A filter in the link (e.g. Traction's "L10 To-Dos") is a list filter, so it opens the List view.
-  const [view, setView] = useState<View | null>(initialFilter !== "open" ? "list" : null);
+  const [view, setView] = useState<View | null>(initialFilter ? "list" : null);
   // Until the user picks one, the default follows the device: List on
   // mobile, Board elsewhere (no effect needed — just derived).
   const resolvedView: View = view ?? (isMobile ? "list" : "board");
 
   const [dateField, setDateField] = useState<WeekDateField>("dueDate");
   const [weekOffset, setWeekOffset] = useState(0);
-  const [filter, setFilter] = useState<(typeof FILTERS)[number]["id"]>(() => FILTERS.find((f) => f.id === initialFilter)?.id ?? "open");
+  const [filter, setFilter] = useState<(typeof FILTERS)[number]["id"]>(() => FILTERS.find((f) => f.id === initialFilter)?.id ?? "today");
+  // "Only mine": just the activities assigned to the signed-in person — on the week board and in the list alike.
+  const [mine, setMine] = useState(false);
+  const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
 
@@ -194,8 +200,9 @@ export function ActivitiesView({
   useHeaderSearch({ placeholder: "Filter by title, contact, lead or project", value: search, onChange: setSearch });
 
   const query = search.trim().toLowerCase();
+  const scoped = mine && myPersonId ? optimisticActivities.filter((a) => a.assignedToPersonId === myPersonId) : optimisticActivities;
   const searched = query
-    ? optimisticActivities.filter(
+    ? scoped.filter(
         (a) =>
           a.subject.toLowerCase().includes(query) ||
           a.contactName?.toLowerCase().includes(query) ||
@@ -203,7 +210,26 @@ export function ActivitiesView({
           a.pipelineItemTitle?.toLowerCase().includes(query) ||
           a.rockTitle?.toLowerCase().includes(query)
       )
-    : optimisticActivities;
+    : scoped;
+
+  const mineToggle = myPersonId ? (
+    <button
+      type="button"
+      data-tour="activities-mine"
+      aria-pressed={mine}
+      onClick={() => {
+        setMine((m) => !m);
+        setPage(1);
+      }}
+      className={cn(
+        "flex h-9 shrink-0 items-center gap-1.5 rounded-pill border px-3 text-xs font-medium whitespace-nowrap transition-colors",
+        mine ? "border-accent bg-accent text-ink" : "border-divider bg-surface text-muted-foreground hover:text-foreground"
+      )}
+    >
+      <UserRound className="size-3.5" aria-hidden />
+      Only mine
+    </button>
+  ) : null;
   const listed = searched
     .filter((a) => matchesFilter(a, filter))
     // Open first, then soonest due; undated last.
@@ -214,7 +240,6 @@ export function ActivitiesView({
       return ad - bd;
     });
 
-  const [page, setPage] = useState(1);
   const { ref: fitRef, pageSize } = useFitPageSize({ rowHeight: ROW_HEIGHT, reserved: RESERVED_HEIGHT });
   const paged = paginate(listed, page, pageSize);
 
@@ -253,6 +278,7 @@ export function ActivitiesView({
 
           {resolvedView === "board" && (
             <>
+              {mineToggle}
               <div className="flex shrink-0 items-center gap-1 rounded-sm border border-divider bg-surface px-1 py-0.5">
                 <button
                   type="button"
@@ -353,6 +379,12 @@ export function ActivitiesView({
             <div
               className="no-scrollbar sticky top-[3.5rem] z-10 flex gap-2 overflow-x-auto bg-background py-2 md:static md:bg-transparent md:py-0 md:pb-0.5"
             >
+              {mineToggle && (
+                <>
+                  {mineToggle}
+                  <span className="my-1 w-px shrink-0 bg-divider" aria-hidden />
+                </>
+              )}
               {FILTERS.map((f) => (
                 <button
                   key={f.id}
