@@ -19,3 +19,31 @@ export function splitLinks(text: string): TextPart[] {
   if (last < text.length) parts.push({ kind: "text", value: text.slice(last) });
   return parts;
 }
+
+/** "elinkdfb.mail.smbdealhunter.xyz" → "smbdealhunter.xyz": the part of a host a person recognises. */
+export function shortHost(href: string): string {
+  try {
+    const labels = new globalThis.URL(href).hostname.replace(/^www\./, "").split(".");
+    return labels.length > 2 ? labels.slice(-2).join(".") : labels.join(".");
+  } catch {
+    return href;
+  }
+}
+
+/**
+ * An email's text (as htmlToText stored it: links kept as `label (url)`) made readable: three or more line breaks
+ * collapse to one blank line, and a link wrapped in parentheses loses them — the caller shows it as a short chip
+ * instead of a wall of tracking URL. Pure.
+ */
+export function readableEmailParts(text: string): TextPart[] {
+  const parts = splitLinks(text.replace(/\r\n?/g, "\n").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim());
+  for (let i = 0; i < parts.length; i++) {
+    const before = parts[i - 1];
+    const after = parts[i + 1];
+    if (parts[i].kind === "link" && before?.kind === "text" && after?.kind === "text" && /\(\s*$/.test(before.value) && /^\s*\)/.test(after.value)) {
+      before.value = before.value.replace(/\s*\(\s*$/, " ");
+      after.value = after.value.replace(/^\s*\)/, "");
+    }
+  }
+  return parts.filter((p) => p.kind === "link" || p.value !== "");
+}

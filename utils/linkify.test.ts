@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { splitLinks } from "./linkify";
+import { readableEmailParts, shortHost, splitLinks } from "./linkify";
 
 describe("splitLinks", () => {
   it("cuts the URLs out of the text, in order", () => {
@@ -23,5 +23,31 @@ describe("splitLinks", () => {
   it("returns plain text untouched", () => {
     expect(splitLinks("no links here")).toEqual([{ kind: "text", value: "no links here" }]);
     expect(splitLinks("")).toEqual([]);
+  });
+});
+
+describe("readableEmailParts", () => {
+  it("drops the parentheses around a label's link and collapses runs of blank lines", () => {
+    expect(readableEmailParts("Helen Guo (https://x.mail.deals.xyz/abc)\n\n\n\nSee you")).toEqual([
+      { kind: "text", value: "Helen Guo " },
+      { kind: "link", href: "https://x.mail.deals.xyz/abc" },
+      { kind: "text", value: "\n\nSee you" },
+    ]);
+  });
+
+  it("leaves a bare link and ordinary parentheses alone", () => {
+    expect(readableEmailParts("Go to https://a.test (today)")).toEqual([
+      { kind: "text", value: "Go to " },
+      { kind: "link", href: "https://a.test" },
+      { kind: "text", value: " (today)" },
+    ]);
+  });
+});
+
+describe("shortHost", () => {
+  it("keeps the part of the host a person recognises", () => {
+    expect(shortHost("https://elinkdfb.mail.smbdealhunter.xyz/ss/c/u001")).toBe("smbdealhunter.xyz");
+    expect(shortHost("https://www.bizbuysell.com/x")).toBe("bizbuysell.com");
+    expect(shortHost("not a url")).toBe("not a url");
   });
 });

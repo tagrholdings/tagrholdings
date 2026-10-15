@@ -6,7 +6,7 @@ import { SidePanel } from "@/components/shared/side-panel";
 import { Vault, VaultContent, VaultHeader, VaultTitle, VaultDescription, VaultBody } from "@/components/ui/vault";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDateUS } from "@/utils/date";
-import { splitLinks } from "@/utils/linkify";
+import { readableEmailParts, shortHost } from "@/utils/linkify";
 import type { ReceivedEmail, ReceivedEmailDetail } from "@/modules/leads/received-emails";
 import { useWorkspacePath } from "@/hooks/ui/use-workspace-path";
 import { useIsMobile } from "@/hooks/ui/use-device";
@@ -59,7 +59,7 @@ export function EmailPanel({
   }
 
   return (
-    <SidePanel open={open} onOpenChange={onOpenChange} title={email?.subject ?? ""} description={description} width={560}>
+    <SidePanel open={open} onOpenChange={onOpenChange} title={email?.subject ?? ""} description={description} width={720}>
       {email && <EmailBody email={email} detail={detail} />}
     </SidePanel>
   );
@@ -78,17 +78,26 @@ function EmailBody({ email, detail }: { email: ReceivedEmail; detail: ReceivedEm
           ))}
         </div>
       ) : detail.body ? (
-        <p className="text-sm leading-relaxed break-words whitespace-pre-wrap text-foreground">
-          {splitLinks(detail.body).map((part, i) =>
+        // Tracking links run to hundreds of characters: each shows as a short chip (its site), the full URL on hover.
+        <div className="max-w-[68ch] text-[15px] leading-7 break-words whitespace-pre-line text-foreground">
+          {readableEmailParts(detail.body).map((part, i) =>
             part.kind === "link" ? (
-              <a key={i} href={part.href} target="_blank" rel="noopener noreferrer" className="break-all text-accent-text hover:text-accent-hover">
-                {part.href}
+              <a
+                key={i}
+                href={part.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={part.href}
+                className="mx-0.5 inline-flex items-center gap-1 rounded-sm border border-divider bg-muted/60 px-1.5 align-baseline text-xs leading-5 font-medium whitespace-nowrap text-accent-text hover:border-accent/50 hover:text-accent-hover"
+              >
+                {shortHost(part.href)}
+                <ExternalLink className="size-3" aria-hidden />
               </a>
             ) : (
               part.value
             )
           )}
-        </p>
+        </div>
       ) : (
         <p className="text-sm text-muted-foreground">
           The text of this email wasn&rsquo;t kept: its first listing was already known from an earlier email, so it wasn&rsquo;t saved again.
