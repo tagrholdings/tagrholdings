@@ -25,6 +25,7 @@ export default async function ActivitiesPage({ params, searchParams }: { params:
 
   return (
     <HubPage
+      fitViewport
       user={{ name: user.name || user.email, initials: initialsFor(user.name || user.email) }}
       kicker="This week"
       title="Activities"

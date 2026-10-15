@@ -59,7 +59,8 @@ function Column({
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
 
   return (
-    <div className="flex w-[250px] shrink-0 flex-col bg-surface/50 rounded-lg p-2">
+    // Every column is the board's full height; its cards scroll inside it (desktop — a phone scrolls the page).
+    <div className="flex w-[250px] shrink-0 flex-col bg-surface/50 rounded-lg p-2 md:min-h-0">
       <div className="mb-3 flex items-center gap-2 px-1">
         <span className={cn("size-2 rounded-full", dotClassName)} />
         <h3 className="font-serif text-xs font-semibold uppercase tracking-wide text-foreground">{column.label}</h3>
@@ -68,7 +69,7 @@ function Column({
       <div
         ref={setNodeRef}
         className={cn(
-          "flex min-h-[120px] flex-1 flex-col gap-2 rounded-lg border border-dashed border-transparent p-1 transition-colors",
+          "flex min-h-[120px] flex-1 flex-col gap-2 rounded-lg border border-dashed border-transparent p-1 transition-colors md:overflow-y-auto",
           isOver && "border-accent/50 bg-accent/5"
         )}
       >
@@ -96,7 +97,7 @@ export function PipelineBoard({ columns, items, progressByItem, onSelect, onMove
     // client — without it the id is a module-level counter that drifts across navigations/hot-reloads and
     // React flags a hydration mismatch (harmless, but noisy) on every page load.
     <DndContext id="pipeline-board-dnd" sensors={sensors} onDragEnd={handleDragEnd}>
-      <div className="kanban-scroll flex flex-1 gap-4 overflow-x-auto pb-2">
+      <div className="kanban-scroll flex min-h-0 flex-1 gap-4 overflow-x-auto pb-2">
         {columns.map((column, index) => (
           <Column
             key={column.id}

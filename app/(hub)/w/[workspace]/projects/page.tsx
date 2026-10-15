@@ -38,6 +38,7 @@ export default async function ProjectsPage({ params, searchParams }: { params: P
 
   return (
     <HubPage
+      fitViewport
       user={{ name: user.name || user.email, initials: initialsFor(user.name || user.email) }}
       kicker="Project boards"
       title="Projects"

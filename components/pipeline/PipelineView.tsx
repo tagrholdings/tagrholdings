@@ -139,8 +139,10 @@ export function PipelineView({
   return (
     // min-w-0 on both this row and the left column is what lets the left
     // side actually shrink when SidePanel opens.
-    <div className="flex min-w-0 flex-1 gap-4">
-      <div className="flex min-w-0 flex-1 flex-col gap-4">
+    // min-h-0 down the chain: on desktop the page is one screen tall (HubPage fitViewport), so the board's columns
+    // and the list scroll inside themselves instead of the page growing to the longest column.
+    <div className="flex min-h-0 min-w-0 flex-1 gap-4">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
         {/*
           The toolbar (and the vault inside it) stays mounted even while the board is empty, so creating the
           first item doesn't unmount the vault mid-animation. On a phone the view toggle and "New …" move up into

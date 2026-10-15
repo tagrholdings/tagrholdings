@@ -6,8 +6,15 @@ import { cn, initialsFor } from "@/lib/utils";
 import { columnDotClassName } from "@/modules/pipeline/pipeline.constants";
 import { Empty, EmptyTitle } from "@/components/ui/empty";
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
+import { Pagination } from "@/components/ui/pagination";
+import { useFitPageSize } from "@/hooks/ui/use-fit-page-size";
+import { paginate } from "@/utils/pagination";
 import { ActivityProgressBadge } from "./ActivityProgressBadge";
 import type { ActivityProgress, PipelineItemRow, BoardColumn } from "./types";
+
+// Table geometry for the one-screen page (see useFitPageSize): one line per row, the contact's initials chip the tallest.
+const ROW_HEIGHT = 58;
+const RESERVED_HEIGHT = 104;
 
 export function PipelineListView({
   columns,
@@ -25,9 +32,12 @@ export function PipelineListView({
 }) {
   const [stageFilter, setStageFilter] = useState<string | "all">("all");
   const filtered = stageFilter === "all" ? items : items.filter((item) => item.stage === stageFilter);
+  const [page, setPage] = useState(1);
+  const { ref: fitRef, pageSize } = useFitPageSize({ rowHeight: ROW_HEIGHT, reserved: RESERVED_HEIGHT });
+  const paged = paginate(filtered, page, pageSize);
 
   return (
-    <div className="flex flex-1 flex-col gap-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       {/* Horizontal scroll, not wrap — a board can have up to 10 stages, and wrapping that many pills to several
           lines on mobile pushed the actual list below the fold. Sticky (mobile only) so the filter stays reachable
           while scrolling a long list, right under PipelineView's own sticky toolbar. */}
@@ -39,7 +49,10 @@ export function PipelineListView({
           <button
             key={column.id}
             type="button"
-            onClick={() => setStageFilter(column.id)}
+            onClick={() => {
+              setStageFilter(column.id);
+              setPage(1);
+            }}
             className={cn(
               "shrink-0 rounded-pill border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors",
               stageFilter === column.id
@@ -60,10 +73,10 @@ export function PipelineListView({
           <EmptyTitle className="text-sm">No items in this stage</EmptyTitle>
         </Empty>
       ) : (
-        <>
+        <div ref={fitRef} className="flex min-h-0 flex-1 flex-col gap-4 md:overflow-hidden">
           {/* Desktop: the full table, one column per field. */}
-          <div className="hidden md:block">
-            <Table>
+          <div className="hidden md:flex md:min-h-0 md:flex-1 md:flex-col">
+            <Table className="md:min-h-0 md:overflow-y-auto">
               <TableHeader>
                 <tr>
                   <TableHead>Title</TableHead>
@@ -74,7 +87,7 @@ export function PipelineListView({
                 </tr>
               </TableHeader>
               <TableBody>
-                {filtered.map((item) => {
+                {paged.items.map((item) => {
                   const columnIndex = columns.findIndex((c) => c.id === item.stage);
                   const progress = progressByItem[item.id];
                   const isOptimistic = item.id.startsWith("optimistic-");
@@ -130,7 +143,7 @@ export function PipelineListView({
             the default mobile view (see design.md).
           */}
           <ul className="flex flex-col gap-2 md:hidden">
-            {filtered.map((item) => {
+            {paged.items.map((item) => {
               const columnIndex = columns.findIndex((c) => c.id === item.stage);
               const progress = progressByItem[item.id];
               const isOptimistic = item.id.startsWith("optimistic-");
@@ -158,7 +171,8 @@ export function PipelineListView({
               );
             })}
           </ul>
-        </>
+          <Pagination slice={paged} onPageChange={setPage} noun="items" className="shrink-0" />
+        </div>
       )}
     </div>
   );

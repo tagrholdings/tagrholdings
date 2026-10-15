@@ -25,7 +25,14 @@ import { ActivityDetailPanel } from "@/components/shared/activity-detail-panel";
 import { ACTIVITY_TYPE_ICONS, buildOptimisticActivity, type ActivityLookups } from "@/components/shared/activity-form";
 import { createActivityAction, setActivityDoneAction, updateActivityDateAction } from "@/modules/activities/activities.actions";
 import type { ActivityRow, NewActivity } from "@/modules/activities/activities.types";
+import { Pagination } from "@/components/ui/pagination";
+import { useFitPageSize } from "@/hooks/ui/use-fit-page-size";
+import { paginate } from "@/utils/pagination";
 import { WeekBoard, type WeekDateField } from "./WeekBoard";
+
+// List geometry for the one-screen page (see useFitPageSize): a row is two lines (title + context).
+const ROW_HEIGHT = 66;
+const RESERVED_HEIGHT = 56;
 
 type View = "board" | "list";
 
@@ -207,6 +214,10 @@ export function ActivitiesView({
       return ad - bd;
     });
 
+  const [page, setPage] = useState(1);
+  const { ref: fitRef, pageSize } = useFitPageSize({ rowHeight: ROW_HEIGHT, reserved: RESERVED_HEIGHT });
+  const paged = paginate(listed, page, pageSize);
+
   const days = getCurrentWeekDays(new Date(), weekOffset);
   const weekLabel =
     weekOffset === 0
@@ -218,8 +229,10 @@ export function ActivitiesView({
   return (
     // See components/shared/side-panel.tsx — this row is what lets opening
     // an activity's detail panel push/shrink the content instead of overlaying it.
-    <div className="flex min-w-0 flex-1 gap-4">
-      <div className="flex min-w-0 flex-1 flex-col sm:gap-4 gap-0">
+    // min-h-0 down the chain: on desktop the page is one screen tall (HubPage fitViewport) and the week's columns
+    // and the list scroll inside themselves.
+    <div className="flex min-h-0 min-w-0 flex-1 gap-4">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col sm:gap-4 gap-0">
         {/* Sticky + horizontal-scroll only where the page scrolls (phones); on desktop it just wraps, as before. The
             view toggle and "New" move up into the phone header (page-slots.tsx), so in the list view — where the
             only things left are the search (also in the header) — this row would be empty on a phone. */}
@@ -344,7 +357,10 @@ export function ActivitiesView({
                 <button
                   key={f.id}
                   type="button"
-                  onClick={() => setFilter(f.id)}
+                  onClick={() => {
+                    setFilter(f.id);
+                    setPage(1);
+                  }}
                   className={cn(
                     "shrink-0 rounded-pill border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors",
                     filter === f.id
@@ -363,8 +379,9 @@ export function ActivitiesView({
                 <EmptyTitle className="text-sm">Nothing in this filter</EmptyTitle>
               </Empty>
             ) : (
-              <ul className="divide-y divide-divider rounded-lg border border-divider bg-surface">
-                {listed.map((activity) => {
+              <div ref={fitRef} className="flex min-h-0 flex-1 flex-col gap-4 md:overflow-hidden">
+              <ul className="divide-y divide-divider rounded-lg border border-divider bg-surface md:min-h-0 md:overflow-y-auto">
+                {paged.items.map((activity) => {
                   const Icon = ACTIVITY_TYPE_ICONS[activity.type] ?? CheckSquare;
                   const overdue = !activity.done && dueBucket(activity.dueDate) === "overdue";
                   const isOptimistic = activity.id.startsWith("optimistic-");
@@ -460,6 +477,8 @@ export function ActivitiesView({
                   );
                 })}
               </ul>
+              <Pagination slice={paged} onPageChange={setPage} noun="activities" className="shrink-0" />
+              </div>
             )}
           </>
         )}
