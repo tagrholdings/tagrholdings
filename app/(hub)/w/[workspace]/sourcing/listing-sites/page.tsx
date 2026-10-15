@@ -2,7 +2,7 @@ import { getWorkspace } from "@/lib/auth-server";
 import { HubPage } from "@/components/layout/HubPage";
 import { listingSitesService } from "@/modules/listing-sites/listing-sites.service";
 import { initialsFor } from "@/lib/utils";
-import { LeadsInboxTabs } from "../_components/LeadsInboxTabs";
+import { SourcingTabs } from "../_components/SourcingTabs";
 import { ListingSitesView } from "./_components/ListingSitesView";
 
 export const dynamic = "force-dynamic";
@@ -17,10 +17,10 @@ export default async function ListingSitesPage({ params }: { params: Promise<{ w
     <HubPage
       fitViewport
       user={{ name: user.name || user.email, initials: initialsFor(user.name || user.email) }}
-      kicker="Lead engine"
+      kicker="Sourcing"
       title="Listing sites"
     >
-      <LeadsInboxTabs active="listing-sites" />
+      <SourcingTabs active="listing-sites" />
       <ListingSitesView sites={sites} />
     </HubPage>
   );

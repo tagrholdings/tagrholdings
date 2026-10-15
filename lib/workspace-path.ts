@@ -38,7 +38,7 @@ export function switchWorkspacePath(pathname: string | null | undefined, nextSlu
 }
 
 /** The hub sections that live under a workspace — also what the legacy (pre-workspace) URLs map from. */
-export const WORKSPACE_SECTIONS = ["activities", "contacts", "pipeline", "leads", "leads-inbox", "settings", "docs"] as const;
+export const WORKSPACE_SECTIONS = ["activities", "contacts", "pipeline", "leads", "sourcing", "leads-inbox", "settings", "docs"] as const;
 
 /** Is `path` ("/contacts/12") inside one of the workspace sections? Guards redirects built from user-supplied paths. */
 export function isWorkspaceSectionPath(path: string): boolean {

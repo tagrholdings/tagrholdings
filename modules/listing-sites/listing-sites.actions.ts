@@ -5,7 +5,7 @@ import { protectedAction } from "@/lib/safe-action";
 import { listingSitesService } from "./listing-sites.service";
 import { createListingSiteSchema, setListingSiteActiveSchema } from "./listing-sites.types";
 
-const PAGE = "/leads-inbox/listing-sites";
+const PAGE = "/sourcing/listing-sites";
 
 export const createListingSiteAction = protectedAction.schema(createListingSiteSchema).action(async ({ parsedInput, ctx }) => {
   const site = await listingSitesService.create(ctx.user.tenantId, parsedInput);

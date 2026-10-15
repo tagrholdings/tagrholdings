@@ -11,7 +11,7 @@ export const promoteRawLeadAction = protectedAction
   .schema(promoteRawLeadSchema)
   .action(async ({ parsedInput, ctx }) => {
     const item = await leadsService.promote(ctx.user.tenantId, parsedInput.id, { title: parsedInput.title });
-    revalidateWorkspace(ctx.workspace.slug, "/leads-inbox");
+    revalidateWorkspace(ctx.workspace.slug, "/sourcing");
     revalidateWorkspace(ctx.workspace.slug, "/leads");
     revalidateWorkspace(ctx.workspace.slug, "/contacts");
     return { pipelineItemId: item.id };
@@ -21,7 +21,7 @@ export const dismissRawLeadAction = protectedAction
   .schema(rawLeadIdSchema)
   .action(async ({ parsedInput, ctx }) => {
     await leadsService.dismiss(ctx.user.tenantId, parsedInput.id);
-    revalidateWorkspace(ctx.workspace.slug, "/leads-inbox");
+    revalidateWorkspace(ctx.workspace.slug, "/sourcing");
     return { success: true };
   });
 
@@ -29,18 +29,18 @@ export const restoreRawLeadAction = protectedAction
   .schema(rawLeadIdSchema)
   .action(async ({ parsedInput, ctx }) => {
     await leadsService.restore(ctx.user.tenantId, parsedInput.id);
-    revalidateWorkspace(ctx.workspace.slug, "/leads-inbox");
+    revalidateWorkspace(ctx.workspace.slug, "/sourcing");
     return { success: true };
   });
 
 /**
- * Leads Inbox quick-add (a pasted link or text). The Server Action entry point of the same ingestion service
+ * Sourcing quick-add (a pasted link or text). The Server Action entry point of the same ingestion service
  * POST /api/leads/ingest uses — tenant from the session, never from the client.
  */
 export const quickAddLeadAction = protectedAction
   .schema(quickAddLeadSchema)
   .action(async ({ parsedInput, ctx }) => {
     const result = await leadsIngestService.quickAdd(ctx.user.tenantId, parsedInput.input);
-    revalidateWorkspace(ctx.workspace.slug, "/leads-inbox");
+    revalidateWorkspace(ctx.workspace.slug, "/sourcing");
     return result;
   });

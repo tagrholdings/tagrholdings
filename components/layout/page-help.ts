@@ -58,7 +58,7 @@ export interface PageHelp {
 }
 
 interface HelpContext {
-  /** The dedicated leads inbox address (INBOUND_LEADS_ADDRESS), when configured. */
+  /** This workspace's inbox address (where listing emails are sent), when configured. */
   inboxAddress: string | null;
 }
 
@@ -84,14 +84,14 @@ const NAV_SWITCH: TourStep = {
 
 const ENTRIES: Entry[] = [
   {
-    path: "/leads-inbox",
+    path: "/sourcing",
     build: () => ({
-      title: "Leads Inbox",
-      summary: "The review queue for everything the lead engine found: businesses for sale, and businesses in your area.",
+      title: "Sourcing · Review",
+      summary: "The review queue for every business Sourcing found: businesses for sale, and businesses in your area.",
       sections: [
         {
           heading: "What it's for",
-          body: "Nothing here is in your pipeline yet. You look at what the engine (or an email, or you) brought in and decide what deserves attention.",
+          body: "Sourcing is where deals are found before you work them. Nothing in Review is in your pipeline yet: you look at what the engine, an email or you brought in, and decide what deserves attention.",
         },
         {
           heading: "What you can do",
@@ -115,32 +115,32 @@ const ENTRIES: Entry[] = [
           target: "nav-sidebar",
           only: "desktop",
           title: "Getting around",
-          text: "Everything starts here, in three groups: CRM (the Leads Inbox for new finds, Leads for deals you are working, and more), Traction (the weekly rhythm: Scorecard, Rocks, Issues, the L10) and EOS (Vision, People and Process).",
+          text: "Everything starts here, in three groups: CRM (Sourcing for new finds, Leads for the deals you are working, Projects, Activities and Contacts), Traction (the weekly rhythm: Scorecard, Rocks, Issues, the L10) and EOS (Vision, People, Process and the Checkup). Click Traction or EOS to fold a group away; your avatar at the bottom opens your profile, settings and workspaces.",
         },
         {
           target: "nav-bottom",
           only: "mobile",
           title: "Getting around",
-          text: "These icons switch between the main parts of the CRM: the inbox of new finds, the leads you are working, and more. Pull the bar down (drag it toward the bottom of the screen) to move to Traction's pages, again for EOS, and once more to come back. Your avatar on the far right opens the account menu: settings, workspaces, dark mode and sign out.",
+          text: "These icons switch between the main parts of the CRM: Sourcing's new finds, the leads you are working, and more. Pull the bar down (drag it toward the bottom of the screen) to move to Traction's pages, again for EOS, and once more to come back. Your avatar on the far right opens the account menu: profile, settings, workspaces, dark mode and sign out.",
         },
         {
-          target: "leads-inbox-tabs",
-          title: "The lead engine's pages",
-          text: "Inbox is this list. Search profiles says what to look for and where; Listing sites and Email sources are where the businesses for sale come from. On a phone, each page's add button sits right beside these tabs.",
+          target: "sourcing-tabs",
+          title: "Sourcing's pages",
+          text: "Review is this list. Emails shows every email the inbox received; Search profiles says what to look for and where; Listing sites and Email sources are where the businesses for sale come from. On a phone, each page's add button sits right beside these tabs.",
         },
         {
-          target: "leads-inbox-table",
-          title: "What the engine found",
+          target: "sourcing-table",
+          title: "What was found",
           text: "One row per business. The badges tell you how well it matches your requirements and whether it is really in your area — neither ever hides a lead.",
           demo: { kind: "table", columns: ["Business", "Location", "Fit"] },
         },
         {
-          target: "leads-inbox-filters",
+          target: "sourcing-filters",
           title: "Narrowing the list",
           text: "Search by name or city, then use the Sort and Found buttons to show the best matches first or only what showed up recently. On a phone this toolbar scrolls sideways if it doesn't all fit.",
         },
         {
-          target: "leads-inbox-add",
+          target: "sourcing-add",
           title: "Something you found yourself",
           text: "Paste a link or some text and it is added as a lead, read by the AI like any other. On a phone this is the + button beside the tabs, and you can also share a page straight into the CRM.",
           demo: { kind: "vault", fields: ["Link or text of the listing"], button: "Add" },
@@ -150,7 +150,45 @@ const ENTRIES: Entry[] = [
     }),
   },
   {
-    path: "/leads-inbox/profiles",
+    path: "/sourcing/emails",
+    build: ({ inboxAddress }) => ({
+      title: "Sourcing · Emails",
+      summary: "Every email the workspace's inbox received, and the businesses for sale the AI read out of each one.",
+      sections: [
+        {
+          heading: "What it's for",
+          body: `Every email sent to ${
+            inboxAddress ?? "the workspace's inbox address"
+          } shows up here. Each business found in an email also becomes a lead in Review. Emails from sites you signed up to (see Email sources) arrive on their own — you can also forward a listing email yourself.`,
+        },
+        {
+          heading: "The results",
+          body: [
+            "N listings: the AI found businesses for sale in the email.",
+            "No listing found: it was read, but it had no business for sale (a welcome message, a promotion). It is kept as one lead.",
+            "Couldn't be read: the automatic reading failed; read the email here and add any business by hand.",
+          ],
+        },
+        { heading: "If nothing arrives", body: "Check that the Resend webhook is registered and that the address above is the one you signed up with." },
+      ],
+      tour: [
+        {
+          target: "sourcing-tabs",
+          title: "Where this sits",
+          text: "Emails is the record of what arrived by email. The businesses found in them wait in Review, like every other find.",
+        },
+        {
+          target: "inbox-table",
+          title: "Every email that arrived",
+          text: "One row per message, with what the AI found in it. Click one (or Open) to read the email beside the list — its links show as short chips — with the businesses it read out.",
+          demo: { kind: "table", columns: ["Email", "Result", "Received"] },
+        },
+        HELP_AGAIN,
+      ],
+    }),
+  },
+  {
+    path: "/sourcing/profiles",
     build: () => ({
       title: "Search profiles",
       summary: "A saved description of what to look for and where. The engine runs each active profile on a schedule.",
@@ -196,7 +234,7 @@ const ENTRIES: Entry[] = [
     }),
   },
   {
-    path: "/leads-inbox/listing-sites",
+    path: "/sourcing/listing-sites",
     build: () => ({
       title: "Listing sites",
       summary: "The business brokers whose websites the engine reads to find businesses that are for sale.",
@@ -215,7 +253,7 @@ const ENTRIES: Entry[] = [
         },
         {
           heading: "Sites that don't let the engine in",
-          body: "Some sites turn away automatic visitors (they show an “are you human?” check, or ask robots to stay out). The engine never tries to get around that. The site is flagged so you can open it yourself — and if it has an email list for new listings, add it under Email sources so those emails reach the inbox.",
+          body: "Some sites turn away automatic visitors (they show an “are you human?” check, or ask robots to stay out). The engine never tries to get around that. The site is flagged so you can open it yourself — and if it has an email list for new listings, add it under Email sources so those emails reach the workspace's inbox.",
         },
       ],
       tour: [
@@ -246,16 +284,16 @@ const ENTRIES: Entry[] = [
     }),
   },
   {
-    path: "/leads-inbox/email-sources",
+    path: "/sourcing/email-sources",
     build: ({ inboxAddress }) => ({
       title: "Email sources",
-      summary: "Listing sites that send their listings by email, and whether the leads inbox is subscribed to each one.",
+      summary: "Listing sites that send their listings by email, and whether the workspace's inbox is subscribed to each one.",
       sections: [
         {
           heading: "What it's for",
-          body: `Some sites only send their listings by email. List them here and point their signup at the leads inbox${
+          body: `Some sites only send their listings by email. List them here and point their signup at the workspace's inbox address${
             inboxAddress ? ` (${inboxAddress})` : ""
-          }: every email that arrives there is read automatically and becomes a lead. Read the results under Settings → Inbox.`,
+          }: every email that arrives there is read automatically and becomes a lead in Review. Read the emails themselves under Emails.`,
         },
         {
           heading: "Signing up",
@@ -296,7 +334,7 @@ const ENTRIES: Entry[] = [
       sections: [
         {
           heading: "What it's for",
-          body: "Leads arrive here from the Leads Inbox when you choose Add to pipeline (or you create one directly). Each card moves across stages as the conversation with the seller advances.",
+          body: "Leads arrive here from Sourcing when you choose Add to pipeline in Review (or you create one directly). Each card moves across stages as the conversation with the seller advances.",
         },
         {
           heading: "What you can do",
@@ -311,7 +349,7 @@ const ENTRIES: Entry[] = [
         {
           target: "pipeline-board",
           title: "Your deals, stage by stage",
-          text: "Every lead you promoted from the inbox lands here. Drag a card to the next column as the conversation with the seller moves forward. Open one and press Edit details to change its title, organization, contact or notes.",
+          text: "Every lead you promoted from Sourcing lands here. Drag a card to the next column as the conversation with the seller moves forward. Open one and press Edit details to change its title, organization, contact or notes.",
           demo: { kind: "board", columns: ["Sourced", "Outreach", "In Discussion"] },
         },
         {
@@ -322,7 +360,7 @@ const ENTRIES: Entry[] = [
         {
           target: "pipeline-create",
           title: "Add a lead directly",
-          text: "Already know who you want to pursue? Create it here instead of going through the inbox — you can set its stage, and attach a contact or organization right away. On a phone it is the + button in the header, next to search.",
+          text: "Already know who you want to pursue? Create it here instead of going through Sourcing — you can set its stage, and attach a contact or organization right away. On a phone it is the + button in the header, next to search.",
           demo: { kind: "vault", fields: ["Title"], button: "Create lead" },
         },
         HELP_AGAIN,
@@ -388,7 +426,15 @@ const ENTRIES: Entry[] = [
           heading: "What it's for",
           body: "A single place to see what needs doing this week and to keep a history of what was done, linked to the leads, contacts and organizations it concerns.",
         },
-        { heading: "What you can do", body: ["Create an activity and set who does it and when.", "Filter by Overdue, Today, Next 7 days or Done.", "Open one to see or edit what it is linked to."] },
+        {
+          heading: "What you can do",
+          body: [
+            "Create an activity and set who does it and when. Whoever you assign it to gets a push right away.",
+            "Link it to a lead or project, a person, an organization or a Rock — a Rock's to-dos show here too.",
+            "Filter by Overdue, Today, Next 7 days or Done.",
+            "Open one to see or edit what it is linked to.",
+          ],
+        },
       ],
       tour: [
         {
@@ -404,13 +450,13 @@ const ENTRIES: Entry[] = [
         {
           target: "activities-list",
           title: "The list",
-          text: "Tick one off when it's done. Open one and press Edit activity to change its title, date, who does it, or the lead and contact it belongs to.",
+          text: "Tick one off when it's done. Open one and press Edit activity to change its title, date, who does it, or what it belongs to. A long list is split into pages that fit the screen.",
           demo: { kind: "table", columns: ["Title", "Due", "Status"] },
         },
         {
           target: "activities-create",
           title: "Add one",
-          text: "Log a call you just had, or plan the next step. Turn on “Enable notification” and the CRM reminds you when it's due. An activity can be attached to a lead, a contact or an organization. On a phone it is the + button in the header.",
+          text: "Log a call you just had, or plan the next step. Assign it to a teammate and they get a push right away; turn on “Enable notification” and the CRM reminds whoever does it when it's due. It can be attached to a lead or project, a contact, an organization or a Rock. On a phone it is the + button in the header.",
           demo: { kind: "vault", fields: ["Title", "Due date"], checkbox: "Enable notification", button: "Create activity" },
         },
         HELP_AGAIN,
@@ -450,7 +496,7 @@ const ENTRIES: Entry[] = [
         {
           target: "contacts-create",
           title: "Add someone",
-          text: "Add a person or a company by hand. Promoting a lead from the inbox also creates these for you automatically.",
+          text: "Add a person or a company by hand. Promoting a lead from Sourcing also creates these for you automatically.",
           demo: { kind: "vault", fields: ["Name", "Email"], button: "Create contact" },
         },
         HELP_AGAIN,
@@ -511,44 +557,6 @@ const ENTRIES: Entry[] = [
           title: "Calls, meetings and tasks",
           text: "Everything planned or done with them, open ones first. The badge counts how many are finished. Open one to edit it or tick it done.",
           demo: { kind: "table", columns: ["Title", "Type", "Due"] },
-        },
-        HELP_AGAIN,
-      ],
-    }),
-  },
-  {
-    path: "/settings/inbox",
-    build: ({ inboxAddress }) => ({
-      title: "Inbox",
-      summary: "Every email the leads inbox received, and the businesses for sale the AI read out of each one.",
-      sections: [
-        {
-          heading: "What it's for",
-          body: `Every email sent to ${
-            inboxAddress ?? "the leads inbox address"
-          } shows up here. Each business found in an email also becomes a lead in the Leads Inbox. Emails from sites you signed up to (see Email sources) arrive on their own — you can also forward a listing email yourself.`,
-        },
-        {
-          heading: "The results",
-          body: [
-            "N listings: the AI found businesses for sale in the email.",
-            "No listing found: it was read, but it had no business for sale (a welcome message, a promotion). It is kept as one lead.",
-            "Couldn't be read: the automatic reading failed; open it in the Leads Inbox.",
-          ],
-        },
-        { heading: "If nothing arrives", body: "Check that the Resend webhook is registered and that the address above is the one you signed up with." },
-      ],
-      tour: [
-        {
-          target: "settings-tabs",
-          title: "Where this sits",
-          text: "Inbox is one of the settings pages. It is the record of what arrived by email — the leads themselves live in the Leads Inbox.",
-        },
-        {
-          target: "inbox-table",
-          title: "Every email that arrived",
-          text: "One row per message, with what the AI found in it. Click one (or Open) to read the email beside the list, with the businesses it read out.",
-          demo: { kind: "table", columns: ["Email", "Result", "Received"] },
         },
         HELP_AGAIN,
       ],
@@ -616,6 +624,11 @@ const ENTRIES: Entry[] = [
         { heading: "Good to know", body: "The setting is per device and browser. If you blocked notifications in the browser, you have to allow them there first." },
       ],
       tour: [
+        {
+          target: "settings-tabs",
+          title: "The settings pages",
+          text: "Notifications and Application are about this device. Members, Invites, Workspace and Engine spend are for admins. Your own name and email are on your Profile, in the account menu; received emails moved to Sourcing → Emails.",
+        },
         {
           target: "notifications-toggle",
           title: "Alerts on this device",
@@ -689,11 +702,11 @@ const ENTRIES: Entry[] = [
     path: "/settings/workspace",
     build: () => ({
       title: "Workspace",
-      summary: "This workspace's own leads inbox address, and who its email signups sign up as.",
+      summary: "This workspace's own inbox address, and who its email signups sign up as.",
       sections: [
         {
-          heading: "The leads inbox address",
-          body: "Each workspace has its own address. Anything sent to it becomes leads here and nowhere else, and it is the address the engine uses to subscribe to listing sites.",
+          heading: "The inbox address",
+          body: "Each workspace has its own address. Anything sent to it shows up under Sourcing → Emails and becomes leads in this workspace only. It is also the address the engine uses to subscribe to listing sites.",
         },
         {
           heading: "Who the engine signs up as",
@@ -908,7 +921,7 @@ const ENTRIES: Entry[] = [
         {
           target: "rocks-list",
           title: "The quarter's Rocks",
-          text: "Company Rocks first, then each person's individual Rocks. Each shows its owner, finish line, due date, status and the 1-Year goal it moves.",
+          text: "Company Rocks first, then each person's individual Rocks. Each shows its owner, finish line, due date, status, the 1-Year goal it moves and how many of its to-dos are done. Click one to edit it and break it into milestones and to-dos.",
           demo: { kind: "table", columns: ["Rock", "Owner", "Status"] },
         },
         {
@@ -1162,7 +1175,7 @@ const ENTRIES: Entry[] = [
         {
           target: "vto-edit",
           title: "Edit the V/TO",
-          text: "Update it at each quarterly. Core values take their behaviors, goals are one per row, dates use a date picker, and money takes an amount like 600000 or 3M.",
+          text: "Update it at each quarterly. Core values take their behaviors, goals are one per row, dates use a date picker, and money takes an amount like 600000 or 3M. While parts are still empty, a banner above offers the step-by-step guided setup.",
         },
         HELP_AGAIN,
       ],

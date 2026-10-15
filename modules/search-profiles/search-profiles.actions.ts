@@ -9,7 +9,7 @@ export const createSearchProfileAction = protectedAction
   .schema(createSearchProfileSchema)
   .action(async ({ parsedInput, ctx }) => {
     const profile = await searchProfilesService.create(ctx.user.tenantId, parsedInput);
-    revalidateWorkspace(ctx.workspace.slug, "/leads-inbox/profiles");
+    revalidateWorkspace(ctx.workspace.slug, "/sourcing/profiles");
     return { profile };
   });
 
@@ -18,7 +18,7 @@ export const updateSearchProfileAction = protectedAction
   .action(async ({ parsedInput, ctx }) => {
     const { id, ...data } = parsedInput;
     const profile = await searchProfilesService.update(ctx.user.tenantId, id, data);
-    revalidateWorkspace(ctx.workspace.slug, "/leads-inbox/profiles");
+    revalidateWorkspace(ctx.workspace.slug, "/sourcing/profiles");
     return { profile };
   });
 
@@ -27,6 +27,6 @@ export const runSearchProfileNowAction = protectedAction
   .schema(searchProfileIdSchema)
   .action(async ({ parsedInput, ctx }) => {
     const { dispatch } = await searchProfilesService.requestRun(ctx.user.tenantId, parsedInput.id);
-    revalidateWorkspace(ctx.workspace.slug, "/leads-inbox/profiles");
+    revalidateWorkspace(ctx.workspace.slug, "/sourcing/profiles");
     return { dispatch };
   });

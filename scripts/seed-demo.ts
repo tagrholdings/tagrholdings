@@ -6,7 +6,7 @@ import { DEFAULT_BOARD_COLUMNS, DEFAULT_BOARD_NAME } from "../modules/pipeline/p
  * Fills an (already wiped) DEVELOPMENT database with believable demo data, for previews and demos: three workspaces —
  * "Tagr Holdings" (everything), "Menlo CRE" (a little) and "Menlo Dental Transitions" (empty, to show the empty pages).
  * It makes up leads, contacts, organizations, a Leads board and several projects, activities of every kind, search
- * profiles with their runs and spend, listing sites, email sources, discovered leads waiting in the Leads Inbox and
+ * profiles with their runs and spend, listing sites, email sources, discovered leads waiting in Sourcing and
  * emails received in Settings → Inbox.
  *
  * Like scripts/migrate-explicit.ts it never reads the repo's env files or `.neon`: you type the database, and the host
@@ -463,7 +463,7 @@ async function seedTagr({ db, tenantId, adminId }: Ctx) {
   await insert(db, "invites", { id: randomUUID(), tenant_id: T, email: "casey@tagrholdings.example", role: "admin", token_hash: randomBytes(32).toString("hex"), invited_by_user_id: adminId, expires_at: at(3), last_sent_at: at(10), created_at: at(10) });
   await insert(db, "invites", { id: randomUUID(), tenant_id: T, email: "former.intern@example.com", role: "member", token_hash: randomBytes(32).toString("hex"), invited_by_user_id: adminId, expires_at: at(30), revoked_at: at(20), last_sent_at: at(35), created_at: at(35) });
 
-  // Discovered leads (the Leads Inbox)
+  // Discovered leads (Sourcing)
   type Source = "broker_listings" | "google_places" | "marketplace_scrape" | "brave_search" | "manual_assist";
   interface Lead {
     source: Source;

@@ -13,7 +13,7 @@ export interface LinkTab<Id extends string = string> {
 
 /**
  * Sub-navigation as real links (each tab is its own route with its own server data), styled like
- * SegmentedControl. `href`s are workspace-relative ("/settings/inbox"); the current workspace is added here. Labels never wrap: when the tabs don't fit the
+ * SegmentedControl. `href`s are workspace-relative ("/sourcing/emails"); the current workspace is added here. Labels never wrap: when the tabs don't fit the
  * screen the strip scrolls sideways instead of squeezing them into two-line pills.
  */
 export function LinkTabs<Id extends string>({

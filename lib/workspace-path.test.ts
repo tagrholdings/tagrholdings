@@ -26,14 +26,15 @@ describe("workspace paths", () => {
 
   it("only redirects to the hub's own sections (the `to` of /home is user-supplied)", () => {
     expect(isWorkspaceSectionPath("/contacts/12?x=1")).toBe(true);
-    expect(isWorkspaceSectionPath("/leads-inbox")).toBe(true);
+    expect(isWorkspaceSectionPath("/sourcing")).toBe(true);
+    expect(isWorkspaceSectionPath("/leads-inbox")).toBe(true); // legacy, redirected to /sourcing
     for (const bad of ["//evil.test", "https://evil.test", "/admin", "/api/x", "contacts", ""]) expect(isWorkspaceSectionPath(bad)).toBe(false);
   });
 
   it("nav items are active inside any workspace", () => {
     expect(isNavItemActive("/w/acme/contacts", "/contacts")).toBe(true);
     expect(isNavItemActive("/w/acme/contacts/12", "/contacts")).toBe(true);
-    expect(isNavItemActive("/w/acme/leads-inbox", "/leads")).toBe(false);
+    expect(isNavItemActive("/w/acme/sourcing", "/leads")).toBe(false);
     expect(isNavItemActive(null, "/contacts")).toBe(false);
   });
 });

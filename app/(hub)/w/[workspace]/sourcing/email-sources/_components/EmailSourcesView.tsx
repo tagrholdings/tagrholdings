@@ -106,7 +106,7 @@ export function EmailSourcesView({ sources, inboxAddress }: { sources: EmailSour
             {handoff.length === 1 ? "1 site needs to be signed up to by hand" : `${handoff.length} sites need to be signed up to by hand`}
           </p>
           <p className="mt-0.5 text-muted-foreground">
-            The engine doesn&rsquo;t solve captchas, accept NDAs or terms, or make up answers. Open each site below, sign up with the leads inbox address
+            The engine doesn&rsquo;t solve captchas, accept NDAs or terms, or make up answers. Open each site below, sign up with the inbox address
             {inboxAddress ? <> ({inboxAddress})</> : null}, then click &ldquo;Mark subscribed&rdquo;.
           </p>
           <FlaggedList

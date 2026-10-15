@@ -45,7 +45,7 @@ const headcount = z.number().int().min(0).max(1_000_000);
  * blank means "no requirement". Amounts are whole US dollars per year.
  *
  * These ANNOTATE leads (a Match / Partial / Miss / Unknown "fit" badge on the
- * Leads Inbox); they never discard one. Most sources don't state revenue at
+ * Sourcing); they never discard one. Most sources don't state revenue at
  * all, so filtering on them would silently throw away nearly everything — the
  * owner decides what a miss is worth. Checked against the numeric
  * `*Usd`/`*Count` fields of the extraction (modules/leads/leads.schema.ts) by

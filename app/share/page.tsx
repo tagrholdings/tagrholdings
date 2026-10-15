@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 /**
  * Web Share Target landing (app/manifest.ts → share_target, method GET): what the phone's "Share…" sheet sends
  * when someone picks the installed CRM. It ingests nothing itself — it only turns the shared title/text/url into
- * the value to pre-fill in the Leads Inbox "Add lead" Vault (the ONE ingestion flow) and sends the person there to
+ * the value to pre-fill in Sourcing "Add lead" Vault (the ONE ingestion flow) and sends the person there to
  * confirm with "Add".
  *
  * It has no workspace in its URL, so it opens the last workspace used.
@@ -23,5 +23,5 @@ export default async function SharePage({ searchParams }: { searchParams: Promis
   // A share arrives with no workspace in its URL (the manifest's share_target is fixed), so it goes to the one last used.
   const slug = await pickWorkspaceSlug(user.id);
   if (!slug) redirect("/workspaces");
-  redirect(workspacePath(slug, add ? `/leads-inbox?add=${encodeURIComponent(add)}` : "/leads-inbox"));
+  redirect(workspacePath(slug, add ? `/sourcing?add=${encodeURIComponent(add)}` : "/sourcing"));
 }

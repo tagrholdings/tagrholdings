@@ -3,7 +3,7 @@ import { firstUrlIn, isSingleUrl } from "@/utils/url";
 export type ShareParams = { title?: string; text?: string; url?: string };
 
 /**
- * What to pre-fill into the Leads Inbox quick-add box from a Web Share Target payload (title / text / url).
+ * What to pre-fill into Sourcing quick-add box from a Web Share Target payload (title / text / url).
  *
  * Phones are inconsistent about which field carries the link (Android often puts it in `text`), so all three
  * are considered. Highlighted text beats fetching the page (the site may block bots), so when there is real

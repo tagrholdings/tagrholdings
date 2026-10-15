@@ -44,9 +44,9 @@ export function WorkspacePanel({ name, inboundAddress, buyer }: { name: string; 
             <Mail className="size-5" aria-hidden />
           </span>
           <div className="min-w-0 flex-1">
-            <h2 className="font-serif text-lg font-semibold text-foreground">{name}&rsquo;s leads inbox</h2>
+            <h2 className="font-serif text-lg font-semibold text-foreground">{name}&rsquo;s inbox address</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Anything sent to this address becomes leads in <strong>this workspace only</strong>. It is also the address the engine signs up to listing sites with.
+              Anything sent to this address shows up under Sourcing → Emails and becomes leads in <strong>this workspace only</strong>. It is also the address the engine signs up to listing sites with.
             </p>
             {inboundAddress ? (
               <div className="mt-3 flex items-center gap-2">

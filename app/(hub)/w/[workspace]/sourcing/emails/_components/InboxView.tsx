@@ -46,7 +46,7 @@ export function InboxView({
 
   const select = (emailId: string | null) => {
     setSelectedId(emailId);
-    const href = emailId ? `${path("/settings/inbox")}?email=${encodeURIComponent(emailId)}` : path("/settings/inbox");
+    const href = emailId ? `${path("/sourcing/emails")}?email=${encodeURIComponent(emailId)}` : path("/sourcing/emails");
     startTransition(() => router.replace(href, { scroll: false }));
   };
 

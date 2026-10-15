@@ -3,7 +3,7 @@ import { inboundAddressFor } from "@/lib/inbound-address";
 import { HubPage } from "@/components/layout/HubPage";
 import { leadsService } from "@/modules/leads/leads.service";
 import { initialsFor } from "@/lib/utils";
-import { SettingsTabs } from "../_components/SettingsTabs";
+import { SourcingTabs } from "../_components/SourcingTabs";
 import { InboxView } from "./_components/InboxView";
 
 export const dynamic = "force-dynamic";
@@ -31,10 +31,10 @@ export default async function InboxSettingsPage({
     <HubPage
       fitViewport
       user={{ name: user.name || user.email, initials: initialsFor(user.name || user.email) }}
-      kicker="Settings"
-      title="Inbox"
+      kicker="Sourcing"
+      title="Emails"
     >
-      <SettingsTabs active="inbox" />
+      <SourcingTabs active="emails" />
       <InboxView emails={emails} opened={opened} inboxAddress={inboundAddressFor(workspace.inboundLocalPart)} />
     </HubPage>
   );

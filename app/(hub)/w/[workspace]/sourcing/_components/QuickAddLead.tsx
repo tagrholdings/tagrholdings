@@ -41,7 +41,7 @@ export function QuickAddLead({
 }) {
   // The text lives here, not inside the Vault, so it survives the Vault closing on send and can be restored on failure.
   const [value, setValue] = useState(initialValue);
-  // Opens by itself when text arrives from the PWA share target (/leads-inbox?add=…).
+  // Opens by itself when text arrives from the PWA share target (/sourcing?add=…).
   const [open, setOpen] = useState(initialValue.trim() !== "");
 
   async function submit(event?: FormEvent) {
@@ -86,7 +86,7 @@ export function QuickAddLead({
 
   return (
     <>
-      <Button data-tour="leads-inbox-add" className={MOBILE_GHOST} onClick={() => setOpen(true)}>
+      <Button data-tour="sourcing-add" className={MOBILE_GHOST} onClick={() => setOpen(true)}>
         <Plus />
         <span className="hidden sm:inline">Add lead</span>
       </Button>

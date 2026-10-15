@@ -3,7 +3,7 @@ import { inboundAddressFor } from "@/lib/inbound-address";
 import { HubPage } from "@/components/layout/HubPage";
 import { emailSourcesService } from "@/modules/email-sources/email-sources.service";
 import { initialsFor } from "@/lib/utils";
-import { LeadsInboxTabs } from "../_components/LeadsInboxTabs";
+import { SourcingTabs } from "../_components/SourcingTabs";
 import { EmailSourcesView } from "./_components/EmailSourcesView";
 
 export const dynamic = "force-dynamic";
@@ -19,10 +19,10 @@ export default async function EmailSourcesPage({ params }: { params: Promise<{ w
     <HubPage
       fitViewport
       user={{ name: user.name || user.email, initials: initialsFor(user.name || user.email) }}
-      kicker="Lead engine"
+      kicker="Sourcing"
       title="Email sources"
     >
-      <LeadsInboxTabs active="email-sources" />
+      <SourcingTabs active="email-sources" />
       <EmailSourcesView sources={sources} inboxAddress={inboundAddressFor(workspace.inboundLocalPart)} />
     </HubPage>
   );

@@ -19,7 +19,7 @@ function walk(dir: string, match: (path: string) => boolean): string[] {
 
 /**
  * Every `app/(hub)/w/[workspace]` page turned into the (workspace-relative) route it serves:
- * `app/(hub)/w/[workspace]/settings/inbox/page.tsx` -> `/settings/inbox`.
+ * `app/(hub)/w/[workspace]/sourcing/emails/page.tsx` -> `/sourcing/emails`.
  */
 function hubRoutes(): string[] {
   const hub = join(ROOT, "app", "(hub)", "w", "[workspace]");
@@ -55,25 +55,25 @@ function declaredTargets(): Map<string, string[]> {
 
 describe("getPageHelp", () => {
   it("ignores the /w/<workspace> part of the URL", () => {
-    expect(getPageHelp("/w/acme/leads-inbox", ctx)?.title).toBe("Leads Inbox");
+    expect(getPageHelp("/w/acme/sourcing", ctx)?.title).toBe("Sourcing · Review");
     expect(getPageHelp("/w/acme/contacts/123", ctx)?.title).toBe("Contact");
     expect(getPageHelp("/w/acme/settings/members", ctx)?.title).toBe("Members");
   });
 
   it("picks the most specific page", () => {
-    expect(getPageHelp("/leads-inbox", ctx)?.title).toBe("Leads Inbox");
-    expect(getPageHelp("/leads-inbox/listing-sites", ctx)?.title).toBe("Listing sites");
+    expect(getPageHelp("/sourcing", ctx)?.title).toBe("Sourcing · Review");
+    expect(getPageHelp("/sourcing/listing-sites", ctx)?.title).toBe("Listing sites");
     expect(getPageHelp("/leads", ctx)?.title).toBe("Leads");
   });
 
   it("gives a detail route its own help (a [param] folder matches any id), and ignores a trailing slash", () => {
     expect(getPageHelp("/contacts/123", ctx)?.title).toBe("Contact");
     expect(getPageHelp("/contacts", ctx)?.title).toBe("Contacts");
-    expect(getPageHelp("/settings/inbox/", ctx)?.title).toBe("Inbox");
+    expect(getPageHelp("/sourcing/emails/", ctx)?.title).toBe("Sourcing · Emails");
   });
 
-  it("does not confuse /leads with /leads-inbox", () => {
-    expect(getPageHelp("/leads-inbox/profiles", ctx)?.title).toBe("Search profiles");
+  it("does not confuse /sourcing with its tabs", () => {
+    expect(getPageHelp("/sourcing/profiles", ctx)?.title).toBe("Search profiles");
   });
 
   it("has nothing for an unknown page", () => {
@@ -82,9 +82,9 @@ describe("getPageHelp", () => {
   });
 
   it("shows the inbox address when one is configured", () => {
-    const text = JSON.stringify(getPageHelp("/leads-inbox/email-sources", ctx));
+    const text = JSON.stringify(getPageHelp("/sourcing/email-sources", ctx));
     expect(text).toContain("leads@example.test");
-    expect(JSON.stringify(getPageHelp("/leads-inbox/email-sources", { inboxAddress: null }))).not.toContain("leads@");
+    expect(JSON.stringify(getPageHelp("/sourcing/email-sources", { inboxAddress: null }))).not.toContain("leads@");
   });
 });
 

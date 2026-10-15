@@ -27,7 +27,7 @@ export default async function HubLayout({ children, params }: { children: React.
   const workspace = await getWorkspace(slug);
   const { user } = workspace;
 
-  // Unreviewed engine finds — the Leads Inbox badge. A failed count must never
+  // Unreviewed engine finds — Sourcing badge. A failed count must never
   // take the whole app shell down, so it degrades to "no badge".
   const [leadsInboxUnread, workspaces] = await Promise.all([
     leadsService.countNew(workspace.tenantId).catch(() => 0),

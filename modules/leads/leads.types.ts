@@ -27,7 +27,7 @@ export const ingestLeadRequestSchema = z.object({
 });
 export type IngestLeadRequest = z.infer<typeof ingestLeadRequestSchema>;
 
-/** Leads Inbox quick-add: one box that takes either a link or pasted text. tenantId comes from the session, never from here. */
+/** Sourcing quick-add: one box that takes either a link or pasted text. tenantId comes from the session, never from here. */
 export const quickAddLeadSchema = z.object({
   input: z.string().trim().min(1, "Paste a link or some text.").max(MAX_RAW_TEXT_CHARS),
 });

@@ -72,7 +72,7 @@ Source `broker_listings` (`sources/broker_listings.py`, helpers in `util/pages.p
 - **Captcha → stop.** reCAPTCHA / hCaptcha / Turnstile / Arkose markup before submitting, or a "verify you're human" challenge after, sets `captcha_protected` and leaves the site a manual signup. It never solves or bypasses one.
 - **It never sets `subscribed`.** Most sites use double opt-in; a submitted form is only recorded as `last_attempt_result = submitted`. The site's confirmation email reaches the inbox and the CRM's inbound webhook (`modules/email-inbound`) clicks the link and marks the site subscribed.
 - **The form is read, not just the email box** (`email_signup_form.py`): name / phone / company are filled from `BUYER_NAME` / `BUYER_PHONE` / `BUYER_COMPANY`, the industry choice from the tenant's profiles, marketing-consent boxes are ticked. An NDA / terms / privacy checkbox, a password, a file upload, a captcha field or a required field with no configured answer ends the attempt as `manual` (with the reason) **before anything is typed**; the CRM flags the site for a person. Only a captcha inside the signup form counts, not a sitewide script.
-- Selectors are configured per site in the CRM (Leads Inbox → Email sources) — no guessing. One attempt per request: nothing is retried by itself.
+- Selectors are configured per site in the CRM (Sourcing → Review → Email sources) — no guessing. One attempt per request: nothing is retried by itself.
 - Exits 0 immediately when nothing is due, so it needs no setup on ticks where there's no work.
 
 ## Email-only site detection

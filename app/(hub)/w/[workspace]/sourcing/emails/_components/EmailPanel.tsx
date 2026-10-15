@@ -110,8 +110,8 @@ function EmailBody({ email, detail }: { email: ReceivedEmail; detail: ReceivedEm
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">{EXPLANATION[email.outcome]}</p>
             {email.fallbackLeadId && (
-              <Link href={path(`/leads-inbox?lead=${email.fallbackLeadId}`)} className="inline-block text-sm font-medium text-accent-text hover:text-accent-hover">
-                Open in Leads Inbox
+              <Link href={path(`/sourcing?lead=${email.fallbackLeadId}`)} className="inline-block text-sm font-medium text-accent-text hover:text-accent-hover">
+                Open in Sourcing
               </Link>
             )}
           </div>
@@ -125,8 +125,8 @@ function EmailBody({ email, detail }: { email: ReceivedEmail; detail: ReceivedEm
             </p>
             {listing.summary && <p className="mt-2 text-sm text-foreground">{listing.summary}</p>}
             <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
-              <Link href={path(`/leads-inbox?lead=${listing.leadId}`)} className="font-medium text-accent-text hover:text-accent-hover">
-                Open in Leads Inbox
+              <Link href={path(`/sourcing?lead=${listing.leadId}`)} className="font-medium text-accent-text hover:text-accent-hover">
+                Open in Sourcing
               </Link>
               {listing.link && (
                 <a href={listing.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-accent-text hover:text-accent-hover">

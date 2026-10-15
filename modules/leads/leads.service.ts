@@ -73,7 +73,7 @@ export const leadsService = {
     return lead;
   },
 
-  /** Unreviewed leads — the Leads Inbox badge. */
+  /** Unreviewed leads — Sourcing badge. */
   async countNew(tenantId: string) {
     return leadsRepository.countByStatus(tenantId, "new");
   },

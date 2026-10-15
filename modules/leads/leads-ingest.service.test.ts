@@ -90,7 +90,7 @@ describe("ingestManual (POST /api/leads/ingest)", () => {
   });
 });
 
-describe("quickAdd (Leads Inbox)", () => {
+describe("quickAdd (Sourcing)", () => {
   it("pasted text: saved as manual_assist with the text as rawText; a link inside it is the sourceUrl", async () => {
     await leadsIngestService.quickAdd(TENANT_A, "HVAC co, owner retiring. Details: https://bizsite.test/l/9");
     expect(leadsRepository.createIfNew).toHaveBeenCalledWith(

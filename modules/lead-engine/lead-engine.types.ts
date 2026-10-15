@@ -13,7 +13,7 @@ export interface UsageEventInput {
   runId?: string | null;
 }
 
-/** Headline numbers for the spend strip on the Leads Inbox and the top of the spend page. */
+/** Headline numbers for the spend strip on Sourcing and the top of the spend page. */
 export interface SpendTotals {
   totalUsd: number;
   monthUsd: number;

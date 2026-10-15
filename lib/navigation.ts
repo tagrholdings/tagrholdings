@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { stripWorkspacePrefix } from "@/lib/workspace-path";
-import { FolderKanban, Users, ListChecks, Inbox, Target, LayoutDashboard, LineChart, Gem, CircleAlert, Timer, Compass, Network, Workflow, ClipboardList } from "lucide-react";
+import { FolderKanban, Users, ListChecks, Radar, Target, LayoutDashboard, LineChart, Gem, CircleAlert, Timer, Compass, Network, Workflow, ClipboardList } from "lucide-react";
 
 export interface NavItem {
   label: string;
@@ -24,11 +24,11 @@ export interface NavSection {
 }
 
 /**
- * The CRM half of the navigation. Ordered the way work flows: the engine's finds land in the inbox → the ones worth
+ * The CRM half of the navigation. Ordered the way work flows: the engine's finds land in Sourcing → the ones worth
  * pursuing become leads → deals become projects → activities get it done → contacts tie it all together.
  */
 export const NAV_ITEMS: NavItem[] = [
-  { label: "Leads Inbox", href: "/leads-inbox", icon: Inbox, badgeKey: "leadsInboxUnread" },
+  { label: "Sourcing", href: "/sourcing", icon: Radar, badgeKey: "leadsInboxUnread" },
   { label: "Leads", href: "/leads", icon: Target },
   { label: "Projects", href: "/projects", icon: FolderKanban },
   { label: "Activities", href: "/activities", icon: ListChecks },

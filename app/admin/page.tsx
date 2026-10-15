@@ -43,7 +43,7 @@ export default async function AdminPage() {
         <section className="rounded-lg border border-divider bg-surface p-5">
           <h2 className="font-serif text-lg font-semibold text-foreground">Create a workspace</h2>
           <p className="mt-1 mb-4 text-sm text-muted-foreground">
-            Each workspace is a separate company: its own people, data and leads inbox. Add an email to invite its first admin.
+            Each workspace is a separate company: its own people, data and inbox address. Add an email to invite its first admin.
           </p>
           <CreateWorkspaceForm />
         </section>

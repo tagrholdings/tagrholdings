@@ -37,6 +37,15 @@ const buildId = process.env.VERCEL_GIT_COMMIT_SHA?.trim().slice(0, 12) || "devel
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   env: { NEXT_PUBLIC_BUILD_ID: buildId },
+  // "Leads Inbox" became Sourcing (2026-10-15) and its received-emails screen moved there from Settings. Old links —
+  // bookmarks, the installed app's history, links in emails already sent — keep working.
+  async redirects() {
+    return [
+      { source: "/w/:workspace/leads-inbox", destination: "/w/:workspace/sourcing", permanent: true },
+      { source: "/w/:workspace/leads-inbox/:path*", destination: "/w/:workspace/sourcing/:path*", permanent: true },
+      { source: "/w/:workspace/settings/inbox", destination: "/w/:workspace/sourcing/emails", permanent: true },
+    ];
+  },
   async headers() {
     return [
       { source: "/(.*)", headers: securityHeaders },

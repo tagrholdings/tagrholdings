@@ -78,7 +78,7 @@ export function RawLeadsView({
 }: {
   leads: RawLeadSummary[];
   initialSelectedId: string | null;
-  /** Text pre-filled into the Add lead Vault, which opens with it (from the PWA share target: /leads-inbox?add=…). */
+  /** Text pre-filled into the Add lead Vault, which opens with it (from the PWA share target: /sourcing?add=…). */
   initialAdd: string;
 }) {
   const path = useWorkspacePath();
@@ -211,7 +211,7 @@ export function RawLeadsView({
               The lead engine searches on a schedule using your search profiles and drops what it finds here for review. You can also add one by hand with “Add lead”.
             </EmptyDescription>
           </EmptyHeader>
-          <Button render={<Link href={path("/leads-inbox/profiles")} />}>
+          <Button render={<Link href={path("/sourcing/profiles")} />}>
             <Plus />
             Set up a search profile
           </Button>
@@ -232,7 +232,7 @@ export function RawLeadsView({
           bars, so the whole toolbar fits in one line on a phone.
         */}
         <div
-          data-tour="leads-inbox-filters"
+          data-tour="sourcing-filters"
           className="sticky top-[6.75rem] z-10 flex shrink-0 items-center gap-2 overflow-x-auto no-scrollbar bg-background pb-4 pt-2 md:static md:flex-wrap md:overflow-visible md:pb-0 md:pt-0"
         >
           <SegmentedControl
@@ -294,11 +294,11 @@ export function RawLeadsView({
         </div>
 
         {visible.length === 0 && !(filter === "new" && pending.length > 0) ? (
-          <Empty data-tour="leads-inbox-table">
+          <Empty data-tour="sourcing-table">
             <EmptyTitle className="text-sm">{query || cutoff !== null ? "No leads match these filters" : EMPTY_COPY[filter]}</EmptyTitle>
           </Empty>
         ) : (
-          <div ref={fitRef} data-tour="leads-inbox-table" className="flex min-h-0 flex-1 scroll-mt-32 flex-col gap-4 md:overflow-hidden">
+          <div ref={fitRef} data-tour="sourcing-table" className="flex min-h-0 flex-1 scroll-mt-32 flex-col gap-4 md:overflow-hidden">
           <Table className="md:min-h-0 md:overflow-y-auto no-scrollbar">
             <TableHeader>
               <tr>

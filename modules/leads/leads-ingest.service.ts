@@ -12,7 +12,7 @@ import { MAX_RAW_TEXT_CHARS, type IngestResult, type QuickAddResult } from "./le
 
 /**
  * Leads that arrive in REAL TIME rather than from the scheduled scraper: a URL + text handed to
- * POST /api/leads/ingest, a link or paste in the Leads Inbox, an email received by the Resend
+ * POST /api/leads/ingest, a link or paste in Sourcing, an email received by the Resend
  * webhook. One service, several entry points (a Route Handler, a Server Action, a webhook) — the
  * ingestion logic exists exactly once, here.
  */
@@ -221,7 +221,7 @@ export const leadsIngestService = {
   },
 
   /**
-   * Leads Inbox quick-add: ONE box that takes a link or pasted text. A lone link is fetched here
+   * Sourcing quick-add: ONE box that takes a link or pasted text. A lone link is fetched here
    * (user-initiated, a single GET, SSRF-guarded) and its text extracted; if the page can't be read
    * (many listing sites block bots) the lead is still saved with the URL so nothing is lost, and the
    * caller is told to paste the page's text instead.

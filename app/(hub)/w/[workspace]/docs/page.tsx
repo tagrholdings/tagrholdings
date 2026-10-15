@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, BookOpen, Building2, Coins, FolderKanban, Inbox, ListChecks, Mail, Radar, Target, Users } from "lucide-react";
+import { ArrowUpRight, Bell, BookOpen, Building2, Coins, Compass, FolderKanban, Inbox, ListChecks, Mail, Radar, Target, UserRound, Users } from "lucide-react";
 import { getWorkspace } from "@/lib/auth-server";
 import { workspacePath } from "@/lib/workspace-path";
 import { HubPage } from "@/components/layout/HubPage";
@@ -26,21 +26,21 @@ const SECTIONS: DocSection[] = [
     title: "How it all fits together",
     icon: BookOpen,
     summary:
-      "Everything in the CRM is built from four things: leads, projects, activities and contacts. A lead is a company or person you might do business with. A project is any piece of work you track in stages. Activities are the tasks, calls and meetings that move leads and projects forward. Contacts are the people behind all of it. Leads can come from you, or from the lead engine, which searches for businesses automatically and drops what it finds in the Leads Inbox for you to review.",
+      "Everything in the CRM is built from four things: leads, projects, activities and contacts. A lead is a company or person you might do business with. A project is any piece of work you track in stages. Activities are the tasks, calls and meetings that move leads and projects forward. Contacts are the people behind all of it. Leads can come from you, or from Sourcing: the lead engine searches for businesses automatically, listing emails arrive in the workspace's inbox, and everything found waits in Sourcing → Review for you to decide. Next to the CRM, the Traction and EOS groups run the company's operating system: Scorecard, Rocks, Issues, the weekly L10, the V/TO, the Accountability Chart and the core processes.",
     tips: [
-      "The path of a business: the lead engine finds it (or you add it by hand, or it arrives by email) → it waits in the Leads Inbox → you click Add to pipeline → it becomes a card on the Leads board → the deal moves through the stages (and can spawn Projects).",
+      "The path of a business: the lead engine finds it (or you add it by hand, or it arrives by email) → it waits in Sourcing → Review → you click Add to pipeline → it becomes a card on the Leads board → the deal moves through the stages (and can spawn Projects).",
       "Leads and project items are the same kind of card: each has a title, a stage, and optionally an organization, a contact and notes. The only difference is which board it lives on.",
-      "An activity created inside a lead or a project item stays linked to it — and it also shows up on the Activities page, so there is only one to-do list.",
+      "An activity created inside a lead, a project item or a Rock stays linked to it — and it also shows up on the Activities page, so there is only one to-do list.",
       "Link a contact to a lead, project item or activity and you'll see all of it again from that contact's panel on the Contacts page.",
     ],
   },
   {
-    id: "leads-inbox",
-    title: "Leads Inbox",
-    href: "/leads-inbox",
-    icon: Inbox,
+    id: "sourcing",
+    title: "Sourcing · Review",
+    href: "/sourcing",
+    icon: Radar,
     summary:
-      "The review queue for everything the lead engine discovered. Nothing here is a real lead yet — it's a candidate waiting for your decision. The number on the sidebar item is how many are still unreviewed.",
+      "Sourcing is where deals are found before you work them. Its tabs: Review (this queue), Emails (what the inbox received), Search profiles, Listing sites and Email sources. Review is the queue for everything discovered — nothing here is a real lead yet, it's a candidate waiting for your decision. The number on the Sourcing sidebar item is how many are still unreviewed.",
     controls: [
       ["Add lead (next to New / Added / Dismissed)", "Opens a window to add a lead by hand: paste a link (the CRM opens the page and reads it) or paste the text of a listing, then press Add (or Enter). The new lead shows up immediately as “Reading and extracting details…” and fills in when the AI step finishes. If a site blocks the CRM from reading the page, the link is still saved and you're told to paste the page's text instead."],
       ["New / Added / Dismissed", "Filters the queue. New = not reviewed yet. Added = you sent it to the pipeline. Dismissed = you archived it. The number on each is how many are in it."],
@@ -54,10 +54,26 @@ const SECTIONS: DocSection[] = [
     ],
     tips: [
       "What the engine has cost so far is under Settings → Engine spend, not on this page — that has the totals and the full breakdown.",
-      "The list shows 10 leads per page; use Previous / Next under the table. Changing the tab, the search or the sort takes you back to page 1.",
+      "On a computer the list shows as many leads as fit on the screen, with Previous / Next under it (10 per page on a phone). Changing the tab, the search or the sort takes you back to page 1.",
       "A candidate can show fewer details than another — the engine only fills in what the source actually said. Empty means unknown, never a guess.",
-      "Leads reach the inbox three ways: the engine's scheduled searches, you adding one by hand (the Add lead button, the phone's Share button, or the ingest API), and listing emails sent to the leads inbox. The Source column says which.",
-      "On an Android phone with the CRM installed, Share → TAGR CRM from any page opens the inbox with that link already in the box. (iPhones don't support this.)",
+      "Leads reach Review three ways: the engine's scheduled searches, you adding one by hand (the Add lead button, the phone's Share button, or the ingest API), and listing emails sent to the workspace's inbox address (see Emails). The Source column says which.",
+      "On an Android phone with the CRM installed, Share → TAGR CRM from any page opens Review with that link already in the box. (iPhones don't support this.)",
+    ],
+  },
+  {
+    id: "emails",
+    title: "Sourcing · Emails",
+    href: "/sourcing/emails",
+    icon: Inbox,
+    summary:
+      "Every email the workspace's inbox address received (it's shown on Settings → Workspace), and what the AI read out of each one. Emails from the sites you subscribed to arrive on their own; you can also forward a listing email yourself. Each business found becomes its own lead in Review.",
+    controls: [
+      ["Result", "N listings: businesses for sale were found. No listing found: it was read but had none (a welcome message, a promotion) — it's still kept as one lead. Couldn't be read: the automatic reading failed; read it here and add any business by hand."],
+      ["Clicking an email (or Open)", "Opens it beside the list to read in full. Long tracking links show as a short chip with the site's name — hover it for the full address. Below the text, each business found links to its lead in Review and to the original listing."],
+    ],
+    tips: [
+      "The list fits the screen, with Previous / Next under it; the email you open scrolls inside its own panel.",
+      "Nothing arriving? Check that the address you subscribed with is the one on Settings → Workspace, and that the Resend inbound webhook is registered.",
     ],
   },
   {
@@ -66,7 +82,7 @@ const SECTIONS: DocSection[] = [
     href: "/leads",
     icon: Target,
     summary:
-      "Every potential deal you're actively working, from first contact to closed — leads you added from the Leads Inbox, plus any you create by hand. Leads move through fixed stages: Sourced → Outreach → In Discussion → Offer Submitted → Diligence → Closed.",
+      "Every potential deal you're actively working, from first contact to closed — leads you added from Sourcing, plus any you create by hand. Leads move through fixed stages: Sourced → Outreach → In Discussion → Offer Submitted → Diligence → Closed.",
     controls: [
       ["New lead", "Opens a form: title, stage, organization, contact and notes. The card appears on the board right away."],
       ["Board / List toggle", "Board shows one column per stage — drag a card to another column to change its stage. List shows every lead as a row with its organization, contact, stage and activity progress."],
@@ -80,7 +96,7 @@ const SECTIONS: DocSection[] = [
   {
     id: "search-profiles",
     title: "Search profiles",
-    href: "/leads-inbox/profiles",
+    href: "/sourcing/profiles",
     icon: Radar,
     summary:
       "A search profile tells the engine what to look for and where — for example “HVAC contractors within 25 miles of Phoenix, AZ”. To search a new industry or city, you add a profile; nothing needs to be programmed.",
@@ -90,7 +106,7 @@ const SECTIONS: DocSection[] = [
       ["Sources", "Google Places finds local businesses by category and area. Brave Search finds company websites by keyword. Broker listing sites is the “businesses for sale” mode: the category and extra terms are the industries you want to buy (HVAC, plumbing, pest control, property management…) and the engine reads business brokers' websites for them — see Listing sites. Marketplaces (BizBuySell) is shelved because the site blocks automated visitors, so leave it off. Company websites lets the engine read each business's own site for contact details — it doesn't find new businesses on its own."],
       ["Max new leads / run", "The main spend guard. A run stops as soon as it has added this many new leads; the next run continues from where it stopped."],
       ["Run every (hours)", "The minimum time between runs of this profile. The engine may check more often, but it skips a profile that ran more recently than this."],
-      ["Qualification criteria", "Optional: min/max revenue, min/max profit (cash flow), max asking price, min/max employees, minimum years in business, and signal keywords like “retiring” or “owner selling”. Each lead the profile finds is flagged Match / Partial / Miss / Unknown against them in the Leads Inbox — it annotates, it never discards. Editing the criteria re-scores existing leads at once."],
+      ["Qualification criteria", "Optional: min/max revenue, min/max profit (cash flow), max asking price, min/max employees, minimum years in business, and signal keywords like “retiring” or “owner selling”. Each lead the profile finds is flagged Match / Partial / Miss / Unknown against them in Review — it annotates, it never discards. Editing the criteria re-scores existing leads at once."],
       ["Run now", "Runs this profile outside its schedule. The request is saved and the engine picks it up; if the CRM is connected to GitHub it starts within a minute or two, otherwise it starts with the next scheduled run (the button shows “Queued” until then). The profile's “max new leads” still applies, so a run can't cost more than usual. A paused profile can't be run."],
       ["Pause / Resume", "A paused profile is skipped entirely — no searches, no cost — and keeps its settings and history."],
       ["Clicking a row", "Edit the profile. Changes apply from the next run."],
@@ -104,7 +120,7 @@ const SECTIONS: DocSection[] = [
   {
     id: "listing-sites",
     title: "Listing sites",
-    href: "/leads-inbox/listing-sites",
+    href: "/sourcing/listing-sites",
     icon: Building2,
     summary:
       "The business brokers' websites the engine reads for businesses that are for sale — the same thing you do by hand each week: open a broker's “buy a business” page and look at the industries you want. The engine finds the brokers itself and turns every matching listing into a lead.",
@@ -112,16 +128,16 @@ const SECTIONS: DocSection[] = [
       ["You pick the industries", "In a search profile, turn on Broker listing sites and put the industries you want to buy in the category and extra terms (for example HVAC, plumbing, pest control, property management). The state and city only steer which brokers are found first — listings from other states are kept, because you don't want to filter by place early."],
       ["The engine finds brokers", "About once a week it searches for business brokers in the state and for your industries, and adds the new sites here, marked “Found by the engine”. You can add a broker yourself, or Ignore one you don't want — an ignored site is never read or added again."],
       ["It reads each site like a person would", "It opens the broker's listings page, follows links named after your industries, uses the site's own search box and goes through the next pages. Sold listings are skipped. A page that hasn't changed since the last run isn't read again."],
-      ["Each listing becomes a lead", "One lead per business, with the listing's own link, asking price, revenue and profit when the page states them, in the Leads Inbox as “Broker listing”. The same listing also arriving by email isn't added twice."],
+      ["Each listing becomes a lead", "One lead per business, with the listing's own link, asking price, revenue and profit when the page states them, in Review as “Broker listing”. The same listing also arriving by email isn't added twice."],
     ],
     controls: [
       ["Add site", "The broker's website address. The name and the listings page are optional — the engine finds the page itself."],
       ["Read / Not read yet / No matching listings", "Read: listings for your industries were found (the count is shown). No matching listings: the site was read but has nothing for your industries right now — it is checked again in two weeks."],
-      ["Blocked — check by hand / Couldn't read — check by hand", "The site refuses automated visitors (or could not be opened). The engine never works around that: the site is listed in a red banner so you can look at it yourself — and if it has an email list for new listings, add it under Email sources so those emails reach the inbox."],
+      ["Blocked — check by hand / Couldn't read — check by hand", "The site refuses automated visitors (or could not be opened). The engine never works around that: the site is listed in a red banner so you can look at it yourself — and if it has an email list for new listings, add it under Email sources so those emails reach the workspace's inbox."],
       ["Ignore / Use again", "Ignore stops the engine from reading the site and from adding it again. Use again switches it back on."],
     ],
     tips: [
-      "Two sources of “for sale” leads work side by side: this crawler and the listing emails the inbox receives (Email sources). A listing that shows up in both is kept once.",
+      "Two sources of “for sale” leads work side by side: this crawler and the listing emails the workspace's inbox receives (Email sources). A listing that shows up in both is kept once.",
       "A profile in this mode is best with a higher “Max new leads / run” (around 100) and “Run every” about a week (168 hours): broker listings change slowly.",
       "Not every discovered site is a broker — associations and directories can slip in. They show “No matching listings”; Ignore them.",
     ],
@@ -129,32 +145,32 @@ const SECTIONS: DocSection[] = [
   {
     id: "email-sources",
     title: "Email sources",
-    href: "/leads-inbox/email-sources",
+    href: "/sourcing/email-sources",
     icon: Mail,
     summary:
-      "Some listing sites don't have a page to browse — they only email their listings. This screen is your list of those sites and whether the leads inbox is subscribed to each. Receiving and reading the emails is automatic; signing up to a site is a separate step, and only partly automatic.",
+      "Some listing sites don't have a page to browse — they only email their listings. This screen is your list of those sites and whether the workspace's inbox is subscribed to each. Receiving and reading the emails is automatic; signing up to a site is a separate step, and only partly automatic.",
     steps: [
       ["The site gets on the list", "Two ways. You can add it yourself (name and signup page). Or the engine adds it while it searches: when it reads a company's website and finds a form with an email box next to wording like “subscribe”, “get listings by email”, “email alerts” or “sign up to receive”, it adds that site here on its own, marked “Found by the engine”. It only does this when it's fairly sure — both the email box and the wording must be in the same form — so it will miss some sites; add those by hand."],
-      ["The inbox is signed up", "Either you do it yourself on the site, using the leads inbox address shown on this screen, or — if the site's form has no captcha — the engine does it for you. For that, give the site the two selectors (the email box and the submit button) and click Attempt subscribe."],
-      ["The site asks you to confirm", "Most sites send a “confirm your subscription” email first. When it reaches the leads inbox, the CRM recognises it, opens the confirmation link for you and marks the site Subscribed. That email does not become a lead."],
-      ["Listings arrive", "From then on every email the site sends is read automatically — the same AI step as everything else — and lands in the Leads Inbox as a lead from “Email digest”."],
+      ["The inbox is signed up", "Either you do it yourself on the site, using the inbox address shown on this screen, or — if the site's form has no captcha — the engine does it for you. For that, give the site the two selectors (the email box and the submit button) and click Attempt subscribe."],
+      ["The site asks you to confirm", "Most sites send a “confirm your subscription” email first. When it reaches the inbox, the CRM recognises it, opens the confirmation link for you and marks the site Subscribed. That email does not become a lead."],
+      ["Listings arrive", "From then on every email the site sends is read automatically — the same AI step as everything else — and lands in Review as a lead from “Email digest” (the email itself is under Emails)."],
     ],
     controls: [
       ["Add site", "Name, signup page and, optionally, the two selectors for automatic signup. Tick “This form has a captcha” if you know it does."],
       ["Ready to attempt", "Both selectors are set and the engine hasn't tried yet. It tries on its next scheduled run (or when you click Attempt subscribe) — never repeatedly by itself. Sites the engine found on its own arrive here already filled in, so they are signed up automatically unless there's a captcha. Check the “Found by the engine” ones and remove any that don't belong."],
-      ["Attempt subscribe / Retry signup", "Queues an automatic signup. The engine opens the page, types the leads inbox address into the email box and clicks the button. It does NOT mark the site subscribed — that only happens when the confirmation email arrives."],
+      ["Attempt subscribe / Retry signup", "Queues an automatic signup. The engine opens the page, types the inbox address into the email box and clicks the button. It does NOT mark the site subscribed — that only happens when the confirmation email arrives."],
       ["Waiting for confirmation email", "The form was submitted. If the confirmation never arrives, check spam settings or Retry signup."],
       ["Captcha — sign up by hand", "The engine found a captcha and stopped: it never solves or works around one. Sign up yourself, then click Mark subscribed."],
-      ["Needs a person — sign up by hand", "The engine read the form and it asks for something only you can give: accepting an NDA or terms, a password or account, a file, or an answer the engine doesn't have. It fills in your name, phone and company where the form asks, but never accepts legal terms or makes anything up. The reason is shown in the row. Open the signup page, sign up with the leads inbox address, then click Mark subscribed."],
+      ["Needs a person — sign up by hand", "The engine read the form and it asks for something only you can give: accepting an NDA or terms, a password or account, a file, or an answer the engine doesn't have. It fills in your name, phone and company where the form asks, but never accepts legal terms or makes anything up. The reason is shown in the row. Open the signup page, sign up with the inbox address, then click Mark subscribed."],
       ["“N sites need to be signed up to by hand” banner", "At the top of the screen: every site the engine could not sign up to — a captcha, an NDA or terms, a failed attempt, or a form it submitted more than three days ago with no confirmation email — each with the reason and an Open signup page button."],
       ["Last attempt failed", "Usually a selector that no longer matches the page. The reason is shown in the row; fix the selector and retry."],
       ["Mark subscribed / Mark not subscribed", "For sites you signed up to yourself, or to undo a mistake."],
     ],
     tips: [
       "The CRM can't sign up for you on sites with a captcha — that stays manual by design. Finding sites that need an email signup is best-effort: the engine catches the obvious ones while it searches, but a signup form that only appears through JavaScript, or that doesn't use wording like “subscribe”, will be missed — add those yourself.",
-      "A confirmation email the CRM isn't sure about (it can't tie it to exactly one site on your list) is not clicked and not skipped: it shows up in the Leads Inbox as an ordinary email lead, where you can see it and click the link yourself.",
+      "A confirmation email the CRM isn't sure about (it can't tie it to exactly one site on your list) is not clicked and not skipped: it shows up in Review as an ordinary email lead (and under Emails), where you can see it and click the link yourself.",
       "A digest that lists several businesses becomes one lead per business, each with its own link, asking price, revenue and profit when the email states them. Ads, “sell your business” blocks and unsubscribe links are ignored. The same listing arriving again in a later email isn't added twice. An email with no business for sale in it (a welcome message, say) is kept as a single lead so you can see it.",
-      "Listing emails are the best source for “businesses for sale”: sites like BizBuySell only email their listings, and the engine can't browse them. Subscribe the leads inbox to a saved search there (for example “HVAC — Arizona”, daily or weekly) and every alert turns into separate leads.",
+      "Listing emails are the best source for “businesses for sale”: sites like BizBuySell only email their listings, and the engine can't browse them. Subscribe the inbox address to a saved search there (for example “HVAC — Arizona”, daily or weekly) and every alert turns into separate leads.",
     ],
   },
   {
@@ -188,13 +204,13 @@ const SECTIONS: DocSection[] = [
       ["It wakes up on a schedule", "A scheduler (GitHub Actions, every 6 hours) starts the engine. Only one copy can run at a time."],
       ["It picks the profiles that are due", "It takes every active search profile that has never run, whose “run every” time has passed, that you asked to Run now, or that was cut short last time and needs to resume. Paused profiles are ignored."],
       ["It searches each source", "For each profile it takes the category plus each extra search term and searches the sources you switched on: Google Places (local businesses near the city, within the radius), Brave Search (company websites found by keyword, up to 60 results per term), and marketplace listings (shelved). Everything goes through the providers' official APIs — the engine never scrapes a search engine's result pages. Directories, social profiles and “15 best … in Phoenix” roundup pages are dropped at this point, before they can cost anything."],
-      ["It skips what it already knows", "Every candidate has a stable identity (a Google place id, a website, a listing number). If it's already in the inbox — new, added or dismissed — the engine drops it right there, before spending anything on it. This is why dismissing works, and why re-running is safe."],
+      ["It skips what it already knows", "Every candidate has a stable identity (a Google place id, a website, a listing number). If it's already in Review — new, added or dismissed — the engine drops it right there, before spending anything on it. This is why dismissing works, and why re-running is safe."],
       ["It reads the business's website", "If the profile has Company websites on and the candidate has a site, the engine reads the homepage and one contact/about page for email addresses, phone numbers and a sense of the business. It obeys the site's robots.txt, waits between requests, and refuses private or internal addresses."],
       ["AI extraction turns text into fields", "All the text collected about the candidate (the Google record, the search snippet or listing, the website text) is sent to an AI model (OpenAI for now), which fills a fixed form: business name, industry, one-sentence summary, address, contact, revenue, asking price, reason for selling, employees, years in business, and short “signals”. It is told to leave a field empty rather than guess. It also reads any figures stated as numbers (revenue, profit, asking price, employees) so they can be checked against your search profile's criteria. If the AI is unavailable, the lead is still saved with what the source itself provided."],
-      ["It saves a raw lead", "The candidate is stored in the Leads Inbox with the original text kept alongside the extracted fields, for audit or re-processing. If the profile has signal keywords (“retiring”…), the lead's full text is scanned for them and the hits are kept. Each lead belongs to the company (tenant) of the profile that found it."],
+      ["It saves a raw lead", "The candidate is stored in Review with the original text kept alongside the extracted fields, for audit or re-processing. If the profile has signal keywords (“retiring”…), the lead's full text is scanned for them and the hits are kept. Each lead belongs to the company (tenant) of the profile that found it."],
       ["It records what it spent", "Every paid call — each Google request and each AI call with its token counts — is logged with its estimated cost the moment it happens. That's what the Engine spend page shows."],
       ["It stops at a limit and remembers where", "A run ends when it has added the profile's “max new leads”, or when it runs low on time. Either way it saves a checkpoint (which source and search term it was on), so the next run picks up from there instead of starting over."],
-      ["You review", "New candidates show up in the Leads Inbox. Add to pipeline sends one to the Leads board; Dismiss archives it."],
+      ["You review", "New candidates show up in Sourcing → Review. Add to pipeline sends one to the Leads board; Dismiss archives it."],
     ],
     controls: [
       ["Candidate / raw lead", "Something the engine found that you haven't reviewed. It only becomes a real lead when you click Add to pipeline."],
@@ -205,9 +221,9 @@ const SECTIONS: DocSection[] = [
       ["Extraction", "The AI step that reads messy text and fills the structured fields. It reports; it does not score or rank."],
     ],
     tips: [
-      "Not everything comes from the scheduled searches: you can add a lead by hand (the Add lead button in the Leads Inbox, or a link/text shared from your phone), and emails sent to the leads inbox become leads automatically. All of them go through the same AI extraction and are tracked on the same spend page.",
+      "Not everything comes from the scheduled searches: you can add a lead by hand (the Add lead button in Review, or a link/text shared from your phone), and emails sent to the workspace's inbox address become leads automatically. All of them go through the same AI extraction and are tracked on the same spend page.",
       "Subscribing to a listing site is a separate step from receiving its emails — see Email sources. The engine can fill in a signup form (your name, phone and company where it asks) only where there's no captcha and nothing to accept but marketing emails; every other site is flagged on the Email sources screen for you to do by hand. It never marks a site subscribed itself: the site's confirmation email does that.",
-      "What is deliberately not built yet: scoring or ranking leads with AI, merging the same business found by two different sources, splitting a multi-listing email into one lead per listing, and drafting outreach. The qualification criteria on a search profile (revenue, profit, size, signal keywords) already flag each lead Match / Partial / Miss / Unknown, but nothing is ever discarded for missing them.",
+      "What is deliberately not built yet: scoring or ranking leads with AI, merging the same business found by two different sources, and drafting outreach. (A multi-listing email already becomes one lead per listing.) The qualification criteria on a search profile (revenue, profit, size, signal keywords) already flag each lead Match / Partial / Miss / Unknown, but nothing is ever discarded for missing them.",
       "Nothing shows up? Check, in order: the profile is Active; it has at least one source that finds businesses; “Last run” isn't recent (the profile may simply not be due — its “run every” time hasn't passed); the latest run on Engine spend isn't Failed; and, for the Brave Search source, that a Brave API key is configured for the engine (a run whose only source is unconfigured shows it as a note and finds nothing).",
       "Marketplace listing sites actively block automated visitors. The engine follows their rules and gives up politely when it's blocked (the run shows a note); it never tries to get around a block. Expect some runs to return nothing from that source.",
       "Safeguards: a profile can't add more than its cap per run; the engine can only write to your own company's data (the database enforces it, not just the code); it can't edit your profiles' settings; and one failing source never stops the others.",
@@ -243,10 +259,16 @@ const SECTIONS: DocSection[] = [
       ["List", "Every activity, open ones first and sorted by due date. Overdue dates are shown in red."],
       ["Filters (List)", "Open, Overdue, Today, Tomorrow, Next 7 days, Done or All."],
       ["Checkbox", "Mark an activity done (or not done)."],
-      ["New", "Create an activity: title, type (call, meeting, task, email, follow-up), due date and optional time, priority, notes, who it's assigned to, and which lead/project, person and organization it's linked to."],
+      ["New", "Create an activity: title, type (call, meeting, task, email, follow-up), due date and optional time, priority, notes, who it's assigned to, and which lead/project, Rock, person and organization it's linked to."],
+      ["Assigned to", "A teammate (or a contact). A teammate with a login gets a push notification right away — when you create it for them, or hand an existing one over. Assigning it to yourself sends nothing."],
+      ["Enable notification", "Needs a due date and time: whoever does it gets a push when it comes due. Reminders are checked every 20 minutes, so one can arrive up to 20 minutes late."],
       ["Clicking an activity", "Opens its details, with links to the lead/project and contact it belongs to."],
     ],
-    tips: ["High-priority activities have a red edge on the board and a HIGH tag in lists."],
+    tips: [
+      "High-priority activities have a red edge on the board and a HIGH tag in lists.",
+      "On a computer the page fits the screen: each day's column scrolls on its own, and the list is split into pages that fit.",
+      "An activity linked to a Rock shows the Rock's name with a gem icon; it is also one of that Rock's milestones on the Rocks page.",
+    ],
   },
   {
     id: "contacts",
@@ -260,6 +282,50 @@ const SECTIONS: DocSection[] = [
       ["Leads / Projects (in the panel)", "Every lead and project item where this person is the contact, with its current stage. Click one to open it."],
       ["Activities (in the panel)", "Activities about or assigned to this person, with how many are done. Click one to open it on the Activities page."],
       ["Go to full profile", "A full-page view of the contact."],
+      ["People / Organizations / Team", "People are the outside contacts, Organizations the companies they belong to. Team is your own company's people — anyone who can own a Rock, a number or a task, with or without a login. A teammate's title (shown on their Profile) is set here."],
+    ],
+    tips: ["On a computer the lists fit the screen, with Previous / Next under them; the detail panel scrolls on its own."],
+  },
+  {
+    id: "traction",
+    title: "Traction & EOS",
+    href: "/traction",
+    icon: Compass,
+    summary:
+      "The company's operating system (EOS). Traction is the weekly rhythm: Overview, Scorecard (the numbers), Rocks (90-day priorities), Issues and the L10 meeting. EOS holds what changes slowly: Vision (the V/TO), People (the Accountability Chart and People Analyzer), Process and the Organizational Checkup. On a computer you can fold either group away by clicking its name in the sidebar.",
+    controls: [
+      ["Rocks · milestones & to-dos", "Open a Rock to break it into steps: each one is an activity owned by the Rock's owner (they get a push) and shows in Activities. The Rock shows how many are done."],
+      ["Rocks · list / board", "The board puts the quarter's Rocks in columns by status — drag a Rock to change it. A finished quarter is read-only there: close its open Rocks out from the list (complete, carry to the next quarter, or drop)."],
+      ["Issues", "Ranked by drag; the top three are what the next L10 solves. Solving one records the decision and its To-Dos, each assigned to someone (they get a push)."],
+      ["Vision · guided setup", "An empty V/TO opens as a six-step guided setup — core values, core focus, 10-year target, marketing strategy, 3-year picture, 1-year plan — each with what it is and an example. Every step saves as you go; a banner picks up where you stopped."],
+      ["L10 reminder", "One hour before the standing meeting, everyone on the team gets a push and an email with its points."],
+    ],
+    tips: ["Each Traction and EOS page has its own (?) help and tour with the details."],
+  },
+  {
+    id: "notifications",
+    title: "Notifications",
+    href: "/settings/notifications",
+    icon: Bell,
+    summary:
+      "Push notifications reach you on a device even when the CRM is closed. Turn them on per device and browser in Settings → Notifications (there's a test button). On an iPhone they only work with the CRM installed on the Home Screen.",
+    controls: [
+      ["A task for you", "Right away, when someone creates or hands you a task, call or meeting — including L10 To-Dos and Rock to-dos."],
+      ["Due reminders", "When a task with Enable notification comes due (checked every 20 minutes)."],
+      ["L10 heads-up", "One hour before the workspace's L10, by push and email."],
+    ],
+  },
+  {
+    id: "profile",
+    title: "Your profile",
+    href: "/profile",
+    icon: UserRound,
+    summary:
+      "Account menu (your avatar) → Profile. Change the name your team sees and the email you sign in with, and see your role and title in every workspace you belong to.",
+    controls: [
+      ["Display name", "Changes how you appear everywhere, and updates you on the team of every workspace you belong to."],
+      ["Email", "Type the new address and press Send code: a 6-digit code goes to it from TAGR Holdings. Type the code to confirm — until then the old email keeps working."],
+      ["Your workspaces", "Each one with your role (admin or member) and your title on its team."],
     ],
   },
 ];

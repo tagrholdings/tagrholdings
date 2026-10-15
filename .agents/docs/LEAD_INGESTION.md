@@ -2,12 +2,12 @@
 
 ## Who writes, who reads
 
-Leads reach `raw_leads` through **three doors**, all ending in the same table and the same review queue (the Leads Inbox):
+Leads reach `raw_leads` through **three doors**, all ending in the same table and the same review queue (Sourcing → Review):
 
 | Door | Writer | `sourceType`s | Extraction runs in |
 |---|---|---|---|
 | **Scheduled discovery** | the external Python job in `scraper/` (GitHub Actions cron today, a dedicated server later — same Docker image) | `google_places`, `brave_search`, `marketplace_scrape` (shelved) | the job (`scraper/src/leadengine/extraction/`) |
-| **Real-time intake** | this app: `POST /api/leads/ingest` (API key), the Leads Inbox quick-add (Server Action), the PWA share target | `manual_assist` | the app (`modules/lead-extraction/`) via `leadsIngestService` |
+| **Real-time intake** | this app: `POST /api/leads/ingest` (API key), Sourcing → Review quick-add (Server Action), the PWA share target | `manual_assist` | the app (`modules/lead-extraction/`) via `leadsIngestService` |
 | **Inbound email** | this app: the Resend `email.received` webhook | `email_digest` | the app, same service |
 
 - **Reads and transforms `raw_leads`**: `modules/leads` (Service/Repository). `modules/lead-engine` reads runs and spend; `modules/search-profiles` owns the profiles the job consumes; `modules/email-sources` + `modules/email-inbound` own the email flow.
@@ -39,7 +39,7 @@ Every candidate, whatever the source. Fields the job populates on insert:
 
 - `tenantId` — from the search profile that originated the run (never inferred by the app).
 - `searchProfileId` — that profile.
-- `sourceType` — `"google_places"` | `"brave_search"` | `"marketplace_scrape"` | `"company_site_scrape"` | `"email_digest"` (inbound email, written by the Resend webhook) | `"manual_assist"` (a lead added by hand: the ingest API, the Leads Inbox quick-add, the share target).
+- `sourceType` — `"google_places"` | `"brave_search"` | `"marketplace_scrape"` | `"company_site_scrape"` | `"email_digest"` (inbound email, written by the Resend webhook) | `"manual_assist"` (a lead added by hand: the ingest API, Sourcing → Review quick-add, the share target).
 - `sourceUrl` — link the candidate came from (Maps page, search result, listing).
 - `businessName`
 - `rawText` — the text the AI saw (source record + website text), capped, kept for audit/reprocessing. The app never selects it.
@@ -60,7 +60,7 @@ estimatedRevenue, askingPrice, reasonForSelling,
 employees, yearsInBusiness, signals[]
 ```
 
-Values are strings as the source wrote them ("$1.2M", "12 employees") — the extractor is told not to convert or guess. The TypeScript shape is `ExtractedFields` in `leads.schema.ts`; the job's mapping is `scraper/src/leadengine/extraction/extractor.py` (`to_extracted_fields`). Treat it as **untrusted input** (scraped and model-written): render through `app/(hub)/leads-inbox/_components/lead-fields.ts`, validate any URL before it becomes an `href`.
+Values are strings as the source wrote them ("$1.2M", "12 employees") — the extractor is told not to convert or guess. The TypeScript shape is `ExtractedFields` in `leads.schema.ts`; the job's mapping is `scraper/src/leadengine/extraction/extractor.py` (`to_extracted_fields`). Treat it as **untrusted input** (scraped and model-written): render through `app/(hub)/sourcing/_components/lead-fields.ts`, validate any URL before it becomes an `href`.
 
 ### `search_profiles` (`modules/search-profiles/search-profiles.schema.ts`)
 
@@ -84,7 +84,7 @@ One `lead_runs` row per execution of one profile (`running|completed|partial|fai
 
 Two sources of *for-sale* leads exist side by side: the **listing emails** the inbox receives (*Inbound email*) and this crawler. It automates what a person does by hand: search for business brokers in the state, open each one's "buy a business / available listings" page, look at the wanted industries.
 
-`listing_sites` (`modules/listing-sites/`, tenant-scoped, one row per registrable domain) is the persistent list: `siteName`, `domain`, `siteUrl`, `listingsUrl` (learned), `source` (`manual` | `auto_detected`), `active` (false = *Ignored*: neither crawled nor re-discovered), `status` (`pending` | `ok` | `no_listings` | `blocked` | `error`), `statusDetail`, `lastCrawledAt`, `lastListingCount`, `contentHashes` (job bookkeeping, never sent to the client). UI: Leads Inbox → *Listing sites* (add by hand, Ignore / Use again, a banner for sites the engine could not read).
+`listing_sites` (`modules/listing-sites/`, tenant-scoped, one row per registrable domain) is the persistent list: `siteName`, `domain`, `siteUrl`, `listingsUrl` (learned), `source` (`manual` | `auto_detected`), `active` (false = *Ignored*: neither crawled nor re-discovered), `status` (`pending` | `ok` | `no_listings` | `blocked` | `error`), `statusDetail`, `lastCrawledAt`, `lastListingCount`, `contentHashes` (job bookkeeping, never sent to the client). UI: Sourcing → Review → *Listing sites* (add by hand, Ignore / Use again, a banner for sites the engine could not read).
 
 Per run of a profile with `broker_listings` on (`scraper/src/leadengine/sources/broker_listings.py`; one plan step `(broker_listings, "*")`, so each broker is opened once whatever the number of industries):
 
@@ -105,8 +105,8 @@ One service, three entry points, so the logic exists exactly once (`modules/lead
 **dedupe → AI extraction → record its spend → save**. Extraction runs only for a lead that is actually new (a re-submission costs nothing), and a failed AI step never loses the lead — it is saved with the source's own fields and flagged `extractionFallback`.
 
 - **`POST /api/leads/ingest`** (`app/api/leads/ingest/route.ts`) — for you or a script, when a site blocks the scraper. `Authorization: Bearer <LEAD_INGEST_API_KEY>` (constant-time compare; if the env var is unset the endpoint answers 401 to everyone). Body: `tenantId` (**required**, no default, cross-checked against the `tenants` table), `sourceUrl` (required, http/https), `rawText` (required), `businessName?`, `note?` (kept on the lead and shown to the model as context). Responses: `201 {id, duplicate:false, extractionFallback}`, `200 {…, duplicate:true}` when the same URL is already there, `400` invalid body / unknown tenant, `401`, `429` (~20 requests/minute for the key — a Postgres fixed-window counter shared across serverless instances, `modules/rate-limit`; only authenticated requests count), `500`. Dedupe key: the URL with tracking params (`utm_*`, `fbclid`…), `www.`, fragment and trailing slash removed.
-- **Leads Inbox quick-add** (`quickAddLeadAction`, tenant from the session) — one box: a lone link is fetched server-side (SSRF-guarded GET, `lib/safe-fetch.ts`) and read; anything else is taken as the text itself. If a page can't be read (many sites block bots) the lead is still saved with just the URL and the person is told to paste the text.
-- **Web Share Target** (`app/manifest.ts` → `/share`) — Android/Chrome, installed PWA only: "Share → TAGR CRM" lands on `/share`, which just pre-fills the quick-add box (`/leads-inbox?add=…`) — it ingests nothing itself.
+- **Sourcing → Review quick-add** (`quickAddLeadAction`, tenant from the session) — one box: a lone link is fetched server-side (SSRF-guarded GET, `lib/safe-fetch.ts`) and read; anything else is taken as the text itself. If a page can't be read (many sites block bots) the lead is still saved with just the URL and the person is told to paste the text.
+- **Web Share Target** (`app/manifest.ts` → `/share`) — Android/Chrome, installed PWA only: "Share → TAGR CRM" lands on `/share`, which just pre-fills the quick-add box (`/sourcing?add=…`) — it ingests nothing itself.
 
 ## Inbound email (`email_digest`)
 
@@ -129,7 +129,7 @@ Cost: one AI call per email (~US$ 0.0004 for a four-listing alert on `gpt-4o-min
 
 ## Email sources — tracking list and auto-signup
 
-`email_sources` (tenant-scoped) is the list of listing sites that deliver by email: `siteName`, `signupUrl`, `subscribed`, `captchaProtected`, `notes`, `subscribedAt`, `source` (`manual` = a person added it in the CRM · `auto_detected` = a search profile run logged it, see below), plus `emailFieldSelector` / `submitSelector` (per-site CSS selectors for the signup form) and job-owned `lastAttempt*` / app-owned `attemptRequestedAt`. UI: Leads Inbox → *Email sources* (shows which rows were added by hand and which the engine found).
+`email_sources` (tenant-scoped) is the list of listing sites that deliver by email: `siteName`, `signupUrl`, `subscribed`, `captchaProtected`, `notes`, `subscribedAt`, `source` (`manual` = a person added it in the CRM · `auto_detected` = a search profile run logged it, see below), plus `emailFieldSelector` / `submitSelector` (per-site CSS selectors for the signup form) and job-owned `lastAttempt*` / app-owned `attemptRequestedAt`. UI: Sourcing → Review → *Email sources* (shows which rows were added by hand and which the engine found).
 
 **Auto-detection during search runs.** Whether a site needs an email signup can't be known without looking, so a person can still add sites by hand — but the engine also looks while it works (`scraper/src/leadengine/enrich/email_signup_detect.py`). Each page the company-site enricher reads (homepage + one contact/about page of a candidate's website, robots.txt respected), and each results page the marketplace adapter finds empty, goes through a **precision-first heuristic that needs BOTH signals in the same `<form>`**: (1) a real email field (`<input type="email">`, or a text input clearly labelled as email) and (2) one of a small keyword set — *subscribe*, *get listings by email*, *email alerts*, *sign up to receive* (case-insensitive, word-bounded, so "unsubscribe" doesn't count) — in that form or its small enclosing section (≤ 3 ancestors, ≤ 600 chars; a keyword elsewhere on the page doesn't count). Forms with a password or a free-text message box (login/contact) are ignored. Neither signal alone is enough. A match:
 
@@ -188,7 +188,7 @@ The webhook URL to register in Resend is `https://crm.tagrholdings.com/api/webho
 
 ## Promoting a raw lead into a pipeline item
 
-"Add to pipeline" in the Leads Inbox → `promoteRawLeadAction` → `leadsService.promote`:
+"Add to pipeline" in Sourcing → Review → `promoteRawLeadAction` → `leadsService.promote`:
 
 1. Atomically flips `status` `new → processed` (conditional UPDATE — a double click or second tab is rejected, not duplicated).
 2. Via the other modules' **Services**: `pipelineService.ensureDefaultBoard`, `organizationsService.create` (reuses a same-named org), `contactsService.create` (only if the engine found contact data), `pipelineService.create` (Leads board, first stage, notes built from the extracted fields).

@@ -2,7 +2,7 @@ import { getWorkspace } from "@/lib/auth-server";
 import { HubPage } from "@/components/layout/HubPage";
 import { leadsService } from "@/modules/leads/leads.service";
 import { initialsFor } from "@/lib/utils";
-import { LeadsInboxTabs } from "./_components/LeadsInboxTabs";
+import { SourcingTabs } from "./_components/SourcingTabs";
 import { RawLeadsView } from "./_components/RawLeadsView";
 
 export const dynamic = "force-dynamic";
@@ -21,10 +21,10 @@ export default async function LeadsInboxPage({ params, searchParams }: { params:
     <HubPage
       fitViewport
       user={{ name: user.name || user.email, initials: initialsFor(user.name || user.email) }}
-      kicker="Lead engine"
-      title="Leads Inbox"
+      kicker="Sourcing"
+      title="Review"
     >
-      <LeadsInboxTabs active="inbox" />
+      <SourcingTabs active="review" />
       <RawLeadsView leads={leads} initialSelectedId={lead ?? null} initialAdd={(add ?? "").slice(0, 5000)} />
     </HubPage>
   );

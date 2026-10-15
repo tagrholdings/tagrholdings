@@ -66,7 +66,7 @@ export function SiteStatusVault({ site, busy, onOpenChange, onAddSite, onIgnore 
                     </a>
                   )}
                   {explanation.actions.includes("email_sources") && (
-                    <Link href={path("/leads-inbox/email-sources")} className={buttonVariants({ variant: "outline", size: "sm" })}>
+                    <Link href={path("/sourcing/email-sources")} className={buttonVariants({ variant: "outline", size: "sm" })}>
                       Go to Email sources
                     </Link>
                   )}

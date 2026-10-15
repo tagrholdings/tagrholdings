@@ -5,7 +5,7 @@ import { protectedAction } from "@/lib/safe-action";
 import { emailSourcesService } from "./email-sources.service";
 import { createEmailSourceSchema, emailSourceIdSchema, setSubscribedSchema, updateEmailSourceSchema } from "./email-sources.types";
 
-const PAGE = "/leads-inbox/email-sources";
+const PAGE = "/sourcing/email-sources";
 
 export const createEmailSourceAction = protectedAction.schema(createEmailSourceSchema).action(async ({ parsedInput, ctx }) => {
   const source = await emailSourcesService.create(ctx.user.tenantId, parsedInput);
