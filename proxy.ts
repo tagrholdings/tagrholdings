@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { createNeonAuth } from "@neondatabase/auth/next/server";
 import { WORKSPACE_HEADER, WORKSPACE_SECTIONS, parseWorkspacePath } from "@/lib/workspace-path";
 
 const CRM_HOST = "crm.tagrholdings.com";
@@ -30,28 +30,48 @@ function isLegacyHubPath(pathname: string) {
   return (WORKSPACE_SECTIONS as readonly string[]).includes(first);
 }
 
+// Neon Auth keeps a short-lived (5 min) signed copy of the session in a cookie. When it expires, `auth.getSession()` has
+// to refresh it — and a Server Component may not write cookies, so the page died with "Cookies can only be modified in
+// a Server Action or Route Handler" ("This page couldn't load", fixed by a reload). The library's middleware refreshes
+// that cookie here, where cookies can be written, before the page renders. Its own instance: lib/auth-server.ts pulls in
+// the database, which the proxy must not.
+const neonAuth = createNeonAuth({
+  baseUrl: process.env.NEON_AUTH_BASE_URL!,
+  cookies: { secret: process.env.NEON_AUTH_COOKIE_SECRET! },
+});
+const refreshSession = neonAuth.middleware({ loginUrl: "/auth/sign-in" });
+
+/** Pages that need a signed-in person (each also checks it itself): workspaces, the picker, /home, the super admin, /share. */
+function isSignedInPath(pathname: string) {
+  return pathname.startsWith("/w/") || ["/home", "/workspaces", "/admin", "/share"].some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
 /**
  * Forwards the request with the workspace taken from the URL (`/w/<slug>/…`) in the `x-workspace` header, which is how
  * a Server Action — POSTed to its page's URL — learns which workspace it acts in (lib/safe-action.ts). The header is
  * always rewritten here: a value the client sent is dropped, so it can only ever mirror the URL. It is an address, not
  * proof — every action and page re-checks the person's access to that workspace.
+ *
+ * Those pages also go through the session refresh above; a signed-out visitor is sent to sign-in, as the pages
+ * themselves would have done.
  */
-function forward(request: NextRequest) {
+async function forward(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   const workspace = parseWorkspacePath(request.nextUrl.pathname);
   if (workspace) requestHeaders.set(WORKSPACE_HEADER, workspace.slug);
   else requestHeaders.delete(WORKSPACE_HEADER);
+  if (isSignedInPath(request.nextUrl.pathname)) return refreshSession(new NextRequest(request, { headers: requestHeaders }));
   return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
-export default function proxy(request: NextRequest) {
+export default async function proxy(request: NextRequest) {
   const host = request.headers.get("host") || "";
   const { pathname, search } = request.nextUrl;
 
   // Shared by both hosts — sign-in only ever happens on the CRM subdomain,
   // but the route itself doesn't need to be redirected either way.
   if (pathname.startsWith("/api/auth")) {
-    return forward(request);
+    return await forward(request);
   }
 
   if (isCrmHost(host)) {
@@ -71,7 +91,7 @@ export default function proxy(request: NextRequest) {
     if (isLegacyHubPath(pathname)) {
       return NextResponse.redirect(new URL(`/home?to=${encodeURIComponent(pathname + search)}`, request.url));
     }
-    return forward(request);
+    return await forward(request);
   }
 
   if (MARKETING_HOSTS.has(host)) {
@@ -90,7 +110,7 @@ export default function proxy(request: NextRequest) {
   if (isLegacyHubPath(pathname)) {
     return NextResponse.redirect(new URL(`/home?to=${encodeURIComponent(pathname + search)}`, request.url));
   }
-  return forward(request);
+  return await forward(request);
 }
 
 // Static files from public/ are shared by both hosts and never go through the

@@ -21,6 +21,8 @@ export const activitiesTable = pgTable(
     type: text("type").notNull(),
     subject: text("subject").notNull(),
     dueDate: timestamp("due_date"),
+    /** IANA zone the due time was entered in ("America/Phoenix"). Null when no time was set. Display only — `dueDate` is the instant. */
+    timezone: text("timezone"),
     done: boolean("done").notNull().default(false),
     priority: text("priority"),
     notes: text("notes"),

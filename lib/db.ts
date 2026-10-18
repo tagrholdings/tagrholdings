@@ -38,7 +38,19 @@ const schema = {
   ...portfolioSchema,
 };
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL! });
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL!,
+  // Neon suspends idle compute and drops idle connections. A pooled connection that died that way used to be handed to
+  // the next request, which then failed ("Connection terminated unexpectedly") and showed "This page couldn't load" until
+  // a reload. Retiring idle connections quickly (before Neon does) keeps the pool free of dead ones.
+  idleTimeoutMillis: 10_000,
+  // Waking a suspended compute can take a few seconds; wait for it rather than failing the request at once.
+  connectionTimeoutMillis: 15_000,
+  keepAlive: true,
+});
+
+// An idle connection erroring (Neon closed it) must be dropped quietly, not thrown as an uncaught exception.
+pool.on("error", (error) => console.error("Idle database connection dropped:", error.message));
 
 /**
  * Unscoped connection — the login role has BYPASSRLS, so RLS policies don't

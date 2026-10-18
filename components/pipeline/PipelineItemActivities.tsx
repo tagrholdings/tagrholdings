@@ -8,7 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckSquare, Plus, ArrowUpRight } from "lucide-react";
 import { useIsMobile } from "@/hooks/ui/use-device";
 import { cn } from "@/lib/utils";
-import { dueBucket, formatDateUS } from "@/utils/date";
+import { dueBucket, formatDateUS, formatDueTime } from "@/utils/date";
 import { notify } from "@/components/ui/toaster";
 import { Button } from "@/components/ui/button";
 import {
@@ -68,7 +68,9 @@ function ActivityRowItem({ activity, onToggle }: { activity: ActivityRow; onTogg
         <span className="shrink-0 text-[10px] font-semibold uppercase text-destructive">High</span>
       )}
       <span className={cn("shrink-0 text-xs", overdue ? "text-destructive" : "text-muted-foreground")}>
-        {activity.dueDate ? formatDateUS(activity.dueDate, { month: "short", day: "numeric" }) : "No date"}
+        {activity.dueDate
+          ? [formatDateUS(activity.dueDate, { month: "short", day: "numeric" }), formatDueTime(activity.dueDate, activity.timezone)].filter(Boolean).join(" · ")
+          : "No date"}
       </span>
     </div>
   );

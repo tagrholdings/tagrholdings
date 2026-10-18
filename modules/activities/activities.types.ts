@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isValidTimeZone } from "@/modules/traction/traction.logic";
 import { insertActivitySchema } from "./activities.schema";
 
 export const ACTIVITY_TYPES = ["call", "meeting", "task", "email", "follow_up"] as const;
@@ -21,6 +22,7 @@ const activityFieldsSchema = insertActivitySchema
     type: true,
     subject: true,
     dueDate: true,
+    timezone: true,
     priority: true,
     notes: true,
     contactId: true,
@@ -34,6 +36,7 @@ const activityFieldsSchema = insertActivitySchema
   .extend({
     type: z.enum(ACTIVITY_TYPES),
     priority: z.enum(ACTIVITY_PRIORITIES).nullish(),
+    timezone: z.string().refine(isValidTimeZone, "Pick a real time zone.").nullish(),
   });
 
 /** The rules both creating and editing an activity share. */
@@ -84,6 +87,8 @@ export interface ActivityRow {
   type: string;
   subject: string;
   dueDate: string | Date | null;
+  /** The zone the due time was entered in; null when the activity has no time. */
+  timezone: string | null;
   createdAt: string | Date;
   done: boolean;
   priority: string | null;

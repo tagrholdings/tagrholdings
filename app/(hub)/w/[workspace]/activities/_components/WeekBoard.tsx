@@ -5,7 +5,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useEffect, useRef } from "react";
 import { CheckSquare, Link2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { isSameDate, type WeekDay } from "@/utils/date";
+import { formatDueTime, isSameDate, type WeekDay } from "@/utils/date";
 import type { ActivityRow } from "@/modules/activities/activities.types";
 
 export type WeekDateField = "dueDate" | "createdAt";
@@ -41,6 +41,9 @@ function WeekActivityCard({ activity, onSelect }: { activity: ActivityRow; onSel
         <p className={cn("truncate text-sm font-medium", activity.done ? "text-muted-foreground line-through" : "text-foreground")}>
           {activity.subject}
         </p>
+        {activity.dueDate && formatDueTime(activity.dueDate, activity.timezone) && (
+          <p className="mt-0.5 text-xs text-muted-foreground">{formatDueTime(activity.dueDate, activity.timezone)}</p>
+        )}
         {context && (
           <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
             {activity.pipelineItemTitle && <Link2 className="size-3 shrink-0" />}

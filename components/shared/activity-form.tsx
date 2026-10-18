@@ -7,10 +7,12 @@ import { Phone, Users, CheckSquare, Mail, Repeat, ChevronDown, Bell } from "luci
 import { VaultField, VaultInput } from "@/components/ui/vault";
 import type { PipelineItemSummary } from "@/components/pipeline/types";
 import { CommandSelect } from "@/components/shared/command-select";
+import { DatePicker } from "@/components/shared/date-picker";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { hasTimeComponent, parseLocalDateTime, toDateInputValue, toTimeInputValue } from "@/utils/date";
-import { quarterLabel } from "@/modules/traction/traction.logic";
+import { browserTimeZone, formatDueTime, hasTimeComponent, parseLocalDateTime, toDateInputValue, toTimeInputValue, toZonedInputValues } from "@/utils/date";
+import { quarterLabel, zonedTimeToUtc } from "@/modules/traction/traction.logic";
+import { TimeZoneSelect } from "@/components/shared/timezone-select";
 import {
   ACTIVITY_TYPES,
   ACTIVITY_PRIORITIES,
@@ -19,6 +21,9 @@ import {
   type ActivityRow,
   type NewActivity,
 } from "@/modules/activities/activities.types";
+
+/** When a reminder fires if the activity has a due date but no time ("HH:mm", the viewer's local time). */
+export const DEFAULT_REMINDER_TIME = "09:00";
 
 const noopSubscribe = () => () => {};
 
@@ -52,6 +57,8 @@ export const activityFormSchema = z.object({
   type: z.enum(ACTIVITY_TYPES),
   dueDate: z.string().optional(),
   dueTime: z.string().optional(),
+  /** IANA zone `dueTime` is read in. Defaults to the browser's; only saved when a time is set. */
+  timezone: z.string().optional(),
   /** "" = cleared (react-hook-form puts a field set to undefined back to its default, so clearing uses ""). */
   priority: z.enum(ACTIVITY_PRIORITIES).or(z.literal("")).optional(),
   notes: z.string().optional(),
@@ -63,7 +70,7 @@ export const activityFormSchema = z.object({
   organizationId: z.string().optional(),
   pipelineItemId: z.string().optional(),
   rockId: z.string().optional(),
-  /** "Enable notification" — a push reminder at the due time. Only meaningful with a due date AND time. */
+  /** "Enable notification" — a push reminder at the due time (DEFAULT_REMINDER_TIME when no time is set). Needs a due date. */
   notify: z.boolean().optional(),
 });
 
@@ -76,6 +83,7 @@ export function activityFormDefaults(overrides: Partial<ActivityFormValues> = {}
     type: "task",
     dueDate: toDateInputValue(new Date()),
     dueTime: "",
+    timezone: browserTimeZone(),
     priority: undefined,
     notes: "",
     assignedTo: undefined,
@@ -98,8 +106,10 @@ export function activityToFormValues(activity: ActivityRow): ActivityFormValues 
   return {
     subject: activity.subject,
     type,
-    dueDate: due ? toDateInputValue(due) : "",
-    dueTime: due && hasTimeComponent(due) ? toTimeInputValue(due) : "",
+    // An activity entered in another zone is edited in that zone, so the time you see is the time that was typed.
+    dueDate: due ? (activity.timezone ? toZonedInputValues(due, activity.timezone).date : toDateInputValue(due)) : "",
+    dueTime: due ? (activity.timezone ? toZonedInputValues(due, activity.timezone).time : hasTimeComponent(due) ? toTimeInputValue(due) : "") : "",
+    timezone: activity.timezone ?? browserTimeZone(),
     priority,
     notes: activity.notes ?? "",
     assignedTo: activity.assignedToPersonId
@@ -115,12 +125,26 @@ export function activityToFormValues(activity: ActivityRow): ActivityFormValues 
   };
 }
 
+/** The instant the form's date + time + zone describe. No time → local midnight (or the default reminder hour). */
+function dueInstant(values: ActivityFormValues): Date {
+  const { dueDate, dueTime, timezone } = values;
+  if (!dueDate) throw new Error("dueInstant needs a date");
+  if (!dueTime) return parseLocalDateTime(dueDate, values.notify ? DEFAULT_REMINDER_TIME : undefined);
+  if (!timezone || timezone === browserTimeZone()) return parseLocalDateTime(dueDate, dueTime);
+  const [year, month, day] = dueDate.split("-").map(Number);
+  const [hour, minute] = dueTime.split(":").map(Number);
+  return zonedTimeToUtc(year, month, day, hour, minute, timezone);
+}
+
 export function toNewActivity(values: ActivityFormValues): NewActivity {
   const [assignedKind, assignedId] = values.assignedTo?.split(":") ?? [];
   return {
     subject: values.subject.trim(),
     type: values.type,
-    dueDate: values.dueDate ? parseLocalDateTime(values.dueDate, values.dueTime || undefined) : undefined,
+    // A reminder needs an exact moment: with "Enable notification" on but no time picked, it goes off at the default hour.
+    dueDate: values.dueDate ? dueInstant(values) : undefined,
+    // The zone only means something next to a time; the default reminder hour is the viewer's own.
+    timezone: values.dueDate && values.dueTime ? values.timezone || undefined : undefined,
     priority: values.priority || undefined,
     notes: values.notes?.trim() || undefined,
     contactId: values.contactId || undefined,
@@ -129,8 +153,7 @@ export function toNewActivity(values: ActivityFormValues): NewActivity {
     rockId: values.rockId || undefined,
     assignedToPersonId: assignedKind === "person" ? assignedId : undefined,
     assignedToContactId: assignedKind === "contact" ? assignedId : undefined,
-    // A reminder needs an exact moment: if the time was cleared after ticking the box, it's dropped rather than sent at midnight.
-    notify: values.notify && values.dueDate && values.dueTime ? true : undefined,
+    notify: values.notify && values.dueDate ? true : undefined,
   };
 }
 
@@ -151,6 +174,7 @@ export function buildOptimisticActivity(input: NewActivity, lookups: ActivityLoo
     type: input.type,
     subject: input.subject,
     dueDate: input.dueDate ?? null,
+    timezone: input.timezone ?? null,
     createdAt: new Date(),
     done: false,
     priority: input.priority ?? null,
@@ -232,8 +256,9 @@ export function ActivityFormFields({ form, lookups, showPipelineItem = true, sho
   const { register, control, watch, formState: { errors } } = form;
   const [showExtras, setShowExtras] = useState(!collapsibleExtras);
   const selectedType = watch("type");
-  const [dueDate, dueTime, notifyChecked] = watch(["dueDate", "dueTime", "notify"]);
-  const canNotify = !!dueDate && !!dueTime;
+  const [dueDate, dueTime, notifyChecked, timezone] = watch(["dueDate", "dueTime", "notify", "timezone"]);
+  const otherZone = !!dueDate && !!dueTime && !!timezone && timezone !== browserTimeZone();
+  const canNotify = !!dueDate;
   const permission = useNotificationPermission();
 
   return (
@@ -258,12 +283,23 @@ export function ActivityFormFields({ form, lookups, showPipelineItem = true, sho
 
       <div className="grid grid-cols-2 gap-3">
         <VaultField label="Due date">
-          <VaultInput type="date" {...register("dueDate")} />
+          <Controller control={control} name="dueDate" render={({ field }) => <DatePicker value={field.value} onChange={field.onChange} />} />
         </VaultField>
         <VaultField label="Time (optional)">
           <VaultInput type="time" {...register("dueTime")} />
         </VaultField>
       </div>
+
+      {dueTime && (
+        <VaultField label="Time zone">
+          <Controller control={control} name="timezone" render={({ field }) => <TimeZoneSelect value={field.value} onChange={field.onChange} />} />
+          {otherZone && (
+            <p className="text-xs text-muted-foreground">
+              That&apos;s {formatDueTime(dueInstant({ ...form.getValues(), dueDate, dueTime, timezone }), timezone)} — shown in your time first.
+            </p>
+          )}
+        </VaultField>
+      )}
 
       <label className={cn("flex items-start gap-3 text-sm", canNotify ? "cursor-pointer" : "cursor-not-allowed opacity-60")}>
         <input type="checkbox" disabled={!canNotify} className="mt-0.5 size-4 shrink-0 accent-[var(--accent)]" {...register("notify")} />
@@ -274,10 +310,12 @@ export function ActivityFormFields({ form, lookups, showPipelineItem = true, sho
           </span>
           <span className="block text-xs text-muted-foreground">
             {!canNotify
-              ? "Set a due date and time to get a reminder."
+              ? "Set a due date to get a reminder."
               : notifyChecked && permission !== null && permission !== "granted"
                 ? "Push is off on this device — turn it on in Settings → Notifications to receive it."
-                : "Get a push notification with a sound when it's due."}
+                : dueTime
+                  ? "Get a push notification with a sound when it's due."
+                  : "Get a push notification at 9:00 AM — or pick a time above."}
           </span>
         </span>
       </label>

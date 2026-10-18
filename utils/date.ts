@@ -105,3 +105,39 @@ export function dueBucket(dueDate: Date | string | null, now = new Date()): DueB
   if (diffDays <= 7) return "this_week";
   return "later";
 }
+
+/** The viewer's own IANA zone ("America/Sao_Paulo"). */
+export function browserTimeZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
+/** "yyyy-mm-dd" and "HH:mm" of an instant as the wall clock reads in `timeZone` — pre-fills the form in the zone it was entered in. */
+export function toZonedInputValues(date: Date | string, timeZone: string): { date: string; time: string } {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", { timeZone, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
+      .formatToParts(new Date(date))
+      .map((p) => [p.type, p.value])
+  );
+  return { date: `${parts.year}-${parts.month}-${parts.day}`, time: `${parts.hour}:${parts.minute}` };
+}
+
+function timeIn(date: Date, timeZone: string | undefined, withZone: boolean): string {
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    ...(withZone ? { timeZoneName: "short" as const } : {}),
+    ...(timeZone ? { timeZone } : {}),
+  }).format(date);
+}
+
+/**
+ * The time of day an activity is due, for a card: in the viewer's zone, plus the zone it was entered in when that
+ * differs ("7:00 PM GMT-3 · 3:00 PM MST"). Null when the activity has no time (date only).
+ */
+export function formatDueTime(dueDate: Date | string, timezone?: string | null): string | null {
+  const d = new Date(dueDate);
+  if (!timezone && !hasTimeComponent(d)) return null;
+  const plain = timeIn(d, undefined, false);
+  if (!timezone || timeIn(d, undefined, true) === timeIn(d, timezone, true)) return plain;
+  return `${timeIn(d, undefined, true)} · ${timeIn(d, timezone, true)}`;
+}

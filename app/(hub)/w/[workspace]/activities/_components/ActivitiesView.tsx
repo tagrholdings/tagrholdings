@@ -3,7 +3,7 @@
 import { useOptimistic, useState, useTransition } from "react";
 import { Bell, CalendarClock, CheckSquare, ChevronLeft, ChevronRight, Gem, LayoutGrid, Link2, List, ListChecks, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { dueBucket, formatDateUS, getCurrentWeekDays, type DueBucket } from "@/utils/date";
+import { dueBucket, formatDateUS, formatDueTime, getCurrentWeekDays, type DueBucket } from "@/utils/date";
 import { useIsMobile } from "@/hooks/ui/use-device";
 import { notify } from "@/components/ui/toaster";
 import { SearchInput } from "@/components/ui/search-input";
@@ -502,7 +502,9 @@ export function ActivitiesView({
 
                         <span className={cn("label-kicker flex shrink-0 items-center gap-1", overdue ? "text-destructive" : "text-muted-foreground")}>
                           {activity.notify && !activity.done && <Bell className="size-3" aria-label="Notification on" />}
-                          {activity.dueDate ? formatDateUS(activity.dueDate, { month: "short", day: "numeric" }) : "No date"}
+                          {activity.dueDate
+                            ? [formatDateUS(activity.dueDate, { month: "short", day: "numeric" }), formatDueTime(activity.dueDate, activity.timezone)].filter(Boolean).join(" · ")
+                            : "No date"}
                         </span>
                       </button>
                     </li>

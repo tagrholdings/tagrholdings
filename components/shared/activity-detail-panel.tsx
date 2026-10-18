@@ -8,7 +8,7 @@ import { SidePanel } from "./side-panel";
 import { Vault, VaultContent, VaultHeader, VaultTitle, VaultBody } from "@/components/ui/vault";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { formatDateTimeUS } from "@/utils/date";
+import { formatDateTimeUS, formatDateUS, formatDueTime } from "@/utils/date";
 import type { ActivityRow } from "@/modules/activities/activities.types";
 import { pipelineItemHref } from "@/components/pipeline/links";
 import { useWorkspacePath } from "@/hooks/ui/use-workspace-path";
@@ -56,7 +56,11 @@ function DetailBody({
         {activity.dueDate && (
           <div className="flex items-center justify-between text-foreground">
             <span className="text-muted-foreground">Due</span>
-            <span>{formatDateTimeUS(activity.dueDate)}</span>
+            <span className="text-right">
+              {activity.timezone
+                ? `${formatDateUS(activity.dueDate, { weekday: "long", month: "short", day: "numeric" })}, ${formatDueTime(activity.dueDate, activity.timezone)}`
+                : formatDateTimeUS(activity.dueDate)}
+            </span>
           </div>
         )}
         {activity.notify && (
