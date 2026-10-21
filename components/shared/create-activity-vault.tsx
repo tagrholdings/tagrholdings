@@ -84,14 +84,16 @@ export function CreateActivityVault({
           <span className={MOBILE_LABEL}>New</span>
         </Button>
       </VaultTrigger>
-      <VaultContent aria-label="New activity">
-        <VaultHeader>
+      <VaultContent aria-label="New activity" noScroll>
+        <VaultHeader className="shrink-0">
           <VaultTitle>New activity</VaultTitle>
         </VaultHeader>
-        <VaultForm onSubmit={(e) => e.preventDefault()}>
-          <ActivityFormFields form={form} lookups={{ contacts, organizations, members, pipelineItems }} collapsibleExtras />
+        <VaultForm className="flex min-h-0 flex-1 flex-col" onSubmit={(e) => e.preventDefault()}>
+          <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto pb-4">
+            <ActivityFormFields form={form} lookups={{ contacts, organizations, members, pipelineItems }} collapsibleExtras />
+          </div>
 
-          <VaultFooter className="sticky bottom-0 -mx-6 -mb-6 bg-surface px-6 pb-6">
+          <VaultFooter className="shrink-0 flex-row">
             <VaultSecondaryButton type="button" onClick={() => setOpen(false)}>
               Cancel
             </VaultSecondaryButton>

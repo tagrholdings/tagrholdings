@@ -119,8 +119,10 @@ const VaultContent = React.forwardRef<
     React.ComponentPropsWithoutRef<typeof Drawer.Content> & {
         showHandle?: boolean;
         noPadding?: boolean;
+        /** The children manage their own scrolling (a pinned footer under a scrolling body); the sheet itself doesn't scroll. */
+        noScroll?: boolean;
     }
->(({ className, children, showHandle = true, noPadding = false, onOpenAutoFocus, ...props }, ref) => {
+>(({ className, children, showHandle = true, noPadding = false, noScroll = false, onOpenAutoFocus, ...props }, ref) => {
     const { isStandalone } = useDevice();
 
     return (
@@ -172,7 +174,7 @@ const VaultContent = React.forwardRef<
                 )}
 
                 <div className={cn(
-                    "overflow-y-auto no-scrollbar",
+                    noScroll ? "flex min-h-0 flex-1 flex-col overflow-hidden" : "overflow-y-auto no-scrollbar",
                     !noPadding && "px-6 pb-6 pt-2"
                 )}>
                     {children}
