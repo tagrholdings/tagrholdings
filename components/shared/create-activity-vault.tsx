@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type MouseEvent } from "react";
-import { Plus } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -76,8 +76,14 @@ export function CreateActivityVault({
     form.reset(activityFormDefaults());
   };
 
+  // Closing any way but "Create" (Cancel, the X, the overlay, a swipe down) throws the draft away.
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (!next) form.reset(activityFormDefaults());
+  };
+
   return (
-    <Vault open={open} onOpenChange={setOpen}>
+    <Vault open={open} onOpenChange={handleOpenChange}>
       <VaultTrigger asChild>
         <Button variant="ghost" data-tour={tourId} aria-label="New activity" className={MOBILE_ICON_ONLY}>
           <Plus />
@@ -94,11 +100,13 @@ export function CreateActivityVault({
           </div>
 
           <VaultFooter className="shrink-0 flex-row">
-            <VaultSecondaryButton type="button" onClick={() => setOpen(false)}>
-              Cancel
+            <VaultSecondaryButton type="button" aria-label="Cancel" onClick={() => handleOpenChange(false)} className="px-4 md:px-6">
+              <X className="size-5 md:hidden" aria-hidden />
+              <span className="hidden md:inline">Cancel</span>
             </VaultSecondaryButton>
             <VaultPrimaryButton type="submit" onClick={handleCreate}>
-              Create activity
+              <span className="md:hidden">Create</span>
+              <span className="hidden md:inline">Create activity</span>
             </VaultPrimaryButton>
           </VaultFooter>
         </VaultForm>
