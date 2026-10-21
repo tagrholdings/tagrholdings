@@ -89,9 +89,9 @@ export function CreateActivityVault({
           <VaultTitle>New activity</VaultTitle>
         </VaultHeader>
         <VaultForm onSubmit={(e) => e.preventDefault()}>
-          <ActivityFormFields form={form} lookups={{ contacts, organizations, members, pipelineItems }} />
+          <ActivityFormFields form={form} lookups={{ contacts, organizations, members, pipelineItems }} collapsibleExtras />
 
-          <VaultFooter>
+          <VaultFooter className="sticky bottom-0 -mx-6 -mb-6 bg-surface px-6 pb-6">
             <VaultSecondaryButton type="button" onClick={() => setOpen(false)}>
               Cancel
             </VaultSecondaryButton>

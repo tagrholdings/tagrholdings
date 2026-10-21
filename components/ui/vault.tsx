@@ -49,7 +49,7 @@ const Vault = ({
     };
 
     return (
-        <Drawer.Root open={isOpen} onOpenChange={handleOpenChange} {...props}>
+        <Drawer.Root open={isOpen} onOpenChange={handleOpenChange} repositionInputs={false} {...props}>
             <VaultContext.Provider value={{ isOpen, setIsOpen: handleOpenChange }}>
                 {children}
             </VaultContext.Provider>
@@ -158,7 +158,7 @@ const VaultContent = React.forwardRef<
                         ? "bottom-2 inset-x-2 w-auto rounded-lg after:hidden! mt-24"
                         : "bottom-0 inset-x-0 w-full rounded-t-lg mt-24",
 
-                    "sm:bottom-6 sm:inset-x-0 sm:mx-auto sm:w-full sm:max-w-xl sm:rounded-lg sm:after:hidden! sm:mt-0 max-h-[90vh]",
+                    "sm:bottom-6 sm:inset-x-0 sm:mx-auto sm:w-full sm:max-w-xl sm:rounded-lg sm:after:hidden! sm:mt-0 max-h-[90dvh]",
 
                     className,
                 )}
@@ -212,7 +212,7 @@ const VaultTitle = React.forwardRef<
         <Drawer.Title
             ref={ref}
             className={twMerge(
-                "font-serif text-xl font-semibold text-center leading-tight tracking-tight text-foreground",
+                "font-serif text-xl font-semibold text-center leading-tight tracking-tight text-foreground break-words [overflow-wrap:anywhere]",
                 className,
             )}
             {...props}

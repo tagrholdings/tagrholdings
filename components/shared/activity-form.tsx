@@ -25,6 +25,12 @@ import {
 /** When a reminder fires if the activity has a due date but no time ("HH:mm", the viewer's local time). */
 export const DEFAULT_REMINDER_TIME = "09:00";
 
+/** "09:00" → "9:00 AM". */
+function formatReminderHour(time: string): string {
+  const [h, m] = time.split(":").map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+}
+
 const noopSubscribe = () => () => {};
 
 /** The browser's notification permission, or null while rendering on the server (so hydration never mismatches). */
@@ -253,7 +259,7 @@ interface ActivityFormFieldsProps {
  * design.md's "Relational pickers" section.
  */
 export function ActivityFormFields({ form, lookups, showPipelineItem = true, showRock = true, collapsibleExtras = false }: ActivityFormFieldsProps) {
-  const { register, control, watch, formState: { errors } } = form;
+  const { register, control, watch, setValue, formState: { errors } } = form;
   const [showExtras, setShowExtras] = useState(!collapsibleExtras);
   const selectedType = watch("type");
   const [dueDate, dueTime, notifyChecked, timezone] = watch(["dueDate", "dueTime", "notify", "timezone"]);
@@ -301,39 +307,34 @@ export function ActivityFormFields({ form, lookups, showPipelineItem = true, sho
         </VaultField>
       )}
 
-      <label className={cn("flex items-start gap-3 text-sm", canNotify ? "cursor-pointer" : "cursor-not-allowed opacity-60")}>
-        <input type="checkbox" disabled={!canNotify} className="mt-0.5 size-4 shrink-0 accent-[var(--accent)]" {...register("notify")} />
-        <span>
-          <span className="flex items-center gap-1.5 font-medium text-foreground">
-            <Bell className="size-3.5" aria-hidden />
-            Enable notification
-          </span>
-          <span className="block text-xs text-muted-foreground">
+      <div className="space-y-1.5">
+        <button
+          type="button"
+          disabled={!canNotify}
+          aria-pressed={!!notifyChecked}
+          onClick={() => setValue("notify", !notifyChecked, { shouldDirty: true })}
+          className={cn(
+            "flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+            notifyChecked
+              ? "border-accent bg-accent text-ink"
+              : "border-divider bg-surface text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <Bell className="size-3.5" aria-hidden />
+          Remind me
+        </button>
+        {(!canNotify || notifyChecked) && (
+          <p className="text-xs text-muted-foreground">
             {!canNotify
               ? "Set a due date to get a reminder."
-              : notifyChecked && permission !== null && permission !== "granted"
-                ? "Push is off on this device — turn it on in Settings → Notifications to receive it."
+              : permission !== null && permission !== "granted"
+                ? "Push is off on this device — turn it on in Settings → Notifications."
                 : dueTime
-                  ? "Get a push notification with a sound when it's due."
-                  : "Get a push notification at 9:00 AM — or pick a time above."}
-          </span>
-        </span>
-      </label>
-
-      <VaultField label="Priority">
-        <Controller
-          control={control}
-          name="priority"
-          render={({ field }) => (
-            <PillGroup
-              allowNone
-              value={field.value}
-              onChange={(v) => field.onChange(v ?? "")}
-              options={ACTIVITY_PRIORITIES.map((p) => ({ value: p, label: ACTIVITY_PRIORITY_LABELS[p] }))}
-            />
-          )}
-        />
-      </VaultField>
+                  ? "Push notification when it's due."
+                  : `Push notification at ${formatReminderHour(DEFAULT_REMINDER_TIME)} — or pick a time.`}
+          </p>
+        )}
+      </div>
 
       {collapsibleExtras && (
         <button
@@ -342,12 +343,27 @@ export function ActivityFormFields({ form, lookups, showPipelineItem = true, sho
           className="flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
           <ChevronDown className={cn("size-3.5 transition-transform", showExtras && "rotate-180")} />
-          {showExtras ? "Fewer options" : "More options (notes, assignee, links)"}
+          {showExtras ? "Fewer options" : "More options (priority, notes, assignee, links)"}
         </button>
       )}
 
       {showExtras && (
         <>
+          <VaultField label="Priority">
+            <Controller
+              control={control}
+              name="priority"
+              render={({ field }) => (
+                <PillGroup
+                  allowNone
+                  value={field.value}
+                  onChange={(v) => field.onChange(v ?? "")}
+                  options={ACTIVITY_PRIORITIES.map((p) => ({ value: p, label: ACTIVITY_PRIORITY_LABELS[p] }))}
+                />
+              )}
+            />
+          </VaultField>
+
           <VaultField label="Notes">
             <Textarea placeholder="Add any context…" {...register("notes")} />
           </VaultField>

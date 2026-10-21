@@ -47,16 +47,16 @@ function DetailBody({
     null;
 
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 space-y-5">
       <div className="space-y-3 rounded-lg border border-divider bg-background p-4 text-sm">
-        <div className="flex items-center justify-between text-foreground">
-          <span className="text-muted-foreground">Type</span>
-          <span className="capitalize">{activity.type.replace("_", " ")}</span>
+        <div className="flex items-start justify-between gap-4 text-foreground">
+          <span className="shrink-0 text-muted-foreground">Type</span>
+          <span className="min-w-0 break-words text-right capitalize">{activity.type.replace("_", " ")}</span>
         </div>
         {activity.dueDate && (
-          <div className="flex items-center justify-between text-foreground">
-            <span className="text-muted-foreground">Due</span>
-            <span className="text-right">
+          <div className="flex items-start justify-between gap-4 text-foreground">
+            <span className="shrink-0 text-muted-foreground">Due</span>
+            <span className="min-w-0 break-words text-right">
               {activity.timezone
                 ? `${formatDateUS(activity.dueDate, { weekday: "long", month: "short", day: "numeric" })}, ${formatDueTime(activity.dueDate, activity.timezone)}`
                 : formatDateTimeUS(activity.dueDate)}
@@ -64,31 +64,31 @@ function DetailBody({
           </div>
         )}
         {activity.notify && (
-          <div className="flex items-center justify-between text-foreground">
-            <span className="text-muted-foreground">Notification</span>
-            <span>Push reminder at the due time</span>
+          <div className="flex items-start justify-between gap-4 text-foreground">
+            <span className="shrink-0 text-muted-foreground">Notification</span>
+            <span className="min-w-0 break-words text-right">Push reminder at the due time</span>
           </div>
         )}
-        <div className="flex items-center justify-between text-foreground">
-          <span className="text-muted-foreground">Created</span>
-          <span>{formatDateTimeUS(activity.createdAt)}</span>
+        <div className="flex items-start justify-between gap-4 text-foreground">
+          <span className="shrink-0 text-muted-foreground">Created</span>
+          <span className="min-w-0 break-words text-right">{formatDateTimeUS(activity.createdAt)}</span>
         </div>
         {activity.priority && (
-          <div className="flex items-center justify-between text-foreground">
-            <span className="text-muted-foreground">Priority</span>
-            <span className="capitalize">{activity.priority}</span>
+          <div className="flex items-start justify-between gap-4 text-foreground">
+            <span className="shrink-0 text-muted-foreground">Priority</span>
+            <span className="min-w-0 break-words text-right capitalize">{activity.priority}</span>
           </div>
         )}
         {assignee && (
-          <div className="flex items-center justify-between text-foreground">
-            <span className="text-muted-foreground">Assigned to</span>
-            <span>{assignee}</span>
+          <div className="flex items-start justify-between gap-4 text-foreground">
+            <span className="shrink-0 text-muted-foreground">Assigned to</span>
+            <span className="min-w-0 break-words text-right">{assignee}</span>
           </div>
         )}
         {activity.organizationName && (
-          <div className="flex items-center justify-between text-foreground">
-            <span className="text-muted-foreground">Organization</span>
-            <span>{activity.organizationName}</span>
+          <div className="flex items-start justify-between gap-4 text-foreground">
+            <span className="shrink-0 text-muted-foreground">Organization</span>
+            <span className="min-w-0 break-words text-right">{activity.organizationName}</span>
           </div>
         )}
       </div>
@@ -112,7 +112,7 @@ function DetailBody({
       {activity.notes && (
         <div>
           <p className="text-xs font-medium text-muted-foreground">Notes</p>
-          <p className="mt-1.5 whitespace-pre-line text-sm text-foreground">{activity.notes}</p>
+          <p className="mt-1.5 whitespace-pre-line break-words text-sm text-foreground [overflow-wrap:anywhere]">{activity.notes}</p>
         </div>
       )}
 
