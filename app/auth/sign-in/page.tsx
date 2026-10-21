@@ -21,10 +21,17 @@ export const dynamic = "force-dynamic";
  * exact page when there's no session, the opposite of what's needed here.
  */
 export default async function SignInPage() {
-  const { data: session } = await auth.getSession();
-  if (session?.user) {
-    redirect("/home");
+  // Neon Auth's 5-minute session cache cookie has to be rewritten once it expires, and a Server Component may not write
+  // cookies — getSession() throws then. The proxy skips /auth/sign-in (the library never refreshes there), so send that
+  // person to /home instead, where the proxy refreshes the cookie before the page renders.
+  let signedIn: boolean;
+  try {
+    const { data: session } = await auth.getSession();
+    signedIn = !!session?.user;
+  } catch {
+    signedIn = true;
   }
+  if (signedIn) redirect("/home");
 
   return <SignInCard />;
 }
