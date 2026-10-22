@@ -35,7 +35,9 @@ export async function POST(request: Request) {
   }
 
   const teamId = payload.team?.id;
-  if (!teamId || payload.api_app_id !== appId) return new NextResponse(null, { status: 200 });
+  // Button presses carry the app id; a MESSAGE SHORTCUT payload does not. The signature already proves the request came from
+  // this environment's app (the signing secret is per app), so a missing id is fine — only a different one is refused.
+  if (!teamId || (payload.api_app_id && payload.api_app_id !== appId)) return new NextResponse(null, { status: 200 });
 
   after(() => slackService.handleInteraction(payload, { teamId, apiAppId: appId }));
   return new NextResponse(null, { status: 200 });

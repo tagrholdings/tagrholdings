@@ -41,9 +41,15 @@ describe("POST /api/slack/interactions", () => {
   });
 
   it("hands a message shortcut to the service the same way", async () => {
-    const shortcut = { type: "message_action", callback_id: "create_task_from_message", api_app_id: APP, team: { id: "T1" }, user: { id: "U1" }, channel: { id: "C1" }, message: { ts: "1.1", text: "do it" } };
+    // Slack's message_action payload has no api_app_id (unlike a button press) — it must still get through.
+    const shortcut = { type: "message_action", callback_id: "create_task_from_message", team: { id: "T1" }, user: { id: "U1" }, channel: { id: "C1" }, message: { ts: "1.1", text: "do it" } };
     expect((await POST(signed(shortcut))).status).toBe(200);
     expect(handleInteraction).toHaveBeenCalledWith(shortcut, { teamId: "T1", apiAppId: APP });
+  });
+
+  it("still drops a shortcut that names another app", async () => {
+    await POST(signed({ type: "message_action", callback_id: "create_task_from_message", api_app_id: "A999", team: { id: "T1" }, user: { id: "U1" } }));
+    expect(handleInteraction).not.toHaveBeenCalled();
   });
 
   it("drops a press meant for another app", async () => {
