@@ -23,6 +23,10 @@ own signing secret, bot token and app id, so a test message in `#crm-test` can n
    GEMINI_MODEL=gemini-2.5-flash   # optional
    ```
 
+   **Dev/preview only:** `SLACK_ALLOW_UNLINKED_USERS=true` lets any Slack user try the bot without a matching CRM
+   member (what they create has no creator). Production leaves it unset: there, a Slack e-mail that isn't a member of
+   the workspace is refused.
+
 5. In Slack, create the channel (`#crm` / `#crm-test`) and `/invite @TAGR CRM` — a bot only sees channels it is in.
 6. In the CRM: **Settings → Slack** (workspace admins) → paste the Slack workspace ID (`T…`, the workspace's About) and the
    channel ID (`C…`, channel details → bottom) → Save.

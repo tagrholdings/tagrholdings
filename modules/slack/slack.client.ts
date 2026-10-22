@@ -20,11 +20,18 @@ function token(): string {
   return value;
 }
 
-async function call<T>(method: string, body: Record<string, unknown>): Promise<T> {
+/**
+ * Slack reads JSON bodies only on its write methods (chat.postMessage, chat.update…). Read methods such as users.info
+ * ignore a JSON body and answer as if no argument was sent (`user_not_found`) — they take a form body.
+ */
+async function call<T>(method: string, body: Record<string, unknown>, encoding: "json" | "form" = "json"): Promise<T> {
   const response = await fetch(`${API}/${method}`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token()}`, "Content-Type": "application/json; charset=utf-8" },
-    body: JSON.stringify(body),
+    headers: {
+      Authorization: `Bearer ${token()}`,
+      "Content-Type": encoding === "json" ? "application/json; charset=utf-8" : "application/x-www-form-urlencoded",
+    },
+    body: encoding === "json" ? JSON.stringify(body) : new URLSearchParams(Object.entries(body).map(([k, v]) => [k, String(v)])),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (!response.ok) throw new SlackApiError(`${method} answered ${response.status}`);
@@ -53,7 +60,7 @@ export const slackClient = {
 
   /** Who a Slack user is: the e-mail that links them to a workspace member, and the time zone their "Friday at 2pm" is in. */
   async getUser(userId: string): Promise<{ email: string | null; name: string; timeZone: string }> {
-    const result = await call<{ user: { real_name?: string; name?: string; tz?: string; profile?: { email?: string; real_name?: string; display_name?: string } } }>("users.info", { user: userId });
+    const result = await call<{ user: { real_name?: string; name?: string; tz?: string; profile?: { email?: string; real_name?: string; display_name?: string } } }>("users.info", { user: userId }, "form");
     const { user } = result;
     return {
       email: user.profile?.email?.toLowerCase() ?? null,

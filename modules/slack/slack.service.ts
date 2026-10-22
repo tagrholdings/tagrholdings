@@ -32,6 +32,13 @@ interface Delivery {
 }
 
 const MENTION = /<@[A-Z0-9]+>/g;
+
+/**
+ * Production refuses anyone whose Slack e-mail isn't a member of the workspace. A TEST deployment can switch that off
+ * (SLACK_ALLOW_UNLINKED_USERS=true) so any Slack user in the dev app can try the bot; what they create then has no
+ * creator. It is an explicit variable, not NODE_ENV: a Vercel preview runs with NODE_ENV=production too. Never set it in prod.
+ */
+const allowUnlinkedUsers = () => process.env.SLACK_ALLOW_UNLINKED_USERS === "true";
 const isUuid = (value: string | undefined): value is string => !!value && /^[0-9a-f-]{36}$/i.test(value);
 
 /** Loads each list at most once per message — the agent asks for what it needs, when it needs it. */
@@ -101,7 +108,7 @@ export const slackService = {
 
       const person = await slackClient.getUser(event.user);
       const userId = await this.resolveLogin(tenantId, event.user, person.email);
-      if (!userId) {
+      if (!userId && !allowUnlinkedUsers()) {
         await reply(`I couldn't match your Slack email${person.email ? ` (${person.email})` : ""} to a member of ${tenant.name}. Ask a workspace admin to add you, or to use the same email in Slack.`);
         return;
       }
@@ -119,7 +126,7 @@ export const slackService = {
       const text = (event.text ?? "").replace(MENTION, "").trim();
       if (!text && !audio) return;
 
-      const sender = await teamService.personForUser(tenantId, userId);
+      const sender = userId ? await teamService.personForUser(tenantId, userId) : null;
       const outcome = await runAgent(
         { text, audio, timeZone: person.timeZone, now: new Date() },
         { generate, data: dataFor(tenantId), userName: person.name, senderPersonId: sender?.id ?? null }
@@ -184,7 +191,7 @@ export const slackService = {
     // Whoever presses must be a person of this workspace (the dev may press a card the boss asked for).
     const presser = await slackClient.getUser(slackUserId).catch(() => null);
     const presserLogin = presser ? await this.resolveLogin(tenantId, slackUserId, presser.email) : null;
-    if (!presserLogin) {
+    if (!presserLogin && !allowUnlinkedUsers()) {
       await say("Only members of this workspace can use these buttons.");
       return;
     }
@@ -217,7 +224,8 @@ export const slackService = {
   },
 
   /** Runs a confirmed proposal through the same services and rules the app uses; returns the card's final text. */
-  async apply(tenantId: string, slug: string, payload: PendingPayload, userId: string, actorName: string | null): Promise<string> {
+  async apply(tenantId: string, slug: string, payload: PendingPayload, userId: string | null, actorName: string | null): Promise<string> {
+    const actor = { id: userId ?? "slack", name: actorName };
     const link = (id: string) => `<${crmUrl()}${workspacePath(slug, "/activities")}?activity=${id}|Open in the CRM>`;
 
     if (payload.kind === "create") {
@@ -225,7 +233,7 @@ export const slackService = {
       if (!parsed.success) invalid(parsed.error);
       const activity = await activitiesService.create(tenantId, parsed.data, userId);
       revalidateActivityPages(slug);
-      await notificationsService.notifyAssigned(tenantId, slug, [activity], { id: userId, name: actorName });
+      await notificationsService.notifyAssigned(tenantId, slug, [activity], actor);
       return `✅ Created *${escapeMrkdwn(activity.subject)}* · ${link(activity.id)}`;
     }
 
@@ -235,7 +243,7 @@ export const slackService = {
       const { previousAssignedToPersonId, ...activity } = await activitiesService.update(tenantId, parsed.data);
       revalidateActivityPages(slug);
       // Only a hand-over is news to the assignee, as in the app's own edit action.
-      if (activity.assignedToPersonId !== previousAssignedToPersonId) await notificationsService.notifyAssigned(tenantId, slug, [activity], { id: userId, name: actorName });
+      if (activity.assignedToPersonId !== previousAssignedToPersonId) await notificationsService.notifyAssigned(tenantId, slug, [activity], actor);
       return `✅ Updated *${escapeMrkdwn(activity.subject)}* · ${link(activity.id)}`;
     }
 

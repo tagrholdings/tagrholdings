@@ -83,6 +83,17 @@ describe("handleMessage", () => {
     expect(mocks.client.postMessage.mock.calls[0][0].text).toContain("couldn't match");
   });
 
+  it("in a test deployment (SLACK_ALLOW_UNLINKED_USERS) lets an unmatched Slack user through, acting as nobody", async () => {
+    vi.stubEnv("SLACK_ALLOW_UNLINKED_USERS", "true");
+    mocks.repo.findLink.mockResolvedValue(undefined);
+    mocks.tenancy.listMembers.mockResolvedValue([]);
+    mocks.agent.runAgent.mockResolvedValue({ kind: "reply", text: "hi" });
+    await slackService.handleMessage(message, delivery);
+    expect(mocks.agent.runAgent).toHaveBeenCalledTimes(1);
+    expect(mocks.agent.runAgent.mock.calls[0][1].senderPersonId).toBeNull();
+    vi.unstubAllEnvs();
+  });
+
   it("links a Slack user to the member with the same email, then runs the agent for them", async () => {
     mocks.repo.findLink.mockResolvedValue(undefined);
     mocks.tenancy.listMembers.mockResolvedValue([{ id: "user-1", email: "Boss@Tagr.com", name: "Boss" }]);
@@ -173,6 +184,15 @@ describe("handleInteraction", () => {
     await slackService.handleInteraction(press("slack_confirm"), delivery);
     expect(mocks.repo.claimPending).not.toHaveBeenCalled();
     expect(mocks.activities.create).not.toHaveBeenCalled();
+  });
+
+  it("in a test deployment an unmatched presser can confirm, and the activity has no creator", async () => {
+    vi.stubEnv("SLACK_ALLOW_UNLINKED_USERS", "true");
+    mocks.repo.findLink.mockResolvedValue(undefined);
+    mocks.tenancy.listMembers.mockResolvedValue([]);
+    await slackService.handleInteraction(press("slack_confirm"), delivery);
+    expect(mocks.activities.create.mock.calls[0][2]).toBeNull();
+    vi.unstubAllEnvs();
   });
 
   it("ignores a button value that isn't an id", async () => {
