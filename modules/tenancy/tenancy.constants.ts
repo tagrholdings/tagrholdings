@@ -4,6 +4,9 @@
  * seats → team people → items → boards → contacts → organizations → the rest.
  */
 export const TENANT_DATA_TABLES = [
+  "slack_pending_actions",
+  "slack_user_links",
+  "slack_installations",
   "lead_api_usage",
   "lead_runs",
   "raw_leads",

@@ -9,6 +9,7 @@ const TABS = [
   { id: "members", label: "Members", href: "/settings/members", adminOnly: true },
   { id: "invites", label: "Invites", href: "/settings/invites", adminOnly: true },
   { id: "workspace", label: "Workspace", href: "/settings/workspace", adminOnly: true },
+  { id: "integrations", label: "Slack", href: "/settings/integrations", adminOnly: true },
   { id: "application", label: "Application", href: "/settings/application" },
   { id: "engine-spend", label: "Engine spend", href: "/settings/engine-spend", adminOnly: true },
 ] as const;

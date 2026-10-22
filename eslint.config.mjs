@@ -9,10 +9,11 @@ const eslintConfig = defineConfig([
   // RLS applies — the plain `db` connects with BYPASSRLS. Only modules whose
   // tables carry no tenant_id (tenancy, rate-limit, portal-access, portfolio, auth-accounts — Neon Auth's own tables) may
   // import it. `invites` is the one exception with a tenant_id: an invite link is opened by someone with no
-  // session, so its token lookup can't know the tenant yet (its repository says which queries are unscoped).
+  // session, so its token lookup can't know the tenant yet (its repository says which queries are unscoped). Slack's
+  // installation lookup is the same case: the webhook only knows team + app ids until this table says whose they are.
   {
     files: ["modules/**/*.ts"],
-    ignores: ["modules/tenancy/**", "modules/rate-limit/**", "modules/portfolio/portfolio.repository.ts", "modules/portal-access/**", "modules/auth-accounts/**", "modules/invites/**", "modules/notifications/notifications.repository.ts"],
+    ignores: ["modules/tenancy/**", "modules/rate-limit/**", "modules/portfolio/portfolio.repository.ts", "modules/portal-access/**", "modules/auth-accounts/**", "modules/invites/**", "modules/notifications/notifications.repository.ts", "modules/slack/slack-installations.repository.ts"],
     rules: {
       "no-restricted-imports": [
         "error",

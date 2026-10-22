@@ -734,6 +734,41 @@ const ENTRIES: Entry[] = [
     }),
   },
   {
+    path: "/settings/integrations",
+    build: () => ({
+      title: "Slack",
+      summary: "Connect the Slack assistant: people message or voice-note it and it fills in an activity for them to confirm.",
+      sections: [
+        {
+          heading: "What the assistant does",
+          body: "Write to it in the command channel (or mention it anywhere) — by text or voice note. It works out the activity — what, when, who it's for, which lead or project — and shows a card. Nothing is saved until someone presses Create.",
+        },
+        {
+          heading: "Connecting",
+          body: "Paste your Slack workspace ID and the ID of the channel where every message is a command. People are matched to their CRM login by email the first time they write.",
+        },
+      ],
+      tour: [
+        {
+          target: "slack-connection",
+          title: "Connect Slack",
+          text: "Your Slack workspace ID and the command channel. In that channel every message is a command; elsewhere, mention the bot.",
+        },
+        {
+          target: "slack-status",
+          title: "Server setup",
+          text: "The keys the server needs. A cross means that one still has to be set where the app is hosted.",
+        },
+        {
+          target: "slack-people",
+          title: "Who has used it",
+          text: "Slack people matched to a member of this workspace. What they create is saved under their name.",
+        },
+        HELP_AGAIN,
+      ],
+    }),
+  },
+  {
     path: "/settings/application",
     build: () => ({
       title: "Application",

@@ -18,6 +18,7 @@ import * as notificationsSchema from "@/modules/notifications/notifications.sche
 import * as tractionSchema from "@/modules/traction/traction.schema";
 import * as teamSchema from "@/modules/team/team.schema";
 import * as portfolioSchema from "@/modules/portfolio/portfolio.schema";
+import * as slackSchema from "@/modules/slack/slack.schema";
 
 const schema = {
   ...tenancySchema,
@@ -36,6 +37,7 @@ const schema = {
   ...tractionSchema,
   ...teamSchema,
   ...portfolioSchema,
+  ...slackSchema,
 };
 
 const pool = new Pool({
