@@ -3,7 +3,7 @@
 One manifest, two Slack apps: **TAGR CRM** (prod) and **TAGR CRM (dev)**, in the same Slack workspace. Each app has its
 own signing secret, bot token and app id, so a test message in `#crm-test` can never reach the production database.
 
-> **Updating an existing app?** The manifest gained the `im:write` scope, the app's Messages tab and the **Create CRM task**
+> **Updating an existing app?** The manifest gained the `im:write` and `commands` scopes (Slack requires `commands` for any shortcut), the app's Messages tab and the **Create CRM task**
 > shortcut. Apps → your app → **App Manifest** → paste the new manifest → Save, then **reinstall to the workspace** (the new
 > scope needs it). Do it for both the dev and the prod app.
 
