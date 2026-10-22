@@ -74,6 +74,12 @@ function describe(payload: PendingPayload, personTimeZone: string): { heading: s
         notes: payload.text,
         confirm: "Add note",
       };
+    case "create_person":
+      return {
+        heading: `Add to the team: ${bold(payload.fields.name)}`,
+        fields: present([line("Email", payload.fields.email), line("Role", payload.fields.title)]),
+        confirm: "Add to the team",
+      };
     case "add_issue":
       return {
         heading: `New issue: ${bold(payload.fields.title)}`,

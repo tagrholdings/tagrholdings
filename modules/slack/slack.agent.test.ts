@@ -338,6 +338,20 @@ describe("runAgent", () => {
     });
   });
 
+  describe("team members", () => {
+    it("proposes adding someone to the team, with the optional email and role", async () => {
+      const { outcome } = await callTool("create_team_person", { name: "Carlos Souza", email: "carlos@tagr.com", title: "Sales" });
+      expect(outcome).toEqual({ kind: "propose", payload: { kind: "create_person", fields: { name: "Carlos Souza", email: "carlos@tagr.com", title: "Sales" } } });
+      expect((await callTool("create_team_person", { name: "Carlos" })).outcome).toMatchObject({ payload: { fields: { name: "Carlos", email: null, title: null } } });
+    });
+
+    it("won't add someone who is already on the team (by name or email), or take a bad email", async () => {
+      expect(lastResponse((await callTool("create_team_person", { name: "maria silva" })).seen).error).toContain("already on the team");
+      expect(lastResponse((await callTool("create_team_person", { name: "Someone", email: "MARIA@tagr.com" })).seen).error).toContain("already on the team");
+      expect(lastResponse((await callTool("create_team_person", { name: "Ana", email: "nope" })).seen).error).toContain("email");
+    });
+  });
+
   describe("EOS: issues and to-dos", () => {
     it("adds an issue with the defaults the schema requires", async () => {
       const { outcome } = await callTool("add_issue", { title: "Hiring is behind", owner_person_id: MARIA });

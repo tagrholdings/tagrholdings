@@ -3,6 +3,7 @@ import type { AgentData } from "./slack.agent";
 import { ACTIVITY_TYPES } from "@/modules/activities/activities.types";
 import { normalizeText, resolveStage, searchByText, str } from "./slack.logic";
 import { summarizePipeline } from "./slack.reports";
+import { teamPersonFieldsSchema } from "./slack.types";
 import { cardFieldsSchema, contactFieldsSchema, organizationFieldsSchema, type CardFields, type ContactFields, type OrganizationFields, type PendingPayload, type ProposalLabels } from "./slack.types";
 
 /**
@@ -41,6 +42,15 @@ const CARD_PROPERTIES = {
 };
 
 export const RECORD_TOOLS: GeminiTool[] = [
+  {
+    name: "create_team_person",
+    description: "Propose adding someone to the TEAM (the people who OWN tasks, issues and To-Dos — they need no login). Use it when the person asks to 'add X to the team' or after telling them nobody by that name is on the team and they agreed. A team member is not a contact: contacts are outside people. Search with search_people first. Nothing is saved until the person confirms.",
+    parameters: {
+      type: "OBJECT",
+      properties: { name: S("Full name."), email: S("Email address. Omit if none was given."), title: S("Job title or role. Omit if none was given.") },
+      required: ["name"],
+    },
+  },
   {
     name: "weekly_report",
     description: "The weekly report's numbers: pipeline per stage, new and stuck cards, tasks, how this week's leads were handled, engine spend, and the EOS overview. Read-only. Use it for 'send me the weekly report', 'how did the week go?'. Present it as a short report.",
@@ -131,6 +141,18 @@ const sameName = (a: string, b: string) => normalizeText(a) === normalizeText(b)
 
 export async function runRecordTool(name: string, args: Args, data: AgentData, ctx: { now: Date; timeZone: string }): Promise<RecordToolResult | undefined> {
   switch (name) {
+    case "create_team_person": {
+      const name = str(args.name);
+      if (!name) return { error: "name is required." };
+      const email = str(args.email);
+      const title = str(args.title);
+      const parsed = teamPersonFieldsSchema.safeParse({ name, email: email ?? null, title: title ?? null });
+      if (!parsed.success) return { error: firstIssue(parsed.error) };
+      const twin = (await data.people()).find((p) => (p.name && sameName(p.name, parsed.data.name)) || (parsed.data.email && p.email && p.email.toLowerCase() === parsed.data.email.toLowerCase()));
+      if (twin) return { error: `${twin.name ?? twin.email} is already on the team (id ${twin.id}). Use them, or tell the person.` };
+      return { propose: { kind: "create_person", fields: parsed.data } };
+    }
+
     case "weekly_report":
       return { response: { ...(await data.weeklyReport(ctx)) } };
 

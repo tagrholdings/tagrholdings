@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   repo: { updateLink: vi.fn(), findLink: vi.fn(), upsertLink: vi.fn(), deleteLink: vi.fn(), insertPending: vi.fn(), setCardTs: vi.fn(), findPending: vi.fn(), findPendingByCards: vi.fn(), claimPending: vi.fn(), releasePending: vi.fn(), deleteExpired: vi.fn() },
   client: { postMessage: vi.fn(), updateMessage: vi.fn(), getUser: vi.fn(), getThread: vi.fn(), downloadAudio: vi.fn(), openDm: vi.fn(), postDm: vi.fn(), getPermalink: vi.fn() },
   tenancy: { getTenant: vi.fn(), isMember: vi.fn(), listMembers: vi.fn() },
-  team: { personForUser: vi.fn() },
+  team: { personForUser: vi.fn(), create: vi.fn() },
   activities: { create: vi.fn(), update: vi.fn(), setDone: vi.fn(), getById: vi.fn(), updateDate: vi.fn() },
   leads: { getById: vi.fn(), promote: vi.fn(), dismiss: vi.fn() },
   notifications: { notifyAssigned: vi.fn() },
@@ -528,6 +528,13 @@ describe("confirming contacts, companies and cards", () => {
     expect(userId).toBe("user-1");
     expect(mocks.notifications.notifyAssigned).toHaveBeenCalledTimes(1);
     expect(text).toContain("To-Do created: Send the LOI");
+  });
+
+  it("adds someone to the team through the team service", async () => {
+    mocks.team.create.mockResolvedValue({ id: "p-new", name: "Carlos Souza" });
+    const text = await confirm({ kind: "create_person", fields: { name: "Carlos Souza", email: "carlos@tagr.com", title: null } });
+    expect(mocks.team.create).toHaveBeenCalledWith(TENANT, { name: "Carlos Souza", email: "carlos@tagr.com", title: null });
+    expect(text).toContain("Carlos Souza added to the team");
   });
 
   it("puts the card back when a service refuses, and says why", async () => {

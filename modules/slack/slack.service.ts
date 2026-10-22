@@ -18,6 +18,7 @@ import { pipelineService } from "@/modules/pipeline/pipeline.service";
 import { createPipelineItemSchema } from "@/modules/pipeline/pipeline.types";
 import { rateLimitService } from "@/modules/rate-limit/rate-limit.service";
 import { teamService } from "@/modules/team/team.service";
+import { createPersonSchema } from "@/modules/team/team.types";
 import { tenancyService } from "@/modules/tenancy/tenancy.service";
 import { runAgent, type AgentData } from "./slack.agent";
 import { CANCEL_ACTION_ID, CONFIRM_ACTION_ID, escapeMrkdwn, proposalBlocks, resolvedBlocks } from "./slack.blocks";
@@ -495,6 +496,15 @@ export const slackService = {
       }
       revalidateActivityPages(slug);
       return `✅ Note added to *${escapeMrkdwn(payload.label)}* · ${page(payload.target === "contact" ? "/contacts" : payload.target === "company" ? "/contacts" : "/leads")}`;
+    }
+
+    if (payload.kind === "create_person") {
+      const parsed = createPersonSchema.safeParse(payload.fields);
+      if (!parsed.success) invalid(parsed.error);
+      const person = await teamService.create(tenantId, parsed.data);
+      // The team shows up in every owner picker: the same pages the Team page itself refreshes.
+      revalidateWorkspace(slug, "/contacts", "/activities", "/projects", "/leads", "/traction", "/traction/scorecard", "/traction/rocks", "/traction/issues", "/traction/l10", "/eos/people");
+      return `✅ ${escapeMrkdwn(person.name)} added to the team · ${page("/contacts")}`;
     }
 
     if (payload.kind === "add_issue" || payload.kind === "add_todo") {

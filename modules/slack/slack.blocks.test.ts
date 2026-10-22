@@ -34,6 +34,13 @@ describe("proposalBlocks", () => {
     expect(project.buttons[0].text.text).toBe("Save changes");
   });
 
+  it("shows a new team member, as a team member and not a contact", () => {
+    const { text, all, buttons } = card({ kind: "create_person", fields: { name: "Carlos Souza", email: "carlos@tagr.com", title: "Sales" } });
+    expect(text).toBe("Add to the team: Carlos Souza");
+    expect(all).toContain("Sales");
+    expect(buttons[0].text.text).toBe("Add to the team");
+  });
+
   it("keeps user text from making links or mentions", () => {
     const { all } = card({ kind: "create_organization", fields: { name: "<!channel> & <https://evil.example|click>", website: null, notes: null } });
     expect(all).not.toContain("<!channel>");

@@ -50,6 +50,13 @@ export const organizationFieldsSchema = z.object({
 });
 export type OrganizationFields = z.infer<typeof organizationFieldsSchema>;
 
+/** A team member as the bot proposes it (the same limits as the Team page's form). */
+export const teamPersonFieldsSchema = z.object({
+  name: z.string().trim().min(1, "A team member needs a name.").max(120),
+  email: z.email("That doesn't look like an email address.").nullable(),
+  title: z.string().trim().max(120).nullable(),
+});
+
 /** A card on a board: a lead (the Leads board) or an item of a project board. */
 export const cardFieldsSchema = z.object({
   boardId: z.uuid(),
@@ -74,7 +81,9 @@ export type PendingPayload =
   /** A dated line appended to a card's or a company's notes — or, for a contact (no notes column), logged as a finished activity. */
   | { kind: "add_note"; target: "card" | "company" | "contact"; id: string; label: string; text: string; activityType: (typeof ACTIVITY_TYPES)[number] }
   | { kind: "add_issue"; fields: { title: string; notes: string | null; issueType: "problem" | "idea" | "obstacle"; horizon: "short_term" | "long_term"; ownerPersonId: string | null }; labels: ProposalLabels }
-  | { kind: "add_todo"; fields: { subject: string; assignedToPersonId: string; dueDate: string }; labels: ProposalLabels };
+  | { kind: "add_todo"; fields: { subject: string; assignedToPersonId: string; dueDate: string }; labels: ProposalLabels }
+  /** A new member of the team (a person who owns tasks and issues; they need no login). */
+  | { kind: "create_person"; fields: { name: string; email: string | null; title: string | null } };
 
 /** What a person told the bot about being messaged directly. Only the sender's own row is ever changed. */
 export interface NotificationPatch {
