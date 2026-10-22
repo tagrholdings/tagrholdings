@@ -1,15 +1,19 @@
 import type { GeminiContent, GeminiTool, GenerateGemini } from "@/lib/gemini";
 import { ACTIVITY_PRIORITIES, ACTIVITY_TYPES, type ActivityRow } from "@/modules/activities/activities.types";
 import { toZonedInputValues } from "@/utils/date";
-import { activityIdsIn, buildDue, dueDay, fieldsFromRow, matchesDue, mergeFields, searchByText, type DueFilter } from "./slack.logic";
+import { activityIdsIn, buildDue, dueDay, fieldsFromRow, matchesDue, mergeFields, searchByText, str, type DueFilter } from "./slack.logic";
+import { isRecordTool, RECORD_TOOLS, runRecordTool } from "./slack.records";
 import { proposalFieldsSchema, type AgentInput, type AgentOutcome, type ProposalFields, type ProposalLabels } from "./slack.types";
 
 /** What the agent can look at — each loader is called at most once per message, and only when a tool needs it. */
 export interface AgentData {
   people(): Promise<{ id: string; name: string | null; email: string }[]>;
-  pipelineItems(): Promise<{ id: string; title: string; boardName: string; boardIsSystem: boolean; contactName: string | null; organizationName: string | null }[]>;
-  contacts(): Promise<{ id: string; name: string; email: string | null; organizationName: string | null }[]>;
-  organizations(): Promise<{ id: string; name: string }[]>;
+  pipelineItems(): Promise<
+    { id: string; boardId: string; title: string; stage: string; notes: string | null; boardName: string; boardIsSystem: boolean; contactId: string | null; contactName: string | null; organizationId: string | null; organizationName: string | null }[]
+  >;
+  boards(): Promise<{ id: string; name: string; isSystem: boolean; archivedAt: Date | null; columns: { id: string; label: string }[] }[]>;
+  contacts(): Promise<{ id: string; name: string; email: string | null; phone: string | null; organizationId: string | null; organizationName: string | null }[]>;
+  organizations(): Promise<{ id: string; name: string; website: string | null; notes: string | null }[]>;
   activities(): Promise<ActivityRow[]>;
 }
 
@@ -53,9 +57,9 @@ const SEARCH = (name: string, description: string): GeminiTool => ({
 
 const TOOLS: GeminiTool[] = [
   SEARCH("search_people", "Find a TEAM MEMBER (someone who works here) by name. Use it to resolve who an activity is assigned to."),
-  SEARCH("search_pipeline_items", "Find a lead or a project by title (or by its contact/company name)."),
-  SEARCH("search_contacts", "Find a contact (a person outside the team) by name."),
-  SEARCH("search_organizations", "Find a company by name."),
+  SEARCH("search_contacts", "Find a contact (a person outside the team) by name. Forgiving: it copes with unfinished or slightly misspelled names."),
+  SEARCH("search_organizations", "Find a company by name. Forgiving: it copes with unfinished or slightly misspelled names."),
+  ...RECORD_TOOLS,
   {
     name: "search_activities",
     description: "List existing activities (tasks, calls, meetings…). Use it to answer questions about what is due, and to find the activity an edit or 'done' refers to.",
@@ -129,12 +133,18 @@ function systemPrompt(input: AgentInput, deps: AgentDeps): string {
   const today = toZonedInputValues(input.now, input.timeZone).date;
   return [
     "You are the assistant of a small company's CRM, living in their Slack. People talk to you in text or voice notes, in any language.",
-    "You turn what they say into ONE of: a new activity, a change to an activity, marking one done, a text answer, or nothing.",
+    "You turn what they say into ONE of: a new activity, a change to an activity, marking one done, a new or changed contact, company, or lead/project card (including moving a card to another stage), a text answer, or nothing.",
     "",
     `The person talking to you is ${deps.userName}. Right now it is ${local} (today is ${today}), time zone ${input.timeZone}. Resolve 'tomorrow', 'Friday', 'next week' from that date and give due_date as YYYY-MM-DD and due_time as HH:mm in their own time zone.`,
     "",
     "Rules:",
-    "- Always finish by calling exactly one of: create_activity, update_activity, complete_activity, reply, ignore.",
+    "- Always finish by calling exactly one of: create_activity, update_activity, complete_activity, create_contact, update_contact, create_organization, update_organization, create_pipeline_item, update_pipeline_item, reply, ignore.",
+    "- Lists and questions about contacts, companies, leads or projects are answered with the search tools and then reply. Keep answers short; at most 10 items, then say how many more there are.",
+    "- Names the person says may be unfinished, misspelled or without accents: search with what they said (a shorter piece of the name works too) before concluding something does not exist. Only if nothing close comes back, say it was not found and offer to create it.",
+    "- Before create_contact / create_organization / create_pipeline_item, search for an existing one. If one close match exists, ask whether they mean it instead of creating a duplicate.",
+    "- A lead is a card on the Leads board; a project card is a card on a project board (see list_boards). 'Create a lead X' / 'new lead X' means create_pipeline_item on the Leads board titled X — even when X is the name of a business; do NOT create a company unless they asked for a company. To advance a deal, update_pipeline_item with its new stage.",
+    "- You cannot create, rename or delete boards or their stages. If asked to, say that is done in the CRM (Projects page); a new card goes on an existing board — if several project boards fit and the person did not say which, ask.",
+    "- One proposal per message. When a new contact or card is also needed for an activity, propose the contact or card first and tell the person the activity can follow once it is saved.",
     "- Never invent an id. Resolve every person, contact, company, lead or project the message mentions with the search tools first; use the id from the result.",
     deps.senderPersonId
       ? `- 'Assign to me' / 'for me' means the sender: their team-member id is ${deps.senderPersonId}. The owner (creator) of a new activity is always the sender — you do not set it.`
@@ -160,7 +170,6 @@ function historyContents(history: NonNullable<AgentInput["history"]>): GeminiCon
 }
 
 type Args = Record<string, unknown>;
-const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
 
 interface Lists {
   people: Awaited<ReturnType<AgentData["people"]>>;
@@ -298,27 +307,16 @@ export async function runAgent(input: AgentInput, deps: AgentDeps): Promise<Agen
           responses.push({ functionResponse: { name: call.name, response: { results: found.map(({ item }) => ({ id: item.id, name: item.name, email: item.email })) } } });
           break;
         }
-        case "search_pipeline_items": {
-          const items = await data.pipelineItems();
-          const found = searchByText(items, str(args.query) ?? "", (i) => [i.title, i.contactName, i.organizationName], SEARCH_LIMIT);
-          responses.push({
-            functionResponse: {
-              name: call.name,
-              response: { results: found.map(({ item }) => ({ id: item.id, title: item.title, kind: item.boardIsSystem ? "lead" : "project", board: item.boardName, contact: item.contactName, company: item.organizationName })) },
-            },
-          });
-          break;
-        }
         case "search_contacts": {
           const contacts = await data.contacts();
           const found = searchByText(contacts, str(args.query) ?? "", (c) => [c.name, c.email], SEARCH_LIMIT);
-          responses.push({ functionResponse: { name: call.name, response: { results: found.map(({ item }) => ({ id: item.id, name: item.name, email: item.email, company: item.organizationName })) } } });
+          responses.push({ functionResponse: { name: call.name, response: { results: found.map(({ item }) => ({ id: item.id, name: item.name, email: item.email, phone: item.phone, company: item.organizationName })) } } });
           break;
         }
         case "search_organizations": {
           const organizations = await data.organizations();
           const found = searchByText(organizations, str(args.query) ?? "", (o) => [o.name], SEARCH_LIMIT);
-          responses.push({ functionResponse: { name: call.name, response: { results: found.map(({ item }) => ({ id: item.id, name: item.name })) } } });
+          responses.push({ functionResponse: { name: call.name, response: { results: found.map(({ item }) => ({ id: item.id, name: item.name, website: item.website })) } } });
           break;
         }
         case "search_activities": {
@@ -398,8 +396,12 @@ export async function runAgent(input: AgentInput, deps: AgentDeps): Promise<Agen
           }
           return { kind: "propose", payload: { kind: "complete", id: row.id, subject: row.subject, done: args.done !== false } };
         }
-        default:
-          responses.push({ functionResponse: { name: call.name, response: { error: "Unknown tool." } } });
+        default: {
+          const record = isRecordTool(call.name) ? await runRecordTool(call.name, args, data) : undefined;
+          if (!record) responses.push({ functionResponse: { name: call.name, response: { error: "Unknown tool." } } });
+          else if ("propose" in record) return { kind: "propose", payload: record.propose };
+          else responses.push({ functionResponse: { name: call.name, response: "error" in record ? { error: record.error } : record.response } });
+        }
       }
     }
     contents.push({ role: "user", parts: responses });

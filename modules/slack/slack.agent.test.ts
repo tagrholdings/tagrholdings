@@ -8,6 +8,11 @@ vi.mock("@/lib/gemini", () => ({ generateGemini: vi.fn(), GeminiUnavailable: cla
 const MARIA = "11111111-1111-4111-8111-111111111111";
 const LEAD = "22222222-2222-4222-8222-222222222222";
 const ACTIVITY = "33333333-3333-4333-8333-333333333333";
+const JOAO = "44444444-4444-4444-8444-444444444444";
+const PADARIA = "55555555-5555-4555-8555-555555555555";
+const LEADS_BOARD = "66666666-6666-4666-8666-666666666666";
+const PROJECTS_BOARD = "77777777-7777-4777-8777-777777777777";
+const CARD = "88888888-8888-4888-8888-888888888888";
 
 const row = (over: Partial<ActivityRow> = {}): ActivityRow => ({
   id: ACTIVITY,
@@ -37,11 +42,26 @@ const row = (over: Partial<ActivityRow> = {}): ActivityRow => ({
 
 const data = (activities: ActivityRow[] = []): AgentData => ({
   people: async () => [{ id: MARIA, name: "Maria Silva", email: "maria@tagr.com" }],
-  pipelineItems: async () => [{ id: LEAD, title: "Padaria X", boardName: "Leads", boardIsSystem: true, contactName: null, organizationName: null }],
-  contacts: async () => [],
-  organizations: async () => [],
+  pipelineItems: async () => [
+    { id: LEAD, boardId: LEADS_BOARD, title: "Padaria X", stage: "sourced", notes: null, boardName: "Leads", boardIsSystem: true, contactId: null, contactName: null, organizationId: null, organizationName: null },
+    { id: CARD, boardId: PROJECTS_BOARD, title: "Due diligence checklist", stage: "todo", notes: "start with the leases", boardName: "Diligence", boardIsSystem: false, contactId: JOAO, contactName: "João Pereira", organizationId: PADARIA, organizationName: "Padaria X" },
+  ],
+  boards: async () => [
+    { id: LEADS_BOARD, name: "Leads", isSystem: true, archivedAt: null, columns: [{ id: "sourced", label: "Sourced" }, { id: "in_discussion", label: "In Discussion" }, { id: "closed", label: "Closed" }] },
+    { id: PROJECTS_BOARD, name: "Diligence", isSystem: false, archivedAt: null, columns: [{ id: "todo", label: "To do" }, { id: "doing", label: "In progress" }, { id: "done", label: "Done" }] },
+  ],
+  contacts: async () => [{ id: JOAO, name: "João Pereira", email: "joao@padaria.com", phone: "602-555-0100", organizationId: PADARIA, organizationName: "Padaria X" }],
+  organizations: async () => [{ id: PADARIA, name: "Padaria X", website: "https://padaria.com", notes: null }],
   activities: async () => activities,
 });
+
+/** Runs one scripted tool call and returns what the agent decided. */
+async function callTool(name: string, args: Record<string, unknown>) {
+  const { generate, seen } = script([{ name, args }], [{ name: "ignore", args: {} }]);
+  const outcome = await runAgent(input, deps(generate));
+  return { outcome, seen };
+}
+const lastResponse = (seen: unknown[]) => JSON.parse(JSON.stringify(seen[1])).at(-1).parts[0].functionResponse.response;
 
 /** A model that plays a fixed script: one turn per entry, each a list of tool calls. */
 function script(...turns: { name: string; args: Record<string, unknown> }[][]) {
@@ -172,6 +192,106 @@ describe("runAgent", () => {
     expect(contents[0].parts[0].text).toBe("call João tomorrow");
     expect(contents[1].parts.map((p) => p.text)).toEqual(["New call: Call João", "Which João?"]);
     expect(contents[2].parts.at(-1)?.text).toBe("make it friday");
+  });
+
+  describe("contacts and companies", () => {
+    it("proposes a new contact with its company", async () => {
+      const { outcome } = await callTool("create_contact", { name: "Ana Costa", email: "ana@acme.com", phone: "555-1", organization_id: PADARIA });
+      expect(outcome).toEqual({ kind: "propose", payload: { kind: "create_contact", fields: { name: "Ana Costa", email: "ana@acme.com", phone: "555-1", organizationId: PADARIA }, labels: { organization: "Padaria X" } } });
+    });
+
+    it("will not create a contact that already exists, and says which one", async () => {
+      const { seen } = await callTool("create_contact", { name: "joao pereira" });
+      expect(lastResponse(seen).error).toContain(JOAO);
+    });
+
+    it("creates the duplicate when the person confirmed they want one", async () => {
+      const { outcome } = await callTool("create_contact", { name: "João Pereira", allow_duplicate: true });
+      expect(outcome.kind).toBe("propose");
+    });
+
+    it("refuses a bad email or a company that isn't in the workspace", async () => {
+      expect(lastResponse((await callTool("create_contact", { name: "Ana", email: "not-an-email" })).seen).error).toContain("email");
+      expect(lastResponse((await callTool("create_contact", { name: "Ana", organization_id: "99999999-9999-4999-8999-999999999999" })).seen).error).toContain("not in this workspace");
+    });
+
+    it("an edit changes only what was said, and clear empties a field", async () => {
+      const edit = await callTool("update_contact", { contact_id: JOAO, phone: "480-555-0199", clear: ["email"] });
+      expect(edit.outcome).toMatchObject({ kind: "propose", payload: { kind: "update_contact", id: JOAO, was: "João Pereira", fields: { name: "João Pereira", email: null, phone: "480-555-0199", organizationId: PADARIA } } });
+    });
+
+    it("adds a scheme to a bare website, and refuses a company that exists", async () => {
+      const created = await callTool("create_organization", { name: "Acme", website: "acme.com" });
+      expect(created.outcome).toMatchObject({ kind: "propose", payload: { kind: "create_organization", fields: { name: "Acme", website: "https://acme.com" } } });
+      expect(lastResponse((await callTool("create_organization", { name: "padaria x" })).seen).error).toContain(PADARIA);
+    });
+
+    it("edits a company, keeping the website unless told to clear it", async () => {
+      const edit = await callTool("update_organization", { organization_id: PADARIA, notes: "met at the expo" });
+      expect(edit.outcome).toMatchObject({ kind: "propose", payload: { kind: "update_organization", fields: { name: "Padaria X", website: "https://padaria.com", notes: "met at the expo" } } });
+      const cleared = await callTool("update_organization", { organization_id: PADARIA, clear: ["website"] });
+      expect(cleared.outcome).toMatchObject({ payload: { fields: { website: null } } });
+    });
+  });
+
+  describe("leads and project cards", () => {
+    it("lists the boards with their stages", async () => {
+      const { seen } = await callTool("list_boards", {});
+      const boards = lastResponse(seen).boards;
+      expect(boards.map((b: { name: string; kind: string }) => [b.name, b.kind])).toEqual([["Leads", "leads"], ["Diligence", "project"]]);
+      expect(boards[1].stages).toHaveLength(3);
+    });
+
+    it("lists every card with no query, filters by kind, and by stage in each card's own board", async () => {
+      expect(lastResponse((await callTool("search_pipeline_items", {})).seen).total).toBe(2);
+      const leads = lastResponse((await callTool("search_pipeline_items", { kind: "leads" })).seen);
+      expect(leads.results.map((r: { title: string }) => r.title)).toEqual(["Padaria X"]);
+      const stage = lastResponse((await callTool("search_pipeline_items", { stage: "in progress" })).seen);
+      expect(stage.total).toBe(0);
+      const todo = lastResponse((await callTool("search_pipeline_items", { stage: "to do" })).seen);
+      expect(todo.results[0]).toMatchObject({ title: "Due diligence checklist", stage: "To do", kind: "project", board: "Diligence" });
+    });
+
+    it("finds a card from a misspelled title", async () => {
+      const { seen } = await callTool("search_pipeline_items", { query: "dilligence checkist" });
+      expect(lastResponse(seen).results[0].title).toBe("Due diligence checklist");
+    });
+
+    it("creates a lead on a board, resolving the stage by its label", async () => {
+      const { outcome } = await callTool("create_pipeline_item", { board_id: LEADS_BOARD, title: "Bakery Z", stage: "in discussion", contact_id: JOAO });
+      expect(outcome).toEqual({
+        kind: "propose",
+        payload: { kind: "create_card", fields: { boardId: LEADS_BOARD, title: "Bakery Z", stage: "in_discussion", contactId: JOAO, organizationId: null, notes: null }, labels: { board: "Leads", stage: "In Discussion", isLead: true, contact: "João Pereira" } },
+      });
+    });
+
+    it("starts a new card in the board's first stage when none is named", async () => {
+      const { outcome } = await callTool("create_pipeline_item", { board_id: PROJECTS_BOARD, title: "Lease review" });
+      expect(outcome).toMatchObject({ payload: { fields: { stage: "todo" }, labels: { isLead: false } } });
+    });
+
+    it("tells the model a stage doesn't exist, listing the real ones", async () => {
+      const { seen } = await callTool("create_pipeline_item", { board_id: LEADS_BOARD, title: "Bakery Z", stage: "shipped" });
+      expect(lastResponse(seen).error).toContain("In Discussion (in_discussion)");
+    });
+
+    it("won't create a card with the title of one on the same board, unless confirmed", async () => {
+      expect(lastResponse((await callTool("create_pipeline_item", { board_id: PROJECTS_BOARD, title: "due diligence checklist" })).seen).error).toContain(CARD);
+      expect((await callTool("create_pipeline_item", { board_id: PROJECTS_BOARD, title: "Due diligence checklist", allow_duplicate: true })).outcome.kind).toBe("propose");
+    });
+
+    it("moves a card to another stage of ITS board, keeping everything else", async () => {
+      const { outcome } = await callTool("update_pipeline_item", { item_id: CARD, stage: "doing" });
+      expect(outcome).toMatchObject({
+        kind: "propose",
+        payload: { kind: "update_card", id: CARD, was: "Due diligence checklist", fields: { boardId: PROJECTS_BOARD, stage: "doing", title: "Due diligence checklist", contactId: JOAO, organizationId: PADARIA, notes: "start with the leases" }, labels: { stage: "In progress" } },
+      });
+    });
+
+    it("clears a card's contact, and refuses a stage of another board", async () => {
+      expect((await callTool("update_pipeline_item", { item_id: CARD, clear: ["contact"] })).outcome).toMatchObject({ payload: { fields: { contactId: null } } });
+      expect(lastResponse((await callTool("update_pipeline_item", { item_id: CARD, stage: "in_discussion" })).seen).error).toContain("not a stage of Diligence");
+    });
   });
 
   it("stays silent on ignore, and gives up politely after too many turns", async () => {

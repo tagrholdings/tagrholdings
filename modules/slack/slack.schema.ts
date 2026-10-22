@@ -2,9 +2,9 @@ import { pgTable, uuid, text, timestamp, jsonb, primaryKey, unique, index } from
 import { tenantsTable, tenantIsolationPolicy } from "@/modules/tenancy/tenancy.schema";
 
 /**
- * Which workspace a Slack app installation writes into. A Slack event carries `team_id` + `api_app_id` and nothing about
- * our workspaces, so this row is the ONLY place the tenant comes from — never from the payload or from the model.
- * (team, app) is the key because the prod and dev apps live in the same Slack workspace, each with its own database.
+ * Which CRM workspace a Slack app installation writes into. A Slack event carries `team_id` + `api_app_id` and the
+ * channel, nothing about our workspaces, so this table is the ONLY place the tenant comes from — never from the payload or
+ * from the model. The prod and dev apps live in the same Slack team, each with its own database.
  *
  * Has a `tenant_id` but no RLS: the webhook looks it up before the tenant is known, like `invites`. Only the plain
  * `db` touches it (slack-installations.repository.ts). `command_channel_id` is the channel where every message is a
@@ -22,7 +22,13 @@ export const slackInstallationsTable = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
-  (t) => [primaryKey({ columns: [t.slackTeamId, t.apiAppId] }), index("slack_installations_tenant_idx").on(t.tenantId)]
+  (t) => [
+    // One Slack team can feed several CRM workspaces, each with its own command channel (a person in two workspaces
+    // writes in the channel of the one they mean). A channel belongs to at most one workspace.
+    primaryKey({ columns: [t.slackTeamId, t.apiAppId, t.tenantId] }),
+    unique("slack_installations_channel_unique").on(t.slackTeamId, t.apiAppId, t.commandChannelId),
+    index("slack_installations_tenant_idx").on(t.tenantId),
+  ]
 );
 
 /**

@@ -1,0 +1,3 @@
+ALTER TABLE "slack_installations" DROP CONSTRAINT "slack_installations_slack_team_id_api_app_id_pk";--> statement-breakpoint
+ALTER TABLE "slack_installations" ADD CONSTRAINT "slack_installations_slack_team_id_api_app_id_tenant_id_pk" PRIMARY KEY("slack_team_id","api_app_id","tenant_id");--> statement-breakpoint
+ALTER TABLE "slack_installations" ADD CONSTRAINT "slack_installations_channel_unique" UNIQUE("slack_team_id","api_app_id","command_channel_id");

@@ -239,6 +239,13 @@
       "when": 1792689157185,
       "tag": "0033_slack_bot_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1792695163017,
+      "tag": "0034_slack_multi_workspace",
+      "breakpoints": true
     }
   ]
 }

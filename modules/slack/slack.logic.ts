@@ -18,27 +18,79 @@ export interface Match<T> {
   score: number;
 }
 
+/** A tool argument as trimmed text, or undefined when it is missing, blank or not text. */
+export const str = (value: unknown): string | undefined => (typeof value === "string" && value.trim() ? value.trim() : undefined);
+
+/** Edit distance with swaps of neighbours counted as one slip ("pereria" → "pereira" is 1); gives up past `max`. */
+export function editDistance(a: string, b: string, max: number): number {
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  const rows: number[][] = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array<number>(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) rows[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      rows[i][j] = Math.min(rows[i - 1][j] + 1, rows[i][j - 1] + 1, rows[i - 1][j - 1] + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) rows[i][j] = Math.min(rows[i][j], rows[i - 2][j - 2] + 1);
+    }
+  }
+  return rows[a.length][b.length];
+}
+
+/** How many letters of slack a word of this length gets: none for short ones (they'd match anything), more for long. */
+const typoTolerance = (length: number) => (length <= 3 ? 0 : length <= 6 ? 1 : 2);
+
+/**
+ * How well one word of the query is found among a text's words: 1 for the word itself, a little less for a longer word
+ * that starts with it (an unfinished name), for a hit inside a word, and for a word that is a few letters off.
+ */
+function wordScore(word: string, tokens: string[]): number {
+  let best = 0;
+  for (const token of tokens) {
+    if (token === word) return 1;
+    if (word.length >= 2 && token.startsWith(word)) best = Math.max(best, 0.9);
+    else if (word.length >= 3 && token.includes(word)) best = Math.max(best, 0.8);
+    const tolerance = typoTolerance(word.length);
+    if (tolerance === 0) continue;
+    if (editDistance(word, token, tolerance) <= tolerance) best = Math.max(best, 0.75);
+    // An unfinished AND misspelled name: compare with the start of the longer word.
+    else if (token.length > word.length && editDistance(word, token.slice(0, word.length), tolerance) <= tolerance) best = Math.max(best, 0.6);
+  }
+  return best;
+}
+
 /**
  * Fuzzy name search over a list already in memory (the services have no text search, and a workspace's lists are small).
- * Every word of the query is looked for in the item's texts; the score is the share of words found, with a bonus for
- * an exact or prefix hit. Below half the words found is not a match.
+ * Forgiving on purpose: accents and case don't matter, a name may be unfinished ("joao per") or a few letters off
+ * ("pereria"). Every word of the query is looked for in each of an item's texts; the score is the average over the
+ * query's words, with a bonus for an exact or prefix hit on the whole text. Below 0.5 is not a match.
  */
 export function searchByText<T>(items: T[], query: string, textsOf: (item: T) => (string | null | undefined)[], limit = 5): Match<T>[] {
   const words = normalizeText(query).split(" ").filter(Boolean);
   if (words.length === 0) return [];
+  const whole = words.join(" ");
   const matches: Match<T>[] = [];
   for (const item of items) {
-    const texts = textsOf(item).filter((t): t is string => !!t).map(normalizeText);
     let best = 0;
-    for (const text of texts) {
-      const found = words.filter((w) => text.includes(w)).length / words.length;
-      if (found === 0) continue;
-      const bonus = text === words.join(" ") ? 0.5 : text.startsWith(words.join(" ")) ? 0.25 : 0;
-      best = Math.max(best, found + bonus);
+    for (const text of textsOf(item).filter((t): t is string => !!t).map(normalizeText)) {
+      const tokens = text.split(" ").filter(Boolean);
+      const average = words.reduce((sum, w) => sum + wordScore(w, tokens), 0) / words.length;
+      if (average < 0.5) continue;
+      const bonus = text === whole ? 0.5 : text.startsWith(whole) ? 0.25 : 0;
+      best = Math.max(best, average + bonus);
     }
     if (best >= 0.5) matches.push({ item, score: best });
   }
   return matches.sort((a, b) => b.score - a.score).slice(0, limit);
+}
+
+/** A stage of a board named by id ("in_discussion") or by what people call it ("in discussion", "discusion"). */
+export function resolveStage(columns: { id: string; label: string }[], input: string): { id: string; label: string } | null {
+  const exact = columns.find((c) => c.id === input) ?? columns.find((c) => normalizeText(c.label) === normalizeText(input));
+  if (exact) return exact;
+  const [best, second] = searchByText(columns, input, (c) => [c.label, c.id], 2);
+  // Stricter than a name search: a stage is picked from a handful, so half a match ("in" out of "in discussion" hitting
+  // "In progress") would move a card somewhere wrong. Ambiguous is no match too — the model is told the options instead.
+  return best && best.score >= 0.7 && (!second || best.score > second.score) ? best.item : null;
 }
 
 /** The calendar day ("2026-10-23") an activity is due, as the person who is asking reads it: the zone it was entered in, else theirs. */

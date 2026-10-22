@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activityIdsIn, addDays, buildDue, dueDay, matchesDue, mergeFields, normalizeText, searchByText, slackMessageText } from "./slack.logic";
+import { activityIdsIn, addDays, buildDue, dueDay, editDistance, matchesDue, mergeFields, normalizeText, resolveStage, searchByText, slackMessageText } from "./slack.logic";
 import type { ProposalFields } from "./slack.types";
 
 describe("normalizeText", () => {
@@ -163,5 +163,69 @@ describe("slackMessageText / activityIdsIn", () => {
     const id = "33333333-3333-4333-8333-333333333333";
     const link = `✅ Created Call João · <https://x/w/tagr/activities?activity=${id}|Open in the CRM>`;
     expect(activityIdsIn([link, link, "nothing here"])).toEqual([id]);
+  });
+});
+
+describe("editDistance", () => {
+  it("counts a swap of neighbours as one slip", () => {
+    expect(editDistance("pereria", "pereira", 2)).toBe(1);
+    expect(editDistance("jhon", "john", 2)).toBe(1);
+    expect(editDistance("smyth", "smith", 2)).toBe(1);
+  });
+
+  it("counts insertions and deletions, and gives up past the limit", () => {
+    expect(editDistance("padria", "padaria", 2)).toBe(1);
+    expect(editDistance("abc", "xyz", 1)).toBeGreaterThan(1);
+    expect(editDistance("a", "abcdef", 1)).toBeGreaterThan(1);
+  });
+});
+
+describe("searchByText forgiveness", () => {
+  const contacts = [
+    { id: "1", name: "João Pereira", org: "Padaria X" },
+    { id: "2", name: "Joana Pereira", org: "Banco Y" },
+    { id: "3", name: "Carlos Souza", org: "Acme Holdings" },
+  ];
+  const ids = (query: string) => searchByText(contacts, query, (c) => [c.name, c.org]).map((m) => m.item.id);
+
+  it("finds a name with a typo", () => {
+    expect(ids("joao pereria")[0]).toBe("1");
+    expect(ids("carlso souza")).toEqual(["3"]);
+    expect(ids("acme holdngs")).toEqual(["3"]);
+  });
+
+  it("finds an unfinished name, and an unfinished AND misspelled one", () => {
+    expect(ids("carl")).toEqual(["3"]);
+    expect(ids("carlso")).toEqual(["3"]);
+    expect(ids("jo pere")).toEqual(expect.arrayContaining(["1", "2"]));
+  });
+
+  it("finds a person by their company", () => {
+    expect(ids("padria")).toEqual(["1"]);
+  });
+
+  it("does not match unrelated short words or wild guesses", () => {
+    expect(ids("xyz")).toEqual([]);
+    expect(ids("da")).toEqual([]);
+    expect(ids("roberto almeida")).toEqual([]);
+  });
+});
+
+describe("resolveStage", () => {
+  const columns = [
+    { id: "sourced", label: "Sourced" },
+    { id: "in_discussion", label: "In Discussion" },
+    { id: "offer_submitted", label: "Offer Submitted" },
+  ];
+
+  it("takes an id, a label, or a close spelling", () => {
+    expect(resolveStage(columns, "in_discussion")?.id).toBe("in_discussion");
+    expect(resolveStage(columns, "in discussion")?.id).toBe("in_discussion");
+    expect(resolveStage(columns, "offer")?.id).toBe("offer_submitted");
+    expect(resolveStage(columns, "discusion")?.id).toBe("in_discussion");
+  });
+
+  it("returns null for a stage that isn't there", () => {
+    expect(resolveStage(columns, "shipped")).toBeNull();
   });
 });

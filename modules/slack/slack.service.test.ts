@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UserFacingError } from "@/lib/errors";
 
 const mocks = vi.hoisted(() => ({
-  installations: { find: vi.fn(), claimMessage: vi.fn(), deleteClaimsOlderThan: vi.fn() },
+  installations: { listForTeam: vi.fn(), find: vi.fn(), claimMessage: vi.fn(), deleteClaimsOlderThan: vi.fn() },
   repo: { findLink: vi.fn(), upsertLink: vi.fn(), deleteLink: vi.fn(), insertPending: vi.fn(), setCardTs: vi.fn(), findPending: vi.fn(), findPendingByCards: vi.fn(), claimPending: vi.fn(), releasePending: vi.fn(), deleteExpired: vi.fn() },
   client: { postMessage: vi.fn(), updateMessage: vi.fn(), getUser: vi.fn(), getThread: vi.fn(), downloadAudio: vi.fn() },
   tenancy: { getTenant: vi.fn(), isMember: vi.fn(), listMembers: vi.fn() },
@@ -11,6 +11,9 @@ const mocks = vi.hoisted(() => ({
   notifications: { notifyAssigned: vi.fn() },
   rateLimit: { isLimited: vi.fn() },
   agent: { runAgent: vi.fn() },
+  contacts: { create: vi.fn(), update: vi.fn() },
+  organizations: { create: vi.fn(), update: vi.fn() },
+  pipeline: { create: vi.fn(), update: vi.fn() },
 }));
 
 vi.mock("./slack-installations.repository", () => ({ slackInstallationsRepository: mocks.installations }));
@@ -22,9 +25,9 @@ vi.mock("@/modules/team/team.service", () => ({ teamService: mocks.team }));
 vi.mock("@/modules/activities/activities.service", () => ({ activitiesService: mocks.activities }));
 vi.mock("@/modules/notifications/notifications.service", () => ({ notificationsService: mocks.notifications }));
 vi.mock("@/modules/rate-limit/rate-limit.service", () => ({ rateLimitService: mocks.rateLimit }));
-vi.mock("@/modules/contacts/contacts.service", () => ({ contactsService: {} }));
-vi.mock("@/modules/organizations/organizations.service", () => ({ organizationsService: {} }));
-vi.mock("@/modules/pipeline/pipeline.service", () => ({ pipelineService: {} }));
+vi.mock("@/modules/contacts/contacts.service", () => ({ contactsService: mocks.contacts }));
+vi.mock("@/modules/organizations/organizations.service", () => ({ organizationsService: mocks.organizations }));
+vi.mock("@/modules/pipeline/pipeline.service", () => ({ pipelineService: mocks.pipeline }));
 vi.mock("@/lib/revalidate", () => ({ revalidateWorkspace: vi.fn() }));
 vi.mock("@/lib/gemini", () => ({ generateGemini: vi.fn(), GeminiUnavailable: class extends Error {} }));
 
@@ -37,6 +40,7 @@ const message = { type: "message" as const, user: "U1", text: "call João tomorr
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.installations.listForTeam.mockResolvedValue([{ tenantId: TENANT, commandChannelId: "C1" }]);
   mocks.installations.find.mockResolvedValue({ tenantId: TENANT, commandChannelId: "C1" });
   mocks.installations.claimMessage.mockResolvedValue(true);
   mocks.tenancy.getTenant.mockResolvedValue({ id: TENANT, slug: "tagr", name: "Tagr", archivedAt: null });
@@ -53,7 +57,7 @@ beforeEach(() => {
 
 describe("handleMessage", () => {
   it("ignores a team with no connected workspace", async () => {
-    mocks.installations.find.mockResolvedValue(undefined);
+    mocks.installations.listForTeam.mockResolvedValue([]);
     await slackService.handleMessage(message, delivery);
     expect(mocks.agent.runAgent).not.toHaveBeenCalled();
     expect(mocks.client.postMessage).not.toHaveBeenCalled();
@@ -143,20 +147,20 @@ describe("handleMessage", () => {
     expect(mocks.client.postMessage).toHaveBeenCalledWith({ channel: "C1", text: "hi", threadTs: "1.1" });
   });
 
-  it("stores a proposal as pending and posts a card whose buttons carry only its id", async () => {
+  it("stores a proposal as pending and posts a card whose buttons carry only the workspace and its id", async () => {
     const payload = { kind: "complete", id: "x", subject: "Call João", done: true };
     mocks.agent.runAgent.mockResolvedValue({ kind: "propose", payload });
     mocks.repo.insertPending.mockResolvedValue({ id: PENDING });
     await slackService.handleMessage(message, delivery);
     expect(mocks.repo.insertPending).toHaveBeenCalledWith(TENANT, expect.objectContaining({ slackUserId: "U1", payload, channelId: "C1" }));
     const posted = mocks.client.postMessage.mock.calls[0][0];
-    expect(JSON.stringify(posted.blocks)).toContain(`"value":"${PENDING}"`);
+    expect(JSON.stringify(posted.blocks)).toContain(`"value":"${TENANT}.${PENDING}"`);
     expect(mocks.repo.setCardTs).toHaveBeenCalledWith(TENANT, PENDING, "2.2");
   });
 });
 
 describe("handleInteraction", () => {
-  const press = (action_id: string, value = PENDING) => ({ type: "block_actions", user: { id: "U2" }, channel: { id: "C1" }, message: { ts: "2.2" }, actions: [{ action_id, value }] });
+  const press = (action_id: string, value = `${TENANT}.${PENDING}`) => ({ type: "block_actions", user: { id: "U2" }, channel: { id: "C1" }, message: { ts: "2.2" }, actions: [{ action_id, value }] });
   const pending = (over = {}) => ({
     id: PENDING,
     status: "pending",
@@ -238,5 +242,124 @@ describe("handleInteraction", () => {
   it("ignores a button value that isn't an id", async () => {
     await slackService.handleInteraction(press("slack_confirm", "../../etc"), delivery);
     expect(mocks.repo.findPending).not.toHaveBeenCalled();
+  });
+});
+
+describe("several CRM workspaces on one Slack team", () => {
+  const TENANT_2 = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+  const installations = [
+    { tenantId: TENANT, commandChannelId: "C1" },
+    { tenantId: TENANT_2, commandChannelId: "C2" },
+  ];
+  const memberOf = (...tenants: string[]) => {
+    mocks.repo.findLink.mockImplementation(async (tenantId: string) => (tenants.includes(tenantId) ? { userId: `user-in-${tenantId.slice(0, 4)}` } : undefined));
+    mocks.tenancy.listMembers.mockResolvedValue([]);
+  };
+
+  beforeEach(() => {
+    mocks.installations.listForTeam.mockResolvedValue(installations);
+    mocks.tenancy.getTenant.mockImplementation(async (id: string) => ({ id, slug: id === TENANT ? "tagr" : "grounded", name: id === TENANT ? "Tagr" : "Grounded", archivedAt: null }));
+    mocks.agent.runAgent.mockResolvedValue({ kind: "propose", payload: { kind: "complete", id: "x", subject: "S", done: true } });
+    mocks.repo.insertPending.mockResolvedValue({ id: PENDING });
+  });
+
+  it("a message in a workspace's own channel is handled in THAT workspace", async () => {
+    memberOf(TENANT, TENANT_2);
+    await slackService.handleMessage({ ...message, channel: "C2" }, delivery);
+    expect(mocks.repo.insertPending).toHaveBeenCalledWith(TENANT_2, expect.anything());
+    // The card's buttons name the workspace.
+    expect(JSON.stringify(mocks.client.postMessage.mock.calls[0][0].blocks)).toContain(`"value":"${TENANT_2}.${PENDING}"`);
+  });
+
+  it("does not fall back to another workspace when the person isn't a member of the channel's", async () => {
+    memberOf(TENANT_2); // a member of Grounded only
+    mocks.tenancy.listMembers.mockResolvedValue([]);
+    await slackService.handleMessage({ ...message, channel: "C1" }, delivery); // Tagr's channel
+    expect(mocks.agent.runAgent).not.toHaveBeenCalled();
+    expect(mocks.client.postMessage.mock.calls[0][0].text).toContain("member of Tagr");
+  });
+
+  it("an @mention elsewhere goes to the one workspace the person belongs to", async () => {
+    memberOf(TENANT_2);
+    await slackService.handleMessage({ ...message, type: "app_mention", channel: "C-random" }, delivery);
+    expect(mocks.repo.insertPending).toHaveBeenCalledWith(TENANT_2, expect.anything());
+  });
+
+  it("an @mention elsewhere asks which workspace when the person belongs to several", async () => {
+    memberOf(TENANT, TENANT_2);
+    await slackService.handleMessage({ ...message, type: "app_mention", channel: "C-random" }, delivery);
+    expect(mocks.agent.runAgent).not.toHaveBeenCalled();
+    const said = mocks.client.postMessage.mock.calls[0][0].text;
+    expect(said).toContain("<#C1> (Tagr)");
+    expect(said).toContain("<#C2> (Grounded)");
+  });
+
+  it("a press is applied in the workspace the button names, if the Slack team is connected to it", async () => {
+    memberOf(TENANT_2);
+    mocks.repo.findPending.mockResolvedValue({ id: PENDING, status: "pending", slackUserId: "U1", expiresAt: new Date(Date.now() + 60_000), payload: { kind: "complete", id: "act", subject: "S", done: true } });
+    mocks.repo.claimPending.mockResolvedValue({ id: PENDING });
+    mocks.activities.setDone.mockResolvedValue({ id: "act", subject: "S" });
+    const press = { type: "block_actions", user: { id: "U2" }, channel: { id: "C2" }, message: { ts: "2.2" }, actions: [{ action_id: "slack_confirm", value: `${TENANT_2}.${PENDING}` }] };
+    await slackService.handleInteraction(press, delivery);
+    expect(mocks.installations.find).toHaveBeenCalledWith("T1", "A1", TENANT_2);
+    expect(mocks.repo.findPending).toHaveBeenCalledWith(TENANT_2, PENDING);
+    expect(mocks.activities.setDone).toHaveBeenCalledWith(TENANT_2, "act", true);
+  });
+
+  it("ignores a press naming a workspace this Slack team isn't connected to", async () => {
+    mocks.installations.find.mockResolvedValue(undefined);
+    const press = { type: "block_actions", user: { id: "U2" }, channel: { id: "C2" }, message: { ts: "2.2" }, actions: [{ action_id: "slack_confirm", value: `${TENANT_2}.${PENDING}` }] };
+    await slackService.handleInteraction(press, delivery);
+    expect(mocks.repo.findPending).not.toHaveBeenCalled();
+  });
+});
+
+describe("confirming contacts, companies and cards", () => {
+  const BOARD = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+  const CONTACT = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+  const press = { type: "block_actions", user: { id: "U2" }, channel: { id: "C1" }, message: { ts: "2.2" }, actions: [{ action_id: "slack_confirm", value: `${TENANT}.${PENDING}` }] };
+  const confirm = async (payload: object) => {
+    mocks.repo.findPending.mockResolvedValue({ id: PENDING, status: "pending", slackUserId: "U1", expiresAt: new Date(Date.now() + 60_000), payload });
+    mocks.repo.claimPending.mockResolvedValue({ id: PENDING });
+    await slackService.handleInteraction(press, delivery);
+    return mocks.client.updateMessage.mock.calls.at(-1)?.[0].text as string;
+  };
+
+  it("creates a contact through the contacts service", async () => {
+    mocks.contacts.create.mockResolvedValue({ id: CONTACT, name: "Ana Costa" });
+    const text = await confirm({ kind: "create_contact", fields: { name: "Ana Costa", email: "ana@acme.com", phone: null, organizationId: null }, labels: {} });
+    expect(mocks.contacts.create).toHaveBeenCalledWith(TENANT, { name: "Ana Costa", email: "ana@acme.com", phone: null, organizationId: null });
+    expect(text).toContain("Created contact Ana Costa");
+  });
+
+  it("edits a contact by id, in this workspace", async () => {
+    mocks.contacts.update.mockResolvedValue({ id: CONTACT, name: "Ana Costa" });
+    await confirm({ kind: "update_contact", id: CONTACT, was: "Ana", fields: { name: "Ana Costa", email: null, phone: "555", organizationId: null }, labels: {} });
+    expect(mocks.contacts.update).toHaveBeenCalledWith(TENANT, CONTACT, { name: "Ana Costa", email: null, phone: "555", organizationId: null });
+  });
+
+  it("creates a company, with an empty website as the form sends it", async () => {
+    mocks.organizations.create.mockResolvedValue({ id: "o1", name: "Acme" });
+    await confirm({ kind: "create_organization", fields: { name: "Acme", website: null, notes: null } });
+    expect(mocks.organizations.create).toHaveBeenCalledWith(TENANT, expect.objectContaining({ name: "Acme", website: "" }));
+  });
+
+  it("creates a lead and moves a card, naming where it went", async () => {
+    mocks.pipeline.create.mockResolvedValue({ id: "c1", title: "Bakery Z" });
+    const created = await confirm({ kind: "create_card", fields: { boardId: BOARD, title: "Bakery Z", stage: "sourced", contactId: null, organizationId: null, notes: null }, labels: { board: "Leads", stage: "Sourced", isLead: true } });
+    expect(mocks.pipeline.create).toHaveBeenCalledWith(TENANT, expect.objectContaining({ boardId: BOARD, title: "Bakery Z", stage: "sourced" }));
+    expect(created).toContain("Created lead Bakery Z");
+
+    mocks.pipeline.update.mockResolvedValue({ id: "c1", title: "Bakery Z" });
+    const moved = await confirm({ kind: "update_card", id: "c1", was: "Bakery Z", fields: { boardId: BOARD, title: "Bakery Z", stage: "in_discussion", contactId: null, organizationId: null, notes: null }, labels: { board: "Leads", stage: "In Discussion", isLead: true } });
+    expect(mocks.pipeline.update).toHaveBeenCalledWith(TENANT, "c1", expect.objectContaining({ stage: "in_discussion" }));
+    expect(moved).toContain("Updated lead Bakery Z · In Discussion");
+  });
+
+  it("puts the card back when a service refuses, and says why", async () => {
+    mocks.contacts.create.mockRejectedValue(new UserFacingError("Nope."));
+    mocks.client.postMessage.mockResolvedValue({ ts: "9.9" });
+    await confirm({ kind: "create_contact", fields: { name: "Ana", email: null, phone: null, organizationId: null }, labels: {} });
+    expect(mocks.repo.releasePending).toHaveBeenCalledWith(TENANT, PENDING);
   });
 });

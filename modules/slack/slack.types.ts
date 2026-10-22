@@ -27,12 +27,50 @@ export interface ProposalLabels {
   pipelineItem?: string | null;
   contact?: string | null;
   organization?: string | null;
+  /** The board of a lead/project card, and the name of its stage. */
+  board?: string | null;
+  stage?: string | null;
+  /** The card is on the Leads board (a lead), not on a project board. */
+  isLead?: boolean;
 }
+
+/** A contact as the bot proposes it. Create and edit share the shape: an edit carries every field (the merge is done before). */
+export const contactFieldsSchema = z.object({
+  name: z.string().trim().min(1, "A contact needs a name.").max(200),
+  email: z.email("That doesn't look like an email address.").max(254).nullish(),
+  phone: z.string().trim().max(50).nullish(),
+  organizationId: z.uuid().nullish(),
+});
+export type ContactFields = z.infer<typeof contactFieldsSchema>;
+
+export const organizationFieldsSchema = z.object({
+  name: z.string().trim().min(1, "A company needs a name.").max(200),
+  website: z.url({ protocol: /^https?$/, error: "Enter a valid http(s) address." }).max(2048).nullish(),
+  notes: z.string().trim().max(10_000).nullish(),
+});
+export type OrganizationFields = z.infer<typeof organizationFieldsSchema>;
+
+/** A card on a board: a lead (the Leads board) or an item of a project board. */
+export const cardFieldsSchema = z.object({
+  boardId: z.uuid(),
+  title: z.string().trim().min(1, "A card needs a title.").max(200),
+  stage: z.string().min(1).max(100),
+  contactId: z.uuid().nullish(),
+  organizationId: z.uuid().nullish(),
+  notes: z.string().trim().max(10_000).nullish(),
+});
+export type CardFields = z.infer<typeof cardFieldsSchema>;
 
 export type PendingPayload =
   | { kind: "create"; fields: ProposalFields; labels: ProposalLabels }
   | { kind: "update"; id: string; fields: ProposalFields; labels: ProposalLabels; was: string }
-  | { kind: "complete"; id: string; subject: string; done: boolean };
+  | { kind: "complete"; id: string; subject: string; done: boolean }
+  | { kind: "create_contact"; fields: ContactFields; labels: ProposalLabels }
+  | { kind: "update_contact"; id: string; fields: ContactFields; labels: ProposalLabels; was: string }
+  | { kind: "create_organization"; fields: OrganizationFields }
+  | { kind: "update_organization"; id: string; fields: OrganizationFields; was: string }
+  | { kind: "create_card"; fields: CardFields; labels: ProposalLabels }
+  | { kind: "update_card"; id: string; fields: CardFields; labels: ProposalLabels; was: string };
 
 export type PendingKind = PendingPayload["kind"];
 

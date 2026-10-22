@@ -20,9 +20,12 @@ export function formatDue(dueDate: string, timezone: string | null | undefined, 
   return `${day} · ${time}`;
 }
 
+const line = (label: string, value: string | null | undefined) => (value ? `*${label}*
+${escapeMrkdwn(value)}` : null);
+const present = (lines: (string | null)[]) => lines.filter((l): l is string => !!l);
+
 function fieldLines(fields: ProposalFields, labels: ProposalLabels, personTimeZone: string): string[] {
-  const line = (label: string, value: string | null | undefined) => (value ? `*${label}*\n${escapeMrkdwn(value)}` : null);
-  return [
+  return present([
     line("Due", fields.dueDate ? formatDue(fields.dueDate, fields.timezone, personTimeZone) : null),
     line("Assigned to", labels.assignee),
     line("Lead / project", labels.pipelineItem),
@@ -30,33 +33,66 @@ function fieldLines(fields: ProposalFields, labels: ProposalLabels, personTimeZo
     line("Company", labels.organization),
     line("Priority", fields.priority ? ACTIVITY_PRIORITY_LABELS[fields.priority] : null),
     line("Reminder", fields.notify ? "Push notification at the due time" : null),
-  ].filter((l): l is string => !!l);
+  ]);
 }
 
-/** The confirmation card: everything the bot understood, and two buttons. The buttons carry only the pending id. */
-export function proposalBlocks(payload: PendingPayload, pendingId: string, personTimeZone: string): { text: string; blocks: unknown[] } {
-  let heading: string;
-  let fields: string[] = [];
-  let notes: string | null | undefined;
-
-  if (payload.kind === "complete") {
-    heading = `${payload.done ? "Mark as done" : "Reopen"}: *${escapeMrkdwn(payload.subject)}*`;
-  } else {
-    const type = ACTIVITY_TYPE_LABELS[payload.fields.type];
-    heading = payload.kind === "create" ? `New ${type.toLowerCase()}: *${escapeMrkdwn(payload.fields.subject)}*` : `Update ${type.toLowerCase()}: *${escapeMrkdwn(payload.fields.subject)}*`;
-    fields = fieldLines(payload.fields, payload.labels, personTimeZone);
-    notes = payload.fields.notes;
+/** What one proposal says on its card: the headline, the fields, the notes, and what the confirm button is called. */
+function describe(payload: PendingPayload, personTimeZone: string): { heading: string; fields: string[]; notes?: string | null; confirm: string } {
+  const bold = (text: string) => `*${escapeMrkdwn(text)}*`;
+  switch (payload.kind) {
+    case "complete":
+      return { heading: `${payload.done ? "Mark as done" : "Reopen"}: ${bold(payload.subject)}`, fields: [], confirm: "Confirm" };
+    case "create":
+    case "update": {
+      const type = ACTIVITY_TYPE_LABELS[payload.fields.type].toLowerCase();
+      return {
+        heading: `${payload.kind === "create" ? "New" : "Update"} ${type}: ${bold(payload.fields.subject)}`,
+        fields: fieldLines(payload.fields, payload.labels, personTimeZone),
+        notes: payload.fields.notes,
+        confirm: payload.kind === "create" ? "Create" : "Save changes",
+      };
+    }
+    case "create_contact":
+    case "update_contact":
+      return {
+        heading: `${payload.kind === "create_contact" ? "New contact" : "Update contact"}: ${bold(payload.fields.name)}`,
+        fields: present([line("Email", payload.fields.email), line("Phone", payload.fields.phone), line("Company", payload.labels.organization)]),
+        confirm: payload.kind === "create_contact" ? "Create" : "Save changes",
+      };
+    case "create_organization":
+    case "update_organization":
+      return {
+        heading: `${payload.kind === "create_organization" ? "New company" : "Update company"}: ${bold(payload.fields.name)}`,
+        fields: present([line("Website", payload.fields.website)]),
+        notes: payload.fields.notes,
+        confirm: payload.kind === "create_organization" ? "Create" : "Save changes",
+      };
+    case "create_card":
+    case "update_card": {
+      const what = payload.labels.isLead ? "lead" : "project card";
+      return {
+        heading: `${payload.kind === "create_card" ? "New" : "Update"} ${what}: ${bold(payload.fields.title)}`,
+        fields: present([line("Board", payload.labels.board), line("Stage", payload.labels.stage), line("Contact", payload.labels.contact), line("Company", payload.labels.organization)]),
+        notes: payload.fields.notes,
+        confirm: payload.kind === "create_card" ? "Create" : "Save changes",
+      };
+    }
   }
+}
 
+/** The confirmation card: everything the bot understood, and two buttons. The buttons carry only `value` (which stored proposal). */
+export function proposalBlocks(payload: PendingPayload, value: string, personTimeZone: string): { text: string; blocks: unknown[] } {
+  const { heading, fields, notes, confirm } = describe(payload, personTimeZone);
   const blocks: unknown[] = [{ type: "section", text: { type: "mrkdwn", text: heading } }];
   // Slack allows at most 10 fields per section.
   if (fields.length > 0) blocks.push({ type: "section", fields: fields.slice(0, 10).map((text) => ({ type: "mrkdwn", text })) });
-  if (notes) blocks.push({ type: "section", text: { type: "mrkdwn", text: `*Notes*\n${escapeMrkdwn(notes.length > 600 ? `${notes.slice(0, 600)}…` : notes)}` } });
+  if (notes) blocks.push({ type: "section", text: { type: "mrkdwn", text: `*Notes*
+${escapeMrkdwn(notes.length > 600 ? `${notes.slice(0, 600)}…` : notes)}` } });
   blocks.push({
     type: "actions",
     elements: [
-      { type: "button", style: "primary", action_id: CONFIRM_ACTION_ID, value: pendingId, text: { type: "plain_text", text: payload.kind === "create" ? "Create" : payload.kind === "update" ? "Save changes" : "Confirm" } },
-      { type: "button", action_id: CANCEL_ACTION_ID, value: pendingId, text: { type: "plain_text", text: "Cancel" } },
+      { type: "button", style: "primary", action_id: CONFIRM_ACTION_ID, value, text: { type: "plain_text", text: confirm } },
+      { type: "button", action_id: CANCEL_ACTION_ID, value, text: { type: "plain_text", text: "Cancel" } },
     ],
   });
   return { text: heading.replace(/\*/g, ""), blocks };
