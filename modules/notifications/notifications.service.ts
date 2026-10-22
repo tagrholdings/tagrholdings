@@ -5,6 +5,7 @@ import { ACTIVITY_TYPE_LABELS } from "@/modules/activities/activities.types";
 import { tenancyService } from "@/modules/tenancy/tenancy.service";
 import { teamService } from "@/modules/team/team.service";
 import { tractionService } from "@/modules/traction/traction.service";
+import { slackNotifyService } from "@/modules/slack/slack-notify.service";
 import { formatMeetingTime } from "@/modules/traction/traction.logic";
 import { sendEmail } from "@/lib/email/send";
 import { l10ReminderEmail, l10ReminderEmailText } from "@/lib/email/templates/l10-reminder";
@@ -62,18 +63,22 @@ export const notificationsService = {
   },
 
   /**
-   * "You have a new task": a push to the assignee's devices when an activity is created for them or handed to them.
-   * Nothing when it's unassigned, assigned to a contact, assigned to someone with no login, or when people assign
-   * something to themselves. Never throws — a failed push must not undo the save; it's called after the response.
+   * "You have a new task": a push to the assignee's devices — and a Slack DM, if they are on Slack — when an activity is
+   * created for them or handed to them. Nothing when it's unassigned, assigned to a contact, assigned to someone with no
+   * login, or when people assign something to themselves. Never throws — a failed push must not undo the save; it's
+   * called after the response.
    */
   async notifyAssigned(tenantId: string, workspaceSlug: string, activities: AssignedActivity[], actor: { id: string; name: string | null }) {
     try {
       const assigned = activities.filter((a) => a.assignedToPersonId);
-      if (assigned.length === 0 || !isPushConfigured()) return;
+      const push = isPushConfigured();
+      if (assigned.length === 0 || (!push && !slackNotifyService.configured())) return;
       const loginOf = new Map((await teamService.listPeople(tenantId)).map((p) => [p.id, p.userId]));
       for (const activity of assigned) {
         const login = loginOf.get(activity.assignedToPersonId!);
         if (!login || login === actor.id) continue;
+        await slackNotifyService.dmAssigned(tenantId, workspaceSlug, activity, login, actor.name);
+        if (!push) continue;
         const subscriptions = await notificationsRepository.findByUserIds([login]);
         if (subscriptions.length === 0) continue;
         const due = activity.dueDate ? ` · due ${formatDateUS(activity.dueDate, { month: "short", day: "numeric" })}` : "";
@@ -93,13 +98,16 @@ export const notificationsService = {
    * The reminder sweep, run every 20 minutes by cron-job.org → /api/cron/task-reminders (see the comment at the top
    * of .github/workflows/task-reminders.yml for why that scheduler and that interval).
    * For every workspace: take the reminders that came due (each is claimed exactly once), and push each one to
-   * its assignee — or, when it isn't assigned to a team member, to everyone on the team.
+   * its assignee — or, when it isn't assigned to a team member, to everyone on the team. Each goes by push (where
+   * VAPID is set up) and as a Slack DM (where the workspace is connected and the person is on Slack).
    */
   async sendDueTaskReminders(now: Date = new Date()) {
-    if (!isPushConfigured()) throw new Error("VAPID keys are not configured — no reminders can be sent.");
+    const push = isPushConfigured();
+    if (!push && !slackNotifyService.configured()) throw new Error("Neither VAPID keys nor Slack are configured — no reminders can be sent.");
 
     let reminders = 0;
     let delivered = 0;
+    let slack = 0;
     for (const { id: tenantId, slug } of await tenancyService.listTenants()) {
       // One workspace failing must not stop the others' reminders.
       try {
@@ -114,6 +122,8 @@ export const notificationsService = {
           const assigneeLogin = activity.assignedToPersonId ? loginOf.get(activity.assignedToPersonId) : undefined;
           const recipients = activity.assignedToPersonId ? (assigneeLogin ? [assigneeLogin] : []) : everyone;
           if (recipients.length === 0) continue; // assigned to someone with no login: no device to reach
+          slack += await slackNotifyService.dmReminder(tenantId, slug, activity, recipients);
+          if (!push) continue;
           const subscriptions = await notificationsRepository.findByUserIds(recipients);
           delivered += await deliver(subscriptions, {
             title: activity.subject,
@@ -126,18 +136,20 @@ export const notificationsService = {
         console.error(`Task reminders failed for tenant ${tenantId}:`, error);
       }
     }
-    return { reminders, delivered };
+    return { reminders, delivered, slack };
   },
 
   /**
    * One hour before each workspace's standing L10: a push to every teammate's devices (those with a login and
-   * notifications on) and an email to every teammate with an address, carrying the meeting's points. Each meeting is
+   * notifications on), an email to every teammate with an address and a Slack DM to every teammate on Slack, carrying
+   * the meeting's points. Each meeting is
    * claimed once (tractionService.claimDueL10Reminders), so overlapping sweeps never send it twice.
    */
   async sendDueL10Reminders(now: Date = new Date()) {
     let meetings = 0;
     let pushed = 0;
     let emailed = 0;
+    let slack = 0;
     for (const reminder of await tractionService.claimDueL10Reminders(now)) {
       meetings += 1;
       const when = formatMeetingTime(reminder.meetingAt, reminder.timezone);
@@ -151,6 +163,7 @@ export const notificationsService = {
           tag: `l10-${reminder.tenantId}`,
         });
       }
+      slack += await slackNotifyService.dmL10(reminder, when);
       const options = {
         workspaceName: reminder.workspaceName,
         when,
@@ -166,6 +179,6 @@ export const notificationsService = {
         if (sent) emailed += 1;
       }
     }
-    return { meetings, pushed, emailed };
+    return { meetings, pushed, emailed, slack };
   },
 };

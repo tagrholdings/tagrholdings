@@ -43,8 +43,8 @@ const row = (over: Partial<ActivityRow> = {}): ActivityRow => ({
 const data = (activities: ActivityRow[] = []): AgentData => ({
   people: async () => [{ id: MARIA, name: "Maria Silva", email: "maria@tagr.com" }],
   pipelineItems: async () => [
-    { id: LEAD, boardId: LEADS_BOARD, title: "Padaria X", stage: "sourced", notes: null, boardName: "Leads", boardIsSystem: true, contactId: null, contactName: null, organizationId: null, organizationName: null },
-    { id: CARD, boardId: PROJECTS_BOARD, title: "Due diligence checklist", stage: "todo", notes: "start with the leases", boardName: "Diligence", boardIsSystem: false, contactId: JOAO, contactName: "João Pereira", organizationId: PADARIA, organizationName: "Padaria X" },
+    { id: LEAD, boardId: LEADS_BOARD, title: "Padaria X", stage: "sourced", notes: null, boardName: "Leads", boardIsSystem: true, contactId: null, contactName: null, organizationId: null, organizationName: null, createdAt: new Date("2026-10-20T12:00:00Z"), updatedAt: new Date("2026-10-21T12:00:00Z") },
+    { id: CARD, boardId: PROJECTS_BOARD, title: "Due diligence checklist", stage: "todo", notes: "start with the leases", boardName: "Diligence", boardIsSystem: false, contactId: JOAO, contactName: "João Pereira", organizationId: PADARIA, organizationName: "Padaria X", createdAt: new Date("2026-08-01T12:00:00Z"), updatedAt: new Date("2026-09-01T12:00:00Z") },
   ],
   boards: async () => [
     { id: LEADS_BOARD, name: "Leads", isSystem: true, archivedAt: null, columns: [{ id: "sourced", label: "Sourced" }, { id: "in_discussion", label: "In Discussion" }, { id: "closed", label: "Closed" }] },
@@ -53,6 +53,17 @@ const data = (activities: ActivityRow[] = []): AgentData => ({
   contacts: async () => [{ id: JOAO, name: "João Pereira", email: "joao@padaria.com", phone: "602-555-0100", organizationId: PADARIA, organizationName: "Padaria X" }],
   organizations: async () => [{ id: PADARIA, name: "Padaria X", website: "https://padaria.com", notes: null }],
   activities: async () => activities,
+  newLeads: async () => 4,
+  issues: async () => [
+    { id: "i1", title: "Hiring is behind", status: "open", issueType: "problem", horizon: "short_term", ownerPersonId: MARIA },
+    { id: "i2", title: "Old one", status: "solved", issueType: "idea", horizon: "long_term", ownerPersonId: null },
+  ],
+  todos: async () => [
+    { id: "t1", subject: "Send the LOI", done: false, dueDate: new Date("2026-10-21T07:00:00Z"), assignedToPersonId: MARIA },
+    { id: "t2", subject: "Done thing", done: true, dueDate: null, assignedToPersonId: null },
+  ],
+  tractionSummary: async () => ({ scorecard: { onGoal: 3, offGoal: 1, notEntered: 0, total: 4 } }),
+  weeklyReport: async ({ timeZone }) => ({ period: "Oct 15 – Oct 22", timeZone }),
 });
 
 /** Runs one scripted tool call and returns what the agent decided. */
@@ -291,6 +302,76 @@ describe("runAgent", () => {
     it("clears a card's contact, and refuses a stage of another board", async () => {
       expect((await callTool("update_pipeline_item", { item_id: CARD, clear: ["contact"] })).outcome).toMatchObject({ payload: { fields: { contactId: null } } });
       expect(lastResponse((await callTool("update_pipeline_item", { item_id: CARD, stage: "in_discussion" })).seen).error).toContain("not a stage of Diligence");
+    });
+  });
+
+  describe("notes, pipeline summary, preferences", () => {
+    it("adds a note to a card, a company or a contact — only for ones in this workspace", async () => {
+      const card = await callTool("add_note", { target: "card", id: CARD, text: "Landlord wants a 5-year lease" });
+      expect(card.outcome).toEqual({ kind: "propose", payload: { kind: "add_note", target: "card", id: CARD, label: "Due diligence checklist", text: "Landlord wants a 5-year lease", activityType: "call" } });
+      expect((await callTool("add_note", { target: "company", id: PADARIA, text: "Met at the expo" })).outcome).toMatchObject({ payload: { target: "company", label: "Padaria X" } });
+      expect((await callTool("add_note", { target: "contact", id: JOAO, text: "Wants 2M", activity_type: "meeting" })).outcome).toMatchObject({ payload: { target: "contact", activityType: "meeting" } });
+      expect(lastResponse((await callTool("add_note", { target: "card", id: "99999999-9999-4999-8999-999999999999", text: "x" })).seen).error).toContain("No card with that id");
+    });
+
+    it("refuses an empty or over-long note", async () => {
+      expect(lastResponse((await callTool("add_note", { target: "card", id: CARD, text: "x".repeat(2001) })).seen).error).toContain("too long");
+    });
+
+    it("summarises the pipeline for the model, reading the loaders once each", async () => {
+      const { seen } = await callTool("pipeline_summary", {});
+      const response = lastResponse(seen);
+      expect(response.newLeadsToReview).toBe(4);
+      expect(response.boards.map((b: { name: string }) => b.name)).toEqual(["Leads", "Diligence"]);
+      expect(response.stale.map((s: { title: string }) => s.title)).toContain("Due diligence checklist"); // untouched since September
+    });
+
+    it("hands the weekly report's numbers to the model, in the asker's zone", async () => {
+      const { seen } = await callTool("weekly_report", {});
+      expect(lastResponse(seen)).toEqual({ period: "Oct 15 – Oct 22", timeZone: "America/Phoenix" });
+    });
+
+    it("applies preference changes straight away, with only what was asked", async () => {
+      const off = await callTool("set_notifications", { reminders: false, daily_summary: true });
+      expect(off.outcome).toEqual({ kind: "settings", patch: { remindDm: false, digestDm: true } });
+      expect(lastResponse((await callTool("set_notifications", {})).seen).error).toContain("Say what to change");
+    });
+  });
+
+  describe("EOS: issues and to-dos", () => {
+    it("adds an issue with the defaults the schema requires", async () => {
+      const { outcome } = await callTool("add_issue", { title: "Hiring is behind", owner_person_id: MARIA });
+      expect(outcome).toEqual({ kind: "propose", payload: { kind: "add_issue", fields: { title: "Hiring is behind", notes: null, issueType: "problem", horizon: "short_term", ownerPersonId: MARIA }, labels: { assignee: "Maria Silva" } } });
+    });
+
+    it("rejects an unknown owner or issue type", async () => {
+      expect(lastResponse((await callTool("add_issue", { title: "X", owner_person_id: "99999999-9999-4999-8999-999999999999" })).seen).error).toContain("not on this workspace's team");
+      expect(lastResponse((await callTool("add_issue", { title: "X", issue_type: "wish" })).seen).error).toContain("issue_type");
+    });
+
+    it("a to-do is due in a week by default, as a date with no time, for the person named", async () => {
+      const { outcome } = await callTool("add_todo", { subject: "Send the LOI", assigned_to_person_id: MARIA });
+      // Today is Oct 22 (Phoenix) → Oct 29, local midnight = 07:00Z.
+      expect(outcome).toEqual({ kind: "propose", payload: { kind: "add_todo", fields: { subject: "Send the LOI", assignedToPersonId: MARIA, dueDate: "2026-10-29T07:00:00.000Z" }, labels: { assignee: "Maria Silva" } } });
+    });
+
+    it("takes a given date, defaults the owner to the sender, and asks when there is neither", async () => {
+      const given = await callTool("add_todo", { subject: "Call the bank", assigned_to_person_id: MARIA, due_date: "2026-11-03" });
+      expect(given.outcome).toMatchObject({ payload: { fields: { dueDate: "2026-11-03T07:00:00.000Z" } } });
+
+      const { generate } = script([{ name: "add_todo", args: { subject: "Ship it" } }]);
+      const outcome = await runAgent(input, { generate, data: data(), userName: "Boss", senderPersonId: MARIA });
+      expect(outcome).toMatchObject({ payload: { fields: { assignedToPersonId: MARIA } } });
+
+      const nobody = await callTool("add_todo", { subject: "Ship it" }); // deps() has no sender
+      expect(lastResponse(nobody.seen).error).toContain("don't know who");
+    });
+
+    it("lists what is open: issues, to-dos (overdue flagged) and the summary", async () => {
+      const response = lastResponse((await callTool("list_traction", {})).seen);
+      expect(response.issues).toEqual({ total: 1, items: [{ id: "i1", title: "Hiring is behind", type: "problem", horizon: "short_term", owner: "Maria Silva" }] });
+      expect(response.todos.items).toEqual([{ id: "t1", subject: "Send the LOI", assignee: "Maria Silva", due: "2026-10-21", overdue: true }]);
+      expect(response.summary.scorecard.onGoal).toBe(3);
     });
   });
 

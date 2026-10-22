@@ -1,4 +1,5 @@
 import { UserFacingError } from "@/lib/errors";
+import { formatNoteEntry } from "@/utils/notes";
 import { pipelineRepository, pipelineBoardsRepository } from "./pipeline.repository";
 import { activitiesService } from "@/modules/activities/activities.service";
 import { DEFAULT_BOARD_NAME, DEFAULT_BOARD_COLUMNS } from "./pipeline.constants";
@@ -154,6 +155,14 @@ export const pipelineService = {
     if (!updated) {
       throw new UserFacingError("Pipeline item not found.");
     }
+    return updated;
+  },
+
+  /** Adds a dated line to a card's notes without touching what is there. */
+  async appendNote(tenantId: string, id: string, text: string, author: string | null, date: string) {
+    await this.getById(tenantId, id); // "Pipeline item not found." for another workspace's id too
+    const updated = await pipelineRepository.appendNote(tenantId, id, formatNoteEntry(text, author, date));
+    if (!updated) throw new UserFacingError("This card's notes are full (10,000 characters). Shorten them in the CRM first.");
     return updated;
   },
 

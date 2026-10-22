@@ -1,10 +1,12 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { notificationsService } from "@/modules/notifications/notifications.service";
+import { slackNotifyService } from "@/modules/slack/slack-notify.service";
 
 /**
- * /api/cron/task-reminders — sends the push reminders for tasks whose due time has arrived, and the L10 reminders
- * (push + email, one hour before each workspace's standing meeting). Called every 20 minutes by cron-job.org
+ * /api/cron/task-reminders — sends the reminders for tasks whose due time has arrived (push, and a Slack DM), the L10
+ * reminders (push + email + Slack DM, one hour before each workspace's standing meeting) and the Slack sweep: what the
+ * bot says on its own (new leads to review, …). Called every 20 minutes by cron-job.org
  * (.github/workflows/task-reminders.yml is the manual backup and explains the interval).
  * Not a Server Action: the caller has no session, it authenticates with a shared secret.
  *
@@ -33,12 +35,17 @@ async function handle(request: Request) {
   }
 
   try {
-    // The L10 sweep sends email too, so it runs even when push (VAPID) isn't configured.
-    const [tasks, l10] = await Promise.allSettled([notificationsService.sendDueTaskReminders(), notificationsService.sendDueL10Reminders()]);
+    // The L10 sweep sends email too, so it runs even when push (VAPID) isn't configured; the Slack sweep never throws.
+    const [tasks, l10, slack] = await Promise.allSettled([notificationsService.sendDueTaskReminders(), notificationsService.sendDueL10Reminders(), slackNotifyService.sweep()]);
     if (tasks.status === "rejected") console.error("/api/cron/task-reminders: task reminders failed:", tasks.reason);
     if (l10.status === "rejected") console.error("/api/cron/task-reminders: L10 reminders failed:", l10.reason);
+    if (slack.status === "rejected") console.error("/api/cron/task-reminders: Slack sweep failed:", slack.reason);
     if (tasks.status === "rejected" && l10.status === "rejected") throw tasks.reason;
-    return NextResponse.json({ ...(tasks.status === "fulfilled" ? tasks.value : {}), l10: l10.status === "fulfilled" ? l10.value : null });
+    return NextResponse.json({
+      ...(tasks.status === "fulfilled" ? tasks.value : {}),
+      l10: l10.status === "fulfilled" ? l10.value : null,
+      sweep: slack.status === "fulfilled" ? slack.value : null,
+    });
   } catch (error) {
     console.error("/api/cron/task-reminders failed:", error);
     return NextResponse.json({ error: "Could not send reminders." }, { status: 500 });
@@ -49,3 +56,5 @@ export const GET = handle;
 export const POST = handle;
 
 export const dynamic = "force-dynamic";
+// The sweep sends Slack messages one after another; give it room.
+export const maxDuration = 60;

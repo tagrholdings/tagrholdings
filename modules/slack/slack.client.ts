@@ -69,6 +69,41 @@ export const slackClient = {
     };
   },
 
+  /** The Slack person with this e-mail (null when there is none) — how a workspace member is found to be messaged unprompted. */
+  async lookupByEmail(email: string): Promise<{ id: string; name: string; timeZone: string } | null> {
+    try {
+      const result = await call<{ user: { id: string; real_name?: string; name?: string; tz?: string; is_bot?: boolean; deleted?: boolean } }>("users.lookupByEmail", { email }, "form");
+      if (result.user.is_bot || result.user.deleted) return null;
+      return { id: result.user.id, name: result.user.real_name || result.user.name || "there", timeZone: result.user.tz || "America/Phoenix" };
+    } catch (error) {
+      if (error instanceof SlackApiError && error.message.includes("users_not_found")) return null;
+      throw error;
+    }
+  },
+
+  /** The id of the direct-message conversation between the bot and one person (opened if needed; needs im:write). */
+  async openDm(slackUserId: string): Promise<string> {
+    const opened = await call<{ channel: { id: string } }>("conversations.open", { users: slackUserId });
+    return opened.channel.id;
+  },
+
+  /** A direct message from the bot to one person. */
+  async postDm(slackUserId: string, message: Omit<SlackMessage, "channel" | "threadTs">): Promise<{ ts: string; channel: string }> {
+    const channel = await this.openDm(slackUserId);
+    const posted = await this.postMessage({ ...message, channel });
+    return { ts: posted.ts, channel };
+  },
+
+  /** A link to one message — what a card made from a message points back to. Null when Slack won't give one. */
+  async getPermalink(channel: string, messageTs: string): Promise<string | null> {
+    try {
+      const result = await call<{ permalink: string }>("chat.getPermalink", { channel, message_ts: messageTs }, "form");
+      return result.permalink;
+    } catch {
+      return null;
+    }
+  },
+
   /** A thread, oldest first (the root message included). Needs channels:history / groups:history. */
   async getThread(channel: string, threadTs: string): Promise<SlackThreadMessage[]> {
     const result = await call<{ messages?: SlackThreadMessage[] }>("conversations.replies", { channel, ts: threadTs, limit: 200 }, "form");

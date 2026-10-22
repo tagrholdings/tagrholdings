@@ -5,7 +5,11 @@ import { revalidateWorkspace } from "@/lib/revalidate";
 import { workspacePath } from "@/lib/workspace-path";
 import { activitiesService } from "@/modules/activities/activities.service";
 import { createActivitySchema, updateActivitySchema } from "@/modules/activities/activities.types";
+import { tractionService } from "@/modules/traction/traction.service";
+import { createIssueSchema, createTodoSchema } from "@/modules/traction/traction.types";
+import { toZonedInputValues } from "@/utils/date";
 import { contactsService } from "@/modules/contacts/contacts.service";
+import { leadsService } from "@/modules/leads/leads.service";
 import { createContactSchema } from "@/modules/contacts/contacts.types";
 import { notificationsService } from "@/modules/notifications/notifications.service";
 import { organizationsService } from "@/modules/organizations/organizations.service";
@@ -19,9 +23,11 @@ import { runAgent, type AgentData } from "./slack.agent";
 import { CANCEL_ACTION_ID, CONFIRM_ACTION_ID, escapeMrkdwn, proposalBlocks, resolvedBlocks } from "./slack.blocks";
 import { slackClient } from "./slack.client";
 import { slackMessageText } from "./slack.logic";
+import { slackNotifyService } from "./slack-notify.service";
+import { DONE_ACTION_ID, LEAD_DISMISS_ACTION_ID, LEAD_PROMOTE_ACTION_ID, OPEN_ACTION_ID, SNOOZE_ACTION_ID } from "./slack.notify-blocks";
 import { slackInstallationsRepository } from "./slack-installations.repository";
 import { slackRepository } from "./slack.repository";
-import type { PendingPayload, ProposalFields, SlackInteractionPayload, SlackMessageEvent, SlackSettingsInput } from "./slack.types";
+import type { NotificationPatch, PendingPayload, ProposalFields, SlackInteractionPayload, SlackMessageEvent, SlackSettingsInput } from "./slack.types";
 
 type Installation = Awaited<ReturnType<typeof slackInstallationsRepository.listForTeam>>[number];
 type Tenant = NonNullable<Awaited<ReturnType<typeof tenancyService.getTenant>>>;
@@ -41,6 +47,8 @@ interface Delivery {
 }
 
 const MENTION = /<@[A-Z0-9]+>/g;
+/** The message shortcut's callback_id — the same string slack/manifest.json registers. */
+export const SHORTCUT_CREATE_TASK = "create_task_from_message";
 
 /**
  * Production refuses anyone whose Slack e-mail isn't a member of the workspace. A TEST deployment can switch that off
@@ -51,7 +59,8 @@ const allowUnlinkedUsers = () => process.env.SLACK_ALLOW_UNLINKED_USERS === "tru
 const isUuid = (value: string | undefined): value is string => !!value && /^[0-9a-f-]{36}$/i.test(value);
 
 /** Loads each list at most once per message — the agent asks for what it needs, when it needs it. */
-function dataFor(tenantId: string): AgentData {
+function dataFor(tenant: { id: string; name: string }): AgentData {
+  const tenantId = tenant.id;
   const once = <T>(load: () => Promise<T>) => {
     let cached: Promise<T> | undefined;
     return () => (cached ??= load());
@@ -63,6 +72,11 @@ function dataFor(tenantId: string): AgentData {
     contacts: once(() => contactsService.listForTenant(tenantId)),
     organizations: once(() => organizationsService.listForTenant(tenantId)),
     activities: once(() => activitiesService.listForTenant(tenantId)),
+    newLeads: once(() => leadsService.countNew(tenantId)),
+    issues: once(() => tractionService.getIssues(tenantId)),
+    todos: once(() => tractionService.getTodos(tenantId)),
+    tractionSummary: once(() => tractionService.getSummary(tenantId)),
+    weeklyReport: ({ now, timeZone }) => slackNotifyService.buildWeeklyReport(tenant, now, timeZone),
   };
 }
 
@@ -73,6 +87,11 @@ function toActivityInput(fields: ProposalFields) {
 
 function invalid(error: { issues: { message: string }[] }): never {
   throw new UserFacingError(error.issues[0]?.message ?? "That isn't a valid activity.");
+}
+
+/** Every Traction/EOS page reads a bit of everything, so a change refreshes them all (the same list traction.actions.ts clears). */
+function revalidateTractionPages(slug: string) {
+  revalidateWorkspace(slug, "/traction", "/traction/scorecard", "/traction/rocks", "/traction/issues", "/traction/l10", "/traction/l10/history", "/activities");
 }
 
 /** Activities show up on these pages — the same list activities.actions.ts clears after its own writes. */
@@ -122,6 +141,8 @@ export const slackService = {
       }
       const { tenant, userId } = picked;
       const tenantId = tenant.id;
+      // Their Slack zone, so a morning digest can go out at 8:00 THEIR time.
+      if (userId) await slackRepository.updateLink(tenantId, event.user, { timeZone: person.timeZone }).catch(() => undefined);
       if (Math.random() < SWEEP_PROBABILITY) {
         await slackInstallationsRepository.deleteClaimsOlderThan(new Date(Date.now() - CLAIMS_MAX_AGE_MS));
         await slackRepository.deleteExpired(tenantId, new Date());
@@ -152,10 +173,14 @@ export const slackService = {
         .map((m) => ({ role: m.app_id === delivery.apiAppId ? ("assistant" as const) : ("user" as const), text: slackMessageText(m).replace(MENTION, "").trim() }));
       const outcome = await runAgent(
         { text, audio, history, timeZone: person.timeZone, now: new Date() },
-        { generate, data: dataFor(tenantId), userName: person.name, senderPersonId: sender?.id ?? null }
+        { generate, data: dataFor(tenant), userName: person.name, senderPersonId: sender?.id ?? null }
       );
 
       if (outcome.kind === "ignore") return;
+      if (outcome.kind === "settings") {
+        await reply(await this.applyNotificationSettings(tenantId, event.user, outcome.patch));
+        return;
+      }
       if (outcome.kind === "reply") {
         await reply(outcome.text);
         return;
@@ -220,6 +245,86 @@ export const slackService = {
     return { say: `You're in several workspaces, so tell me which one: write in its command channel — ${channels}.` };
   },
 
+  /**
+   * The "Create CRM task" message shortcut (⋯ More actions on ANY message): the message becomes a proposed activity. The
+   * card goes to the person's DM — the bot may not be in the channel the message is from — with a link back to the message.
+   * Never throws; a problem is said to the person in the DM.
+   */
+  async handleMessageShortcut(payload: SlackInteractionPayload, delivery: Delivery, generate: GenerateGemini = generateGemini): Promise<void> {
+    const slackUserId = payload.user?.id;
+    if (!slackUserId || payload.callback_id !== SHORTCUT_CREATE_TASK) return;
+    const dm = (text: string) => slackClient.postDm(slackUserId, { text }).catch((e) => console.error("slack: shortcut reply failed:", e));
+    try {
+      const installations = await slackInstallationsRepository.listForTeam(delivery.teamId, delivery.apiAppId);
+      if (installations.length === 0) return;
+      const person = await slackClient.getUser(slackUserId);
+      const picked = await this.pickWorkspace(installations, installations.find((i) => i.commandChannelId === payload.channel?.id), slackUserId, person.email);
+      if ("ignore" in picked) return;
+      if ("say" in picked) {
+        await dm(picked.say);
+        return;
+      }
+      const { tenant, userId } = picked;
+      const tenantId = tenant.id;
+      if (await rateLimitService.isLimited(`slack:${tenantId}:${slackUserId}`, PER_PERSON_LIMIT, PER_PERSON_WINDOW_MS)) {
+        await dm("You're sending a lot of requests — give me a few minutes.");
+        return;
+      }
+
+      const original = (payload.message?.text ?? "").replace(MENTION, "").trim();
+      if (!original) {
+        await dm("That message has no text I can make a task from.");
+        return;
+      }
+      const channel = payload.channel?.id;
+      const permalink = channel && payload.message?.ts ? await slackClient.getPermalink(channel, payload.message.ts) : null;
+      const author = payload.message?.user ? await slackClient.getUser(payload.message.user).then((u) => u.name).catch(() => null) : null;
+      // The model is told where the text came from and asked for exactly one activity; the link goes into the notes.
+      const text = [
+        "I used the 'Create CRM task' shortcut on a Slack message. Propose ONE activity from it (create_activity), unless it clearly isn't a task.",
+        author ? `The message was written by ${author}.` : null,
+        permalink ? `Put this link in the notes: ${permalink}` : null,
+        `The message: "${original.slice(0, 3000)}"`,
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      const sender = userId ? await teamService.personForUser(tenantId, userId) : null;
+      const outcome = await runAgent({ text, timeZone: person.timeZone, now: new Date() }, { generate, data: dataFor(tenant), userName: person.name, senderPersonId: sender?.id ?? null });
+      if (outcome.kind === "ignore") {
+        await dm("I didn't find a task in that message.");
+        return;
+      }
+      if (outcome.kind === "settings") {
+        await dm(await this.applyNotificationSettings(tenantId, slackUserId, outcome.patch));
+        return;
+      }
+      if (outcome.kind === "reply") {
+        await dm(outcome.text);
+        return;
+      }
+
+      const dmChannel = await slackClient.openDm(slackUserId);
+      const pending = await slackRepository.insertPending(tenantId, { slackUserId, payload: outcome.payload, channelId: dmChannel, expiresAt: new Date(Date.now() + PENDING_TTL_MS) });
+      const card = proposalBlocks(outcome.payload, `${tenantId}.${pending.id}`, person.timeZone);
+      // "From this message" sits above the buttons, so the card says where it came from.
+      const blocks = permalink ? [...card.blocks.slice(0, -1), { type: "context", elements: [{ type: "mrkdwn", text: `From <${permalink}|that message>` }] }, card.blocks.at(-1)] : card.blocks;
+      const posted = await slackClient.postMessage({ channel: dmChannel, text: card.text, blocks });
+      await slackRepository.setCardTs(tenantId, pending.id, posted.ts);
+    } catch (error) {
+      console.error("slack: the create-task shortcut failed:", error);
+      await dm(error instanceof GeminiUnavailable ? "My AI brain isn't reachable right now — try again in a minute." : "Something went wrong on my side. Please try again.");
+    }
+  },
+
+  /** The sender's own DM choices, applied at once; answers with how things stand now. */
+  async applyNotificationSettings(tenantId: string, slackUserId: string, patch: NotificationPatch): Promise<string> {
+    const link = await slackRepository.updateLink(tenantId, slackUserId, patch);
+    if (!link) return "I can only change that for people whose Slack account is linked to a member of this workspace.";
+    const state = (on: boolean) => (on ? "on" : "off");
+    return `Done. Direct messages from me — task reminders: *${state(link.remindDm)}* · L10 reminder: *${state(link.l10Dm)}* · daily summary (8:00 your time): *${state(link.digestDm)}* · weekly report (admins): *${state(link.weeklyDm)}*.`;
+  },
+
   /** Slack person → workspace login: the stored link if still valid, otherwise matched by e-mail (and remembered). */
   async resolveLogin(tenantId: string, slackUserId: string, email: string | null): Promise<string | null> {
     const link = await slackRepository.findLink(tenantId, slackUserId);
@@ -238,13 +343,19 @@ export const slackService = {
    * A press on Create / Save / Confirm / Cancel. The write comes from the stored proposal, never from the click, and a
    * card works once: it is claimed atomically before anything is written.
    */
-  async handleInteraction(payload: SlackInteractionPayload, delivery: Delivery): Promise<void> {
+  async handleInteraction(payload: SlackInteractionPayload, delivery: Delivery, generate: GenerateGemini = generateGemini): Promise<void> {
+    if (payload.type === "message_action") {
+      await this.handleMessageShortcut(payload, delivery, generate);
+      return;
+    }
     const action = payload.actions?.[0];
     const channel = payload.channel?.id;
     const cardTs = payload.message?.ts;
     const slackUserId = payload.user?.id;
     if (payload.type !== "block_actions" || !action || !channel || !cardTs || !slackUserId) return;
-    if (action.action_id !== CONFIRM_ACTION_ID && action.action_id !== CANCEL_ACTION_ID) return;
+    if (action.action_id === OPEN_ACTION_ID) return; // a link button: Slack reports the press, there is nothing to do
+    const notifyActions = [DONE_ACTION_ID, SNOOZE_ACTION_ID, LEAD_PROMOTE_ACTION_ID, LEAD_DISMISS_ACTION_ID];
+    if (action.action_id !== CONFIRM_ACTION_ID && action.action_id !== CANCEL_ACTION_ID && !notifyActions.includes(action.action_id ?? "")) return;
 
     const update = (text: string) => slackClient.updateMessage({ channel, ts: cardTs, ...resolvedBlocks(text) }).catch((e) => console.error("slack: card update failed:", e));
     const say = (text: string) => slackClient.postMessage({ channel, text, threadTs: cardTs }).catch((e) => console.error("slack: reply failed:", e));
@@ -264,6 +375,11 @@ export const slackService = {
       return;
     }
 
+    if (notifyActions.includes(action.action_id ?? "")) {
+      await this.handleNotifyAction(action.action_id!, { tenantId, slug: tenant.slug, targetId: pendingId, presserName: presser?.name ?? null, update, say });
+      return;
+    }
+
     const pending = await slackRepository.findPending(tenantId, pendingId);
     if (!pending || pending.status !== "pending" || pending.expiresAt.getTime() < Date.now()) {
       await update(pending && pending.status === "done" ? "_Already handled._" : "_This request expired — ask me again._");
@@ -278,7 +394,7 @@ export const slackService = {
     if (!(await slackRepository.claimPending(tenantId, pending.id, "done"))) return; // someone else pressed first
     try {
       const requester = await slackRepository.findLink(tenantId, pending.slackUserId);
-      const result = await this.apply(tenantId, tenant.slug, pending.payload as PendingPayload, requester?.userId ?? presserLogin, presser?.name ?? null);
+      const result = await this.apply(tenantId, tenant.slug, pending.payload as PendingPayload, requester?.userId ?? presserLogin, presser?.name ?? null, presser?.timeZone);
       await update(result);
     } catch (error) {
       // Nothing was written: the card goes back to pending so the same press can be retried.
@@ -291,8 +407,52 @@ export const slackService = {
     }
   },
 
+  /**
+   * A press on a message the bot sent unprompted: Done / Snooze on a reminder, Add to pipeline / Dismiss on a new lead. No
+   * proposal is stored for these — the thing itself is the state (a lead's own status change is the once-only claim).
+   * Goes through the same services as the app, then rewrites the message so the buttons can't be pressed again.
+   */
+  async handleNotifyAction(
+    actionId: string,
+    ctx: { tenantId: string; slug: string; targetId: string; presserName: string | null; update: (text: string) => Promise<unknown>; say: (text: string) => Promise<unknown> }
+  ): Promise<void> {
+    const { tenantId, slug, targetId, presserName, update, say } = ctx;
+    const by = presserName ? ` by ${escapeMrkdwn(presserName)}` : "";
+    try {
+      if (actionId === DONE_ACTION_ID) {
+        const activity = await activitiesService.setDone(tenantId, targetId, true);
+        revalidateActivityPages(slug);
+        await update(`✅ *${escapeMrkdwn(activity.subject)}* marked as done${by}`);
+      } else if (actionId === SNOOZE_ACTION_ID) {
+        const current = await activitiesService.getById(tenantId, targetId);
+        const base = current.dueDate ? new Date(current.dueDate) : new Date();
+        const next = new Date(base.getTime() + 24 * 60 * 60 * 1000);
+        await activitiesService.updateDate(tenantId, targetId, "dueDate", next);
+        revalidateActivityPages(slug);
+        const when = new Intl.DateTimeFormat("en-US", { timeZone: current.timezone ?? undefined, weekday: "short", month: "short", day: "numeric", ...(current.timezone ? { hour: "numeric", minute: "2-digit" } : {}) }).format(next);
+        await update(`😴 *${escapeMrkdwn(current.subject)}* snoozed to ${when}${by}`);
+      } else if (actionId === LEAD_PROMOTE_ACTION_ID) {
+        const lead = await leadsService.getById(tenantId, targetId);
+        await leadsService.promote(tenantId, targetId);
+        revalidateWorkspace(slug, "/sourcing", "/leads", "/contacts");
+        await update(`✅ *${escapeMrkdwn(lead.businessName)}* added to the Leads board${by} · <${crmUrl()}${workspacePath(slug, "/leads")}|Open in the CRM>`);
+      } else if (actionId === LEAD_DISMISS_ACTION_ID) {
+        const lead = await leadsService.getById(tenantId, targetId);
+        await leadsService.dismiss(tenantId, targetId);
+        revalidateWorkspace(slug, "/sourcing");
+        await update(`🗑 *${escapeMrkdwn(lead.businessName)}* dismissed${by}`);
+      }
+    } catch (error) {
+      if (error instanceof UserFacingError) await say(error.message.includes("already handled") ? "_Someone already handled that._" : `I couldn't do that: ${error.message}`);
+      else {
+        console.error("slack: a notification button failed:", error);
+        await say("Something went wrong. Please try again, or do it in the CRM.");
+      }
+    }
+  },
+
   /** Runs a confirmed proposal through the same services and rules the app uses; returns the card's final text. */
-  async apply(tenantId: string, slug: string, payload: PendingPayload, userId: string | null, actorName: string | null): Promise<string> {
+  async apply(tenantId: string, slug: string, payload: PendingPayload, userId: string | null, actorName: string | null, timeZone = "America/Phoenix"): Promise<string> {
     const actor = { id: userId ?? "slack", name: actorName };
     const link = (id: string) => `<${crmUrl()}${workspacePath(slug, "/activities")}?activity=${id}|Open in the CRM>`;
 
@@ -322,6 +482,37 @@ export const slackService = {
     }
 
     const page = (path: string) => `<${crmUrl()}${workspacePath(slug, path)}|Open in the CRM>`;
+
+    if (payload.kind === "add_note") {
+      const date = toZonedInputValues(new Date(), timeZone).date;
+      if (payload.target === "card") await pipelineService.appendNote(tenantId, payload.id, payload.text, actorName, date);
+      else if (payload.target === "company") await organizationsService.appendNote(tenantId, payload.id, payload.text, actorName, date);
+      else {
+        // A contact has no notes field: the conversation is logged as a finished activity on it, which its panel already lists.
+        const subject = payload.text.length > 80 ? `${payload.text.slice(0, 77)}…` : payload.text;
+        const logged = await activitiesService.create(tenantId, { type: payload.activityType, subject, notes: payload.text, contactId: payload.id }, userId);
+        await activitiesService.setDone(tenantId, logged.id, true);
+      }
+      revalidateActivityPages(slug);
+      return `✅ Note added to *${escapeMrkdwn(payload.label)}* · ${page(payload.target === "contact" ? "/contacts" : payload.target === "company" ? "/contacts" : "/leads")}`;
+    }
+
+    if (payload.kind === "add_issue" || payload.kind === "add_todo") {
+      if (!userId) throw new UserFacingError("Your Slack account isn't linked to a member of this workspace, so I can't add this.");
+      if (payload.kind === "add_issue") {
+        const parsed = createIssueSchema.safeParse(payload.fields);
+        if (!parsed.success) invalid(parsed.error);
+        await tractionService.createIssue(tenantId, parsed.data, userId);
+        revalidateTractionPages(slug);
+        return `✅ Issue added to the list: *${escapeMrkdwn(parsed.data.title)}* · ${page("/traction/issues")}`;
+      }
+      const parsed = createTodoSchema.safeParse({ ...payload.fields, dueDate: new Date(payload.fields.dueDate) });
+      if (!parsed.success) invalid(parsed.error);
+      const todo = await tractionService.createTodo(tenantId, parsed.data, userId);
+      revalidateTractionPages(slug);
+      await notificationsService.notifyAssigned(tenantId, slug, [todo], actor);
+      return `✅ To-Do created: *${escapeMrkdwn(todo.subject)}* · ${page("/traction/l10")}`;
+    }
 
     if (payload.kind === "create_contact" || payload.kind === "update_contact") {
       const parsed = createContactSchema.safeParse(payload.fields);

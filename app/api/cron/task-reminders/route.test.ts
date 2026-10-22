@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/modules/notifications/notifications.service", () => ({ notificationsService: { sendDueTaskReminders: vi.fn(), sendDueL10Reminders: vi.fn() } }));
+vi.mock("@/modules/slack/slack-notify.service", () => ({ slackNotifyService: { sweep: vi.fn() } }));
 
 import { GET, POST } from "./route";
 import { notificationsService } from "@/modules/notifications/notifications.service";
+import { slackNotifyService } from "@/modules/slack/slack-notify.service";
 
 const call = (handler: typeof POST, authorization?: string) =>
   handler(new Request("https://crm.example/api/cron/task-reminders", { method: "POST", headers: authorization ? { authorization } : {} }));
@@ -11,8 +13,9 @@ const call = (handler: typeof POST, authorization?: string) =>
 beforeEach(() => {
   vi.resetAllMocks();
   vi.stubEnv("CRON_SECRET", "s3cret-value");
-  vi.mocked(notificationsService.sendDueTaskReminders).mockResolvedValue({ reminders: 2, delivered: 3 });
-  vi.mocked(notificationsService.sendDueL10Reminders).mockResolvedValue({ meetings: 1, pushed: 2, emailed: 4 });
+  vi.mocked(notificationsService.sendDueTaskReminders).mockResolvedValue({ reminders: 2, delivered: 3, slack: 4 });
+  vi.mocked(notificationsService.sendDueL10Reminders).mockResolvedValue({ meetings: 1, pushed: 2, emailed: 4, slack: 5 });
+  vi.mocked(slackNotifyService.sweep).mockResolvedValue({ leads: 3, digests: 0, weekly: 0 });
   vi.spyOn(console, "error").mockImplementation(() => undefined);
 });
 afterEach(() => vi.unstubAllEnvs());
@@ -34,7 +37,7 @@ describe("/api/cron/task-reminders", () => {
     for (const handler of [POST, GET]) {
       const response = await call(handler, "Bearer s3cret-value");
       expect(response.status).toBe(200);
-      expect(await response.json()).toEqual({ reminders: 2, delivered: 3, l10: { meetings: 1, pushed: 2, emailed: 4 } });
+      expect(await response.json()).toEqual({ reminders: 2, delivered: 3, slack: 4, l10: { meetings: 1, pushed: 2, emailed: 4, slack: 5 }, sweep: { leads: 3, digests: 0, weekly: 0 } });
     }
   });
 
@@ -42,7 +45,7 @@ describe("/api/cron/task-reminders", () => {
     vi.mocked(notificationsService.sendDueTaskReminders).mockRejectedValue(new Error("push not configured"));
     const response = await call(POST, "Bearer s3cret-value");
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ l10: { meetings: 1, pushed: 2, emailed: 4 } });
+    expect(await response.json()).toEqual({ l10: { meetings: 1, pushed: 2, emailed: 4, slack: 5 }, sweep: { leads: 3, digests: 0, weekly: 0 } });
   });
 
   it("masks a failure as a generic 500", async () => {

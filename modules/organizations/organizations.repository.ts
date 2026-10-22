@@ -1,5 +1,6 @@
 import { withTenant } from "@/lib/db";
 import { and, eq, sql } from "drizzle-orm";
+import { MAX_NOTES_CHARS } from "@/utils/notes";
 import { organizationsTable } from "./organizations.schema";
 import type { NewOrganization } from "./organizations.types";
 
@@ -42,6 +43,27 @@ export const organizationsRepository = {
       tx
         .insert(organizationsTable)
         .values({ ...data, tenantId })
+        .returning(summarySelection)
+    );
+    return row;
+  },
+
+  /** Adds `entry` after the existing notes in one statement; undefined (and nothing written) when it would pass the size limit. */
+  async appendNote(tenantId: string, id: string, entry: string) {
+    const [row] = await withTenant(tenantId, (tx) =>
+      tx
+        .update(organizationsTable)
+        .set({
+          notes: sql`case when coalesce(${organizationsTable.notes}, '') = '' then ${entry} else ${organizationsTable.notes} || E'\n\n' || ${entry} end`,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(organizationsTable.tenantId, tenantId),
+            eq(organizationsTable.id, id),
+            sql`char_length(coalesce(${organizationsTable.notes}, '')) + char_length(${entry}) + 2 <= ${MAX_NOTES_CHARS}`
+          )
+        )
         .returning(summarySelection)
     );
     return row;

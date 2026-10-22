@@ -67,6 +67,26 @@ function describe(payload: PendingPayload, personTimeZone: string): { heading: s
         notes: payload.fields.notes,
         confirm: payload.kind === "create_organization" ? "Create" : "Save changes",
       };
+    case "add_note":
+      return {
+        heading: `Add a note to ${payload.target === "contact" ? "contact " : payload.target === "company" ? "company " : "card "}${bold(payload.label)}`,
+        fields: payload.target === "contact" ? [`_Contacts have no notes field: this is logged as a finished ${ACTIVITY_TYPE_LABELS[payload.activityType].toLowerCase()} on the contact._`] : [],
+        notes: payload.text,
+        confirm: "Add note",
+      };
+    case "add_issue":
+      return {
+        heading: `New issue: ${bold(payload.fields.title)}`,
+        fields: present([line("Type", payload.fields.issueType), line("Horizon", payload.fields.horizon === "short_term" ? "Short term" : "Long term"), line("Owner", payload.labels.assignee)]),
+        notes: payload.fields.notes,
+        confirm: "Add to the issues list",
+      };
+    case "add_todo":
+      return {
+        heading: `New L10 To-Do: ${bold(payload.fields.subject)}`,
+        fields: present([line("For", payload.labels.assignee), line("Due", formatDue(payload.fields.dueDate, null, personTimeZone))]),
+        confirm: "Create",
+      };
     case "create_card":
     case "update_card": {
       const what = payload.labels.isLead ? "lead" : "project card";

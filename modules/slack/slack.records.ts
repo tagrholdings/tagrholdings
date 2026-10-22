@@ -1,6 +1,8 @@
 import type { GeminiTool } from "@/lib/gemini";
 import type { AgentData } from "./slack.agent";
+import { ACTIVITY_TYPES } from "@/modules/activities/activities.types";
 import { normalizeText, resolveStage, searchByText, str } from "./slack.logic";
+import { summarizePipeline } from "./slack.reports";
 import { cardFieldsSchema, contactFieldsSchema, organizationFieldsSchema, type CardFields, type ContactFields, type OrganizationFields, type PendingPayload, type ProposalLabels } from "./slack.types";
 
 /**
@@ -39,6 +41,30 @@ const CARD_PROPERTIES = {
 };
 
 export const RECORD_TOOLS: GeminiTool[] = [
+  {
+    name: "weekly_report",
+    description: "The weekly report's numbers: pipeline per stage, new and stuck cards, tasks, how this week's leads were handled, engine spend, and the EOS overview. Read-only. Use it for 'send me the weekly report', 'how did the week go?'. Present it as a short report.",
+    parameters: { type: "OBJECT", properties: {} },
+  },
+  {
+    name: "pipeline_summary",
+    description: "How the pipeline is doing: cards per stage on every board, cards created in the last 7 days, STALE cards (untouched 14+ days, not in the last stage), tasks overdue / due today / done this week, and new leads waiting for review. Read-only. Use it for 'how is the pipeline?', 'what is stuck?'.",
+    parameters: { type: "OBJECT", properties: {} },
+  },
+  {
+    name: "add_note",
+    description: "Propose adding a dated conversation note to a card (lead or project), a company or a contact — appended after what is there, never replacing it. Use it for 'log that I talked to X', 'note on the Padaria lead: …'. Nothing is saved until the person confirms.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        target: { type: "STRING", enum: ["card", "company", "contact"], description: "Where the note goes." },
+        id: ID("The card, company or contact"),
+        text: S("The note, in the language the person used. Keep their meaning and the facts (names, numbers, next step). Do NOT put the date or the author in it — both are added automatically."),
+        activity_type: { type: "STRING", enum: [...ACTIVITY_TYPES], description: "Only for a contact: what the conversation was (call, meeting, email). Default call." },
+      },
+      required: ["target", "id", "text"],
+    },
+  },
   {
     name: "list_boards",
     description: "The boards and their stages: the Leads board (kind 'leads') and the project boards (kind 'project'). Use it to answer 'what projects do we have' and to pick the board and stage of a card.",
@@ -103,8 +129,33 @@ function withScheme(website: string): string {
 
 const sameName = (a: string, b: string) => normalizeText(a) === normalizeText(b);
 
-export async function runRecordTool(name: string, args: Args, data: AgentData): Promise<RecordToolResult | undefined> {
+export async function runRecordTool(name: string, args: Args, data: AgentData, ctx: { now: Date; timeZone: string }): Promise<RecordToolResult | undefined> {
   switch (name) {
+    case "weekly_report":
+      return { response: { ...(await data.weeklyReport(ctx)) } };
+
+    case "pipeline_summary": {
+      const [items, boards, activities, newLeads] = await Promise.all([data.pipelineItems(), data.boards(), data.activities(), data.newLeads()]);
+      return { response: { ...summarizePipeline({ items, boards, activities, newLeads, now: ctx.now, timeZone: ctx.timeZone }) } };
+    }
+
+    case "add_note": {
+      const target = str(args.target);
+      const id = str(args.id);
+      const text = str(args.text);
+      if (!text) return { error: "text is required." };
+      if (text.length > 2000) return { error: "That note is too long (2000 characters at most). Shorten it to the facts." };
+      let label: string | undefined;
+      if (target === "card") label = (await data.pipelineItems()).find((i) => i.id === id)?.title;
+      else if (target === "company") label = (await data.organizations()).find((o) => o.id === id)?.name;
+      else if (target === "contact") label = (await data.contacts()).find((c) => c.id === id)?.name;
+      else return { error: "target must be card, company or contact." };
+      if (!label || !id) return { error: `No ${target} with that id in this workspace. Search for it first.` };
+      const activityType = (str(args.activity_type) ?? "call") as (typeof ACTIVITY_TYPES)[number];
+      if (!ACTIVITY_TYPES.includes(activityType)) return { error: `activity_type must be one of ${ACTIVITY_TYPES.join(", ")}.` };
+      return { propose: { kind: "add_note", target, id, label, text, activityType } };
+    }
+
     case "list_boards": {
       const boards = (await data.boards()).filter((b) => !b.archivedAt);
       return { response: { boards: boards.map((b) => ({ id: b.id, name: b.name, kind: b.isSystem ? "leads" : "project", stages: b.columns })) } };

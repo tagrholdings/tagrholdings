@@ -52,6 +52,12 @@ export const leadsService = {
     return rows.map(({ searchProfileCriteria, ...row }) => ({ ...row, fit: evaluateFit(searchProfileCriteria, row.extractedFields) }));
   },
 
+  /** Unreviewed leads that arrived since `since` (newest first), scored like the inbox list. */
+  async listNewSince(tenantId: string, since: Date, limit = 50): Promise<RawLeadSummary[]> {
+    const rows = await leadsRepository.findNewSince(tenantId, since, limit);
+    return rows.map(({ searchProfileCriteria, ...row }) => ({ ...row, fit: evaluateFit(searchProfileCriteria, row.extractedFields) }));
+  },
+
   /** The emails the inbox received, each with the listings read from it (Settings → Inbox). */
   async listReceivedEmails(tenantId: string): Promise<ReceivedEmail[]> {
     return groupReceivedEmails(await leadsRepository.findEmailDigests(tenantId));

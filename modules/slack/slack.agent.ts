@@ -2,6 +2,7 @@ import type { GeminiContent, GeminiTool, GenerateGemini } from "@/lib/gemini";
 import { ACTIVITY_PRIORITIES, ACTIVITY_TYPES, type ActivityRow } from "@/modules/activities/activities.types";
 import { toZonedInputValues } from "@/utils/date";
 import { activityIdsIn, buildDue, dueDay, fieldsFromRow, matchesDue, mergeFields, searchByText, str, type DueFilter } from "./slack.logic";
+import { EOS_TOOLS, isEosTool, runEosTool } from "./slack.eos";
 import { isRecordTool, RECORD_TOOLS, runRecordTool } from "./slack.records";
 import { proposalFieldsSchema, type AgentInput, type AgentOutcome, type ProposalFields, type ProposalLabels } from "./slack.types";
 
@@ -9,12 +10,20 @@ import { proposalFieldsSchema, type AgentInput, type AgentOutcome, type Proposal
 export interface AgentData {
   people(): Promise<{ id: string; name: string | null; email: string }[]>;
   pipelineItems(): Promise<
-    { id: string; boardId: string; title: string; stage: string; notes: string | null; boardName: string; boardIsSystem: boolean; contactId: string | null; contactName: string | null; organizationId: string | null; organizationName: string | null }[]
+    { id: string; boardId: string; title: string; stage: string; notes: string | null; boardName: string; boardIsSystem: boolean; contactId: string | null; contactName: string | null; organizationId: string | null; organizationName: string | null; createdAt: Date | string; updatedAt: Date | string }[]
   >;
   boards(): Promise<{ id: string; name: string; isSystem: boolean; archivedAt: Date | null; columns: { id: string; label: string }[] }[]>;
   contacts(): Promise<{ id: string; name: string; email: string | null; phone: string | null; organizationId: string | null; organizationName: string | null }[]>;
   organizations(): Promise<{ id: string; name: string; website: string | null; notes: string | null }[]>;
   activities(): Promise<ActivityRow[]>;
+  /** How many leads are waiting for review. */
+  newLeads(): Promise<number>;
+  /** Traction: the issues (any status — the tool picks the open ones), the L10 To-Dos, and the overview counts. */
+  issues(): Promise<{ id: string; title: string; status: string; issueType: string; horizon: string; ownerPersonId: string | null }[]>;
+  todos(): Promise<{ id: string; subject: string; done: boolean; dueDate: Date | string | null; assignedToPersonId: string | null }[]>;
+  tractionSummary(): Promise<unknown>;
+  /** The numbers of the weekly report, as of now in the asker's zone — what "send me the weekly report" answers with. */
+  weeklyReport(ctx: { now: Date; timeZone: string }): Promise<object>;
 }
 
 export interface AgentDeps {
@@ -60,6 +69,20 @@ const TOOLS: GeminiTool[] = [
   SEARCH("search_contacts", "Find a contact (a person outside the team) by name. Forgiving: it copes with unfinished or slightly misspelled names."),
   SEARCH("search_organizations", "Find a company by name. Forgiving: it copes with unfinished or slightly misspelled names."),
   ...RECORD_TOOLS,
+  ...EOS_TOOLS,
+  {
+    name: "set_notifications",
+    description: "Change what the SENDER is messaged about directly by the bot: task reminders, the L10 reminder, a daily morning summary, the weekly report. Use it for 'stop sending me reminders', 'send me the daily summary', 'turn off the weekly report'. Only include what they asked to change.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        reminders: { type: "BOOLEAN", description: "Direct messages when one of their tasks is due or a task is assigned to them." },
+        l10: { type: "BOOLEAN", description: "The reminder an hour before the weekly L10 meeting." },
+        daily_summary: { type: "BOOLEAN", description: "A summary at 8:00 their time of what is due today and overdue." },
+        weekly_report: { type: "BOOLEAN", description: "The weekly pipeline report (only workspace admins receive it)." },
+      },
+    },
+  },
   {
     name: "search_activities",
     description: "List existing activities (tasks, calls, meetings…). Use it to answer questions about what is due, and to find the activity an edit or 'done' refers to.",
@@ -138,7 +161,11 @@ function systemPrompt(input: AgentInput, deps: AgentDeps): string {
     `The person talking to you is ${deps.userName}. Right now it is ${local} (today is ${today}), time zone ${input.timeZone}. Resolve 'tomorrow', 'Friday', 'next week' from that date and give due_date as YYYY-MM-DD and due_time as HH:mm in their own time zone.`,
     "",
     "Rules:",
-    "- Always finish by calling exactly one of: create_activity, update_activity, complete_activity, create_contact, update_contact, create_organization, update_organization, create_pipeline_item, update_pipeline_item, reply, ignore.",
+    "- Always finish by calling exactly one of: create_activity, update_activity, complete_activity, create_contact, update_contact, create_organization, update_organization, create_pipeline_item, update_pipeline_item, add_note, add_issue, add_todo, set_notifications, reply, ignore.",
+    "- 'Log / note that I talked to X…' → add_note (on the card, company or contact — search first). It is appended with the date, never replacing existing notes. A conversation about a lead belongs on its card; about a person on the contact. A lead is usually named after the business, so when the person names something, search the CARDS first (search_pipeline_items), then companies, then contacts, and use the first good match; only ask when several fit or none does.",
+    "- 'How is the pipeline?', 'what is stuck?' → pipeline_summary, then a short reply: biggest numbers first, name the stale cards. Say plainly that 'stale' means untouched for 14+ days and not in the board's last stage.",
+    "- EOS: 'add an issue …' → add_issue (short term unless they said long term); 'to-do for Maria: …' → add_todo (due in a week unless a date was said); 'what's on the issues list / open to-dos' → list_traction. The scorecard and rocks can only be looked at, not changed, from here.",
+    "- 'Stop / start sending me …' (reminders, the L10 reminder, the daily summary, the weekly report) → set_notifications.",
     "- Lists and questions about contacts, companies, leads or projects are answered with the search tools and then reply. Keep answers short; at most 10 items, then say how many more there are.",
     "- Names the person says may be unfinished, misspelled or without accents: search with what they said (a shorter piece of the name works too) before concluding something does not exist. Only if nothing close comes back, say it was not found and offer to create it.",
     "- Before create_contact / create_organization / create_pipeline_item, search for an existing one. If one close match exists, ask whether they mean it instead of creating a duplicate.",
@@ -396,8 +423,24 @@ export async function runAgent(input: AgentInput, deps: AgentDeps): Promise<Agen
           }
           return { kind: "propose", payload: { kind: "complete", id: row.id, subject: row.subject, done: args.done !== false } };
         }
+        case "set_notifications": {
+          const patch = {
+            ...(typeof args.reminders === "boolean" ? { remindDm: args.reminders } : {}),
+            ...(typeof args.l10 === "boolean" ? { l10Dm: args.l10 } : {}),
+            ...(typeof args.daily_summary === "boolean" ? { digestDm: args.daily_summary } : {}),
+            ...(typeof args.weekly_report === "boolean" ? { weeklyDm: args.weekly_report } : {}),
+          };
+          if (Object.keys(patch).length > 0) return { kind: "settings", patch };
+          responses.push({ functionResponse: { name: call.name, response: { error: "Say what to change: reminders, l10, daily_summary or weekly_report." } } });
+          break;
+        }
         default: {
-          const record = isRecordTool(call.name) ? await runRecordTool(call.name, args, data) : undefined;
+          const toolCtx = { now: input.now, timeZone: input.timeZone };
+          const record = isRecordTool(call.name)
+            ? await runRecordTool(call.name, args, data, toolCtx)
+            : isEosTool(call.name)
+              ? await runEosTool(call.name, args, data, { ...toolCtx, senderPersonId: deps.senderPersonId })
+              : undefined;
           if (!record) responses.push({ functionResponse: { name: call.name, response: { error: "Unknown tool." } } });
           else if ("propose" in record) return { kind: "propose", payload: record.propose };
           else responses.push({ functionResponse: { name: call.name, response: "error" in record ? { error: record.error } : record.response } });

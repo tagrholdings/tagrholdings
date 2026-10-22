@@ -70,7 +70,19 @@ export type PendingPayload =
   | { kind: "create_organization"; fields: OrganizationFields }
   | { kind: "update_organization"; id: string; fields: OrganizationFields; was: string }
   | { kind: "create_card"; fields: CardFields; labels: ProposalLabels }
-  | { kind: "update_card"; id: string; fields: CardFields; labels: ProposalLabels; was: string };
+  | { kind: "update_card"; id: string; fields: CardFields; labels: ProposalLabels; was: string }
+  /** A dated line appended to a card's or a company's notes — or, for a contact (no notes column), logged as a finished activity. */
+  | { kind: "add_note"; target: "card" | "company" | "contact"; id: string; label: string; text: string; activityType: (typeof ACTIVITY_TYPES)[number] }
+  | { kind: "add_issue"; fields: { title: string; notes: string | null; issueType: "problem" | "idea" | "obstacle"; horizon: "short_term" | "long_term"; ownerPersonId: string | null }; labels: ProposalLabels }
+  | { kind: "add_todo"; fields: { subject: string; assignedToPersonId: string; dueDate: string }; labels: ProposalLabels };
+
+/** What a person told the bot about being messaged directly. Only the sender's own row is ever changed. */
+export interface NotificationPatch {
+  remindDm?: boolean;
+  l10Dm?: boolean;
+  digestDm?: boolean;
+  weeklyDm?: boolean;
+}
 
 export type PendingKind = PendingPayload["kind"];
 
@@ -79,7 +91,9 @@ export type AgentOutcome =
   | { kind: "propose"; payload: PendingPayload }
   | { kind: "reply"; text: string }
   /** Not meant for the bot (chatter between people in the command channel): say nothing. */
-  | { kind: "ignore" };
+  | { kind: "ignore" }
+  /** The sender chose what to be messaged about: applied at once (it only touches their own preferences) and answered with the new state. */
+  | { kind: "settings"; patch: NotificationPatch };
 
 /** A voice note or other audio the person sent. */
 export interface AudioInput {
@@ -162,11 +176,14 @@ export interface SlackEventCallback {
 }
 
 export interface SlackInteractionPayload {
+  /** "block_actions" (a button) or "message_action" (a message shortcut). */
   type: string;
+  /** For a shortcut: which one (the manifest's callback_id). */
+  callback_id?: string;
   user?: { id?: string };
   team?: { id?: string };
   api_app_id?: string;
   channel?: { id?: string };
-  message?: { ts?: string };
+  message?: { ts?: string; text?: string; user?: string; bot_id?: string };
   actions?: { action_id?: string; value?: string }[];
 }

@@ -3,6 +3,10 @@
 One manifest, two Slack apps: **TAGR CRM** (prod) and **TAGR CRM (dev)**, in the same Slack workspace. Each app has its
 own signing secret, bot token and app id, so a test message in `#crm-test` can never reach the production database.
 
+> **Updating an existing app?** The manifest gained the `im:write` scope, the app's Messages tab and the **Create CRM task**
+> shortcut. Apps → your app → **App Manifest** → paste the new manifest → Save, then **reinstall to the workspace** (the new
+> scope needs it). Do it for both the dev and the prod app.
+
 ## Create an app (do this once for prod, once for dev)
 
 1. <https://api.slack.com/apps> → **Create New App** → **From a manifest** → pick the Slack workspace → paste
@@ -45,7 +49,27 @@ the CRM.
 - The bot replies in the message's thread with a card; **Create** saves it, **Cancel** drops it. Anyone in the workspace
   can press it. Questions ("what's due today?") are answered directly.
 
+## What the bot says on its own
+
+All of this rides on the existing reminder cron (`/api/cron/task-reminders`, every 20 minutes), so a message can be up to
+20 minutes late. Nothing needs a new scheduler.
+
+- **Task reminders and new assignments** — a DM to the person (or to everyone, for an unassigned task) with **Done** and
+  **Snooze 1 day** buttons, next to the push notification. Everyone is found by their e-mail (`users.lookupByEmail`).
+- **L10** — a DM to each teammate an hour before the weekly meeting, with the agenda points.
+- **New leads** — cards in the workspace's command channel (the best five by fit, then "and N more") with **Add to
+  pipeline** and **Dismiss**. Only leads from the last 24 hours are announced, so turning it on doesn't dump a backlog.
+- **Daily summary** (opt-in) — 8:00 the person's own time: what is due today and overdue.
+- **Weekly report** — Mondays from 8:00 (the workspace's L10 time zone), by DM to workspace **admins**.
+
+People control their own DMs by telling the bot: "stop the reminders", "send me the daily summary", "turn off the weekly
+report". The same bot also takes notes ("note on the Padaria lead: …" is appended with the date, never replacing), shows
+the pipeline ("how's the pipeline? what's stuck?"), and adds EOS Issues and L10 To-Dos.
+
+**Create CRM task** is a message shortcut: ⋯ More actions on any Slack message → *Create CRM task*. The card arrives in your
+DM with a link back to the message.
+
 ## Database
 
-Migrations `0032_slack_bot`, `0033_slack_bot_grants` and `0034_slack_multi_workspace` — run them with `scripts/migrate-explicit.ts` (never
+Migrations `0032_slack_bot`, `0033_slack_bot_grants`, `0034_slack_multi_workspace`, `0035_slack_notifications` and `0036_slack_notifications_grants` — run them with `scripts/migrate-explicit.ts` (never
 `db:migrate`). Production gets them **before** the deploy.

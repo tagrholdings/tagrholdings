@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { and, eq, lt } from "drizzle-orm";
-import { slackInstallationsTable, slackMessageClaimsTable } from "./slack.schema";
+import { slackInstallationsTable, slackMessageClaimsTable, slackSentClaimsTable } from "./slack.schema";
 
 // Uses the unscoped `db` on purpose: a Slack delivery names only a team and an app, so the webhook has to look the
 // workspace up here BEFORE any tenant is known (same reason as the invite-token lookup). Neither table is reachable by
@@ -56,5 +56,22 @@ export const slackInstallationsRepository = {
 
   async deleteClaimsOlderThan(cutoff: Date) {
     await db.delete(slackMessageClaimsTable).where(lt(slackMessageClaimsTable.createdAt, cutoff));
+    await db.delete(slackSentClaimsTable).where(lt(slackSentClaimsTable.createdAt, cutoff));
+  },
+
+  /** Every workspace connected through this app — what the notification sweep walks. */
+  async listForApp(apiAppId: string) {
+    return db.select().from(slackInstallationsTable).where(eq(slackInstallationsTable.apiAppId, apiAppId));
+  },
+
+  /** True the first time a key is claimed: the caller sends. False when it was already sent (or is being sent). */
+  async claimSend(key: string) {
+    const inserted = await db.insert(slackSentClaimsTable).values({ key }).onConflictDoNothing().returning({ key: slackSentClaimsTable.key });
+    return inserted.length > 0;
+  },
+
+  /** Gives a key back — only when nothing was sent (the send was refused up front), so the next sweep may try again. */
+  async releaseSend(key: string) {
+    await db.delete(slackSentClaimsTable).where(eq(slackSentClaimsTable.key, key));
   },
 };

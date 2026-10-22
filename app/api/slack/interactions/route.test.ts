@@ -40,6 +40,12 @@ describe("POST /api/slack/interactions", () => {
     expect(handleInteraction).toHaveBeenCalledWith(click, { teamId: "T1", apiAppId: APP });
   });
 
+  it("hands a message shortcut to the service the same way", async () => {
+    const shortcut = { type: "message_action", callback_id: "create_task_from_message", api_app_id: APP, team: { id: "T1" }, user: { id: "U1" }, channel: { id: "C1" }, message: { ts: "1.1", text: "do it" } };
+    expect((await POST(signed(shortcut))).status).toBe(200);
+    expect(handleInteraction).toHaveBeenCalledWith(shortcut, { teamId: "T1", apiAppId: APP });
+  });
+
   it("drops a press meant for another app", async () => {
     expect((await POST(signed({ ...click, api_app_id: "A999" }))).status).toBe(200);
     expect(handleInteraction).not.toHaveBeenCalled();

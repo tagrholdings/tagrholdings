@@ -246,6 +246,20 @@
       "when": 1792695163017,
       "tag": "0034_slack_multi_workspace",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1792698133609,
+      "tag": "0035_slack_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1792698136476,
+      "tag": "0036_slack_notifications_grants",
+      "breakpoints": true
     }
   ]
 }

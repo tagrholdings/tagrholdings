@@ -36,6 +36,7 @@ const withRelationsSelection = {
   notify: activitiesTable.notify,
   l10Todo: activitiesTable.l10Todo,
   createdAt: activitiesTable.createdAt,
+  updatedAt: activitiesTable.updatedAt,
 };
 
 export const activitiesRepository = {
@@ -52,6 +53,21 @@ export const activitiesRepository = {
         .where(eq(activitiesTable.tenantId, tenantId))
         .orderBy(activitiesTable.dueDate)
     );
+  },
+
+  async findById(tenantId: string, id: string) {
+    const [row] = await withTenant(tenantId, (tx) =>
+      tx
+        .select(withRelationsSelection)
+        .from(activitiesTable)
+        .leftJoin(contactsTable, eq(activitiesTable.contactId, contactsTable.id))
+        .leftJoin(organizationsTable, eq(activitiesTable.organizationId, organizationsTable.id))
+        .leftJoin(assignedContactsTable, eq(activitiesTable.assignedToContactId, assignedContactsTable.id))
+        .leftJoin(pipelineItemsTable, eq(activitiesTable.pipelineItemId, pipelineItemsTable.id))
+        .leftJoin(tractionRocksTable, eq(activitiesTable.rockId, tractionRocksTable.id))
+        .where(and(eq(activitiesTable.tenantId, tenantId), eq(activitiesTable.id, id)))
+    );
+    return row;
   },
 
   async create(tenantId: string, data: NewActivity, createdByUserId: string | null, link: ActivityLink = {}) {

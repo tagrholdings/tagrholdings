@@ -3,17 +3,19 @@ import { UserFacingError } from "@/lib/errors";
 
 const mocks = vi.hoisted(() => ({
   installations: { listForTeam: vi.fn(), find: vi.fn(), claimMessage: vi.fn(), deleteClaimsOlderThan: vi.fn() },
-  repo: { findLink: vi.fn(), upsertLink: vi.fn(), deleteLink: vi.fn(), insertPending: vi.fn(), setCardTs: vi.fn(), findPending: vi.fn(), findPendingByCards: vi.fn(), claimPending: vi.fn(), releasePending: vi.fn(), deleteExpired: vi.fn() },
-  client: { postMessage: vi.fn(), updateMessage: vi.fn(), getUser: vi.fn(), getThread: vi.fn(), downloadAudio: vi.fn() },
+  repo: { updateLink: vi.fn(), findLink: vi.fn(), upsertLink: vi.fn(), deleteLink: vi.fn(), insertPending: vi.fn(), setCardTs: vi.fn(), findPending: vi.fn(), findPendingByCards: vi.fn(), claimPending: vi.fn(), releasePending: vi.fn(), deleteExpired: vi.fn() },
+  client: { postMessage: vi.fn(), updateMessage: vi.fn(), getUser: vi.fn(), getThread: vi.fn(), downloadAudio: vi.fn(), openDm: vi.fn(), postDm: vi.fn(), getPermalink: vi.fn() },
   tenancy: { getTenant: vi.fn(), isMember: vi.fn(), listMembers: vi.fn() },
   team: { personForUser: vi.fn() },
-  activities: { create: vi.fn(), update: vi.fn(), setDone: vi.fn() },
+  activities: { create: vi.fn(), update: vi.fn(), setDone: vi.fn(), getById: vi.fn(), updateDate: vi.fn() },
+  leads: { getById: vi.fn(), promote: vi.fn(), dismiss: vi.fn() },
   notifications: { notifyAssigned: vi.fn() },
   rateLimit: { isLimited: vi.fn() },
   agent: { runAgent: vi.fn() },
   contacts: { create: vi.fn(), update: vi.fn() },
-  organizations: { create: vi.fn(), update: vi.fn() },
-  pipeline: { create: vi.fn(), update: vi.fn() },
+  organizations: { create: vi.fn(), update: vi.fn(), appendNote: vi.fn() },
+  pipeline: { create: vi.fn(), update: vi.fn(), appendNote: vi.fn() },
+  traction: { createIssue: vi.fn(), createTodo: vi.fn() },
 }));
 
 vi.mock("./slack-installations.repository", () => ({ slackInstallationsRepository: mocks.installations }));
@@ -25,6 +27,9 @@ vi.mock("@/modules/team/team.service", () => ({ teamService: mocks.team }));
 vi.mock("@/modules/activities/activities.service", () => ({ activitiesService: mocks.activities }));
 vi.mock("@/modules/notifications/notifications.service", () => ({ notificationsService: mocks.notifications }));
 vi.mock("@/modules/rate-limit/rate-limit.service", () => ({ rateLimitService: mocks.rateLimit }));
+vi.mock("./slack-notify.service", () => ({ slackNotifyService: { buildWeeklyReport: vi.fn() } }));
+vi.mock("@/modules/leads/leads.service", () => ({ leadsService: mocks.leads }));
+vi.mock("@/modules/traction/traction.service", () => ({ tractionService: mocks.traction }));
 vi.mock("@/modules/contacts/contacts.service", () => ({ contactsService: mocks.contacts }));
 vi.mock("@/modules/organizations/organizations.service", () => ({ organizationsService: mocks.organizations }));
 vi.mock("@/modules/pipeline/pipeline.service", () => ({ pipelineService: mocks.pipeline }));
@@ -50,6 +55,10 @@ beforeEach(() => {
   mocks.client.postMessage.mockResolvedValue({ ts: "2.2" });
   mocks.client.updateMessage.mockResolvedValue(undefined);
   mocks.client.getThread.mockResolvedValue([]);
+  mocks.client.openDm.mockResolvedValue("D1");
+  mocks.client.postDm.mockResolvedValue({ ts: "7.7", channel: "D1" });
+  mocks.client.getPermalink.mockResolvedValue("https://slack.example/archives/C9/p123");
+  mocks.repo.updateLink.mockResolvedValue(undefined);
   mocks.repo.findPendingByCards.mockResolvedValue([]);
   mocks.repo.findLink.mockResolvedValue({ userId: "user-1" });
   mocks.team.personForUser.mockResolvedValue({ id: "person-1" });
@@ -245,6 +254,135 @@ describe("handleInteraction", () => {
   });
 });
 
+describe("buttons on messages the bot sent unprompted", () => {
+  const ACTIVITY = "99999999-9999-4999-8999-999999999999";
+  const press = (action_id: string, id = ACTIVITY) => ({ type: "block_actions", user: { id: "U2" }, channel: { id: "D1" }, message: { ts: "2.2" }, actions: [{ action_id, value: `${TENANT}.${id}` }] });
+  const cardText = () => mocks.client.updateMessage.mock.calls.at(-1)?.[0].text as string;
+
+  it("Done marks the task done and rewrites the message", async () => {
+    mocks.activities.setDone.mockResolvedValue({ id: ACTIVITY, subject: "Call João" });
+    await slackService.handleInteraction(press("slack_done"), delivery);
+    expect(mocks.activities.setDone).toHaveBeenCalledWith(TENANT, ACTIVITY, true);
+    expect(cardText()).toContain("Call João marked as done");
+  });
+
+  it("Snooze moves the due date a day later, keeping the time, and says when", async () => {
+    mocks.activities.getById.mockResolvedValue({ id: ACTIVITY, subject: "Call João", dueDate: new Date("2026-10-22T21:00:00.000Z"), timezone: "America/Phoenix" });
+    mocks.activities.updateDate.mockResolvedValue({});
+    await slackService.handleInteraction(press("slack_snooze"), delivery);
+    expect(mocks.activities.updateDate).toHaveBeenCalledWith(TENANT, ACTIVITY, "dueDate", new Date("2026-10-23T21:00:00.000Z"));
+    expect(cardText()).toContain("snoozed to Fri, Oct 23, 2:00 PM");
+  });
+
+  it("Add to pipeline promotes the lead, Dismiss dismisses it, and both name the lead", async () => {
+    mocks.leads.getById.mockResolvedValue({ id: ACTIVITY, businessName: "Mesa Laundromat" });
+    mocks.leads.promote.mockResolvedValue({ id: "card-1" });
+    await slackService.handleInteraction(press("slack_lead_promote"), delivery);
+    expect(mocks.leads.promote).toHaveBeenCalledWith(TENANT, ACTIVITY);
+    expect(cardText()).toContain("Mesa Laundromat added to the Leads board");
+
+    await slackService.handleInteraction(press("slack_lead_dismiss"), delivery);
+    expect(mocks.leads.dismiss).toHaveBeenCalledWith(TENANT, ACTIVITY);
+    expect(cardText()).toContain("Mesa Laundromat dismissed");
+  });
+
+  it("says so when someone already handled the lead, and leaves the message alone", async () => {
+    mocks.leads.getById.mockResolvedValue({ id: ACTIVITY, businessName: "Mesa Laundromat" });
+    mocks.leads.promote.mockRejectedValue(new UserFacingError("This lead was already handled."));
+    mocks.client.updateMessage.mockClear();
+    await slackService.handleInteraction(press("slack_lead_promote"), delivery);
+    expect(mocks.client.updateMessage).not.toHaveBeenCalled();
+    expect(mocks.client.postMessage.mock.calls.at(-1)?.[0].text).toContain("already handled");
+  });
+
+  it("ignores a link button's press, a malformed value, and a press from a non-member", async () => {
+    await slackService.handleInteraction(press("slack_open"), delivery);
+    await slackService.handleInteraction(press("slack_done", "not-an-id"), delivery);
+    mocks.repo.findLink.mockResolvedValue(undefined);
+    mocks.tenancy.listMembers.mockResolvedValue([]);
+    await slackService.handleInteraction(press("slack_done"), delivery);
+    expect(mocks.activities.setDone).not.toHaveBeenCalled();
+  });
+});
+
+describe("the Create CRM task message shortcut", () => {
+  const shortcut = (over: Record<string, unknown> = {}) => ({
+    type: "message_action",
+    callback_id: "create_task_from_message",
+    user: { id: "U1" },
+    channel: { id: "C9" },
+    message: { ts: "5.5", text: "we need the signed LOI by Friday", user: "U7" },
+    ...over,
+  });
+
+  beforeEach(() => {
+    mocks.client.getUser.mockImplementation(async (id: string) => (id === "U7" ? { email: null, name: "Carlos", timeZone: "America/Phoenix" } : { email: "boss@tagr.com", name: "Boss", timeZone: "America/Phoenix" }));
+    mocks.agent.runAgent.mockResolvedValue({ kind: "propose", payload: { kind: "complete", id: "x", subject: "Send the LOI", done: true } });
+    mocks.repo.insertPending.mockResolvedValue({ id: PENDING });
+  });
+
+  it("turns the message into a card in the person's DM, with a link back to it", async () => {
+    await slackService.handleInteraction(shortcut(), delivery);
+    const input = mocks.agent.runAgent.mock.calls[0][0];
+    expect(input.text).toContain("we need the signed LOI by Friday");
+    expect(input.text).toContain("written by Carlos");
+    expect(input.text).toContain("https://slack.example/archives/C9/p123");
+    expect(mocks.repo.insertPending).toHaveBeenCalledWith(TENANT, expect.objectContaining({ slackUserId: "U1", channelId: "D1" }));
+    const posted = mocks.client.postMessage.mock.calls[0][0];
+    expect(posted.channel).toBe("D1");
+    const blocks = posted.blocks as { type: string }[];
+    expect(blocks.at(-2)?.type).toBe("context"); // "From that message", just above the buttons
+    expect(blocks.at(-1)?.type).toBe("actions");
+    expect(JSON.stringify(blocks)).toContain(`"value":"${TENANT}.${PENDING}"`);
+    expect(mocks.repo.setCardTs).toHaveBeenCalledWith(TENANT, PENDING, "2.2");
+  });
+
+  it("tells a non-member in the DM instead of acting for them", async () => {
+    mocks.repo.findLink.mockResolvedValue(undefined);
+    mocks.tenancy.listMembers.mockResolvedValue([]);
+    await slackService.handleInteraction(shortcut(), delivery);
+    expect(mocks.agent.runAgent).not.toHaveBeenCalled();
+    expect(mocks.client.postDm.mock.calls[0][1].text).toContain("couldn't match");
+  });
+
+  it("says so when the message has no text, or isn't a task", async () => {
+    await slackService.handleInteraction(shortcut({ message: { ts: "5.5", text: "  <@U1>  ", user: "U7" } }), delivery);
+    expect(mocks.client.postDm.mock.calls[0][1].text).toContain("no text");
+    mocks.agent.runAgent.mockResolvedValue({ kind: "ignore" });
+    await slackService.handleInteraction(shortcut(), delivery);
+    expect(mocks.client.postDm.mock.calls[1][1].text).toContain("didn't find a task");
+  });
+
+  it("ignores another shortcut, and works without a link or an author", async () => {
+    await slackService.handleInteraction(shortcut({ callback_id: "something_else" }), delivery);
+    expect(mocks.agent.runAgent).not.toHaveBeenCalled();
+    mocks.client.getPermalink.mockResolvedValue(null);
+    await slackService.handleInteraction(shortcut({ message: { ts: "5.5", text: "call the bank" } }), delivery);
+    const blocks = mocks.client.postMessage.mock.calls[0][0].blocks as { type: string }[];
+    expect(blocks.some((b) => b.type === "context")).toBe(false);
+  });
+});
+
+describe("choosing what to be messaged about", () => {
+  it("applies the change to the sender's own link and says how things stand", async () => {
+    mocks.agent.runAgent.mockResolvedValue({ kind: "settings", patch: { digestDm: true, remindDm: false } });
+    mocks.repo.updateLink.mockResolvedValue({ remindDm: false, l10Dm: true, digestDm: true, weeklyDm: true });
+    await slackService.handleMessage(message, delivery);
+    expect(mocks.repo.updateLink).toHaveBeenCalledWith(TENANT, "U1", { digestDm: true, remindDm: false });
+    const said = mocks.client.postMessage.mock.calls.at(-1)?.[0].text as string;
+    expect(said).toContain("task reminders: *off*");
+    expect(said).toContain("daily summary (8:00 your time): *on*");
+    expect(mocks.repo.insertPending).not.toHaveBeenCalled(); // no card for this
+  });
+
+  it("says so when the sender has no link to change", async () => {
+    mocks.agent.runAgent.mockResolvedValue({ kind: "settings", patch: { digestDm: true } });
+    mocks.repo.updateLink.mockResolvedValue(undefined);
+    await slackService.handleMessage(message, delivery);
+    expect(mocks.client.postMessage.mock.calls.at(-1)?.[0].text).toContain("linked");
+  });
+});
+
 describe("several CRM workspaces on one Slack team", () => {
   const TENANT_2 = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
   const installations = [
@@ -354,6 +492,42 @@ describe("confirming contacts, companies and cards", () => {
     const moved = await confirm({ kind: "update_card", id: "c1", was: "Bakery Z", fields: { boardId: BOARD, title: "Bakery Z", stage: "in_discussion", contactId: null, organizationId: null, notes: null }, labels: { board: "Leads", stage: "In Discussion", isLead: true } });
     expect(mocks.pipeline.update).toHaveBeenCalledWith(TENANT, "c1", expect.objectContaining({ stage: "in_discussion" }));
     expect(moved).toContain("Updated lead Bakery Z · In Discussion");
+  });
+
+  it("appends a note to a card or a company with today's date in the confirmer's zone, naming them", async () => {
+    mocks.pipeline.appendNote.mockResolvedValue({ id: "c1" });
+    mocks.organizations.appendNote.mockResolvedValue({ id: "o1" });
+    mocks.client.getUser.mockResolvedValue({ email: "boss@tagr.com", name: "Boss", timeZone: "America/Phoenix" });
+    const card = await confirm({ kind: "add_note", target: "card", id: "c1", label: "Padaria X", text: "Wants 2M", activityType: "call" });
+    expect(mocks.pipeline.appendNote).toHaveBeenCalledWith(TENANT, "c1", "Wants 2M", "Boss", expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/));
+    expect(card).toContain("Note added to Padaria X");
+    await confirm({ kind: "add_note", target: "company", id: "o1", label: "Padaria", text: "Met at the expo", activityType: "call" });
+    expect(mocks.organizations.appendNote).toHaveBeenCalledWith(TENANT, "o1", "Met at the expo", "Boss", expect.any(String));
+  });
+
+  it("logs a note on a contact as a finished activity linked to it", async () => {
+    mocks.activities.create.mockResolvedValue({ id: "act-9" });
+    mocks.activities.setDone.mockResolvedValue({ id: "act-9", subject: "x" });
+    await confirm({ kind: "add_note", target: "contact", id: CONTACT, label: "João", text: "Wants to close at 2M", activityType: "meeting" });
+    expect(mocks.activities.create).toHaveBeenCalledWith(TENANT, { type: "meeting", subject: "Wants to close at 2M", notes: "Wants to close at 2M", contactId: CONTACT }, "user-1");
+    expect(mocks.activities.setDone).toHaveBeenCalledWith(TENANT, "act-9", true);
+  });
+
+  it("adds an issue as the requester, and refuses when nobody linked is behind it", async () => {
+    mocks.traction.createIssue.mockResolvedValue({ id: "iss-1" });
+    const text = await confirm({ kind: "add_issue", fields: { title: "Hiring is behind", notes: null, issueType: "problem", horizon: "short_term", ownerPersonId: null }, labels: {} });
+    expect(mocks.traction.createIssue).toHaveBeenCalledWith(TENANT, expect.objectContaining({ title: "Hiring is behind", horizon: "short_term" }), "user-1");
+    expect(text).toContain("Issue added to the list: Hiring is behind");
+  });
+
+  it("creates the To-Do and tells its assignee", async () => {
+    mocks.traction.createTodo.mockResolvedValue({ id: "todo-1", subject: "Send the LOI", assignedToPersonId: "11111111-1111-4111-8111-111111111111" });
+    const text = await confirm({ kind: "add_todo", fields: { subject: "Send the LOI", assignedToPersonId: "11111111-1111-4111-8111-111111111111", dueDate: "2026-10-29T07:00:00.000Z" }, labels: {} });
+    const [, data, userId] = mocks.traction.createTodo.mock.calls[0];
+    expect(data).toEqual({ subject: "Send the LOI", assignedToPersonId: "11111111-1111-4111-8111-111111111111", dueDate: new Date("2026-10-29T07:00:00.000Z") });
+    expect(userId).toBe("user-1");
+    expect(mocks.notifications.notifyAssigned).toHaveBeenCalledTimes(1);
+    expect(text).toContain("To-Do created: Send the LOI");
   });
 
   it("puts the card back when a service refuses, and says why", async () => {

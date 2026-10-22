@@ -1,5 +1,6 @@
 import { withTenant } from "@/lib/db";
 import { and, eq, inArray, sql } from "drizzle-orm";
+import { MAX_NOTES_CHARS } from "@/utils/notes";
 import { pipelineItemsTable, pipelineBoardsTable, type BoardColumn } from "./pipeline.schema";
 import { contactsTable } from "@/modules/contacts/contacts.schema";
 import { organizationsTable } from "@/modules/organizations/organizations.schema";
@@ -115,6 +116,31 @@ export const pipelineRepository = {
         .delete(pipelineItemsTable)
         .where(and(eq(pipelineItemsTable.tenantId, tenantId), inArray(pipelineItemsTable.id, ids)))
     );
+  },
+
+  /**
+   * Adds `entry` after what the notes already say, in ONE statement (a read-then-write could lose a note typed at the
+   * same moment). Nothing is written, and undefined comes back, when the result would pass the notes' size limit —
+   * the caller tells the person; a note is never cut short.
+   */
+  async appendNote(tenantId: string, id: string, entry: string) {
+    const [row] = await withTenant(tenantId, (tx) =>
+      tx
+        .update(pipelineItemsTable)
+        .set({
+          notes: sql`case when coalesce(${pipelineItemsTable.notes}, '') = '' then ${entry} else ${pipelineItemsTable.notes} || E'\n\n' || ${entry} end`,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(pipelineItemsTable.tenantId, tenantId),
+            eq(pipelineItemsTable.id, id),
+            sql`char_length(coalesce(${pipelineItemsTable.notes}, '')) + char_length(${entry}) + 2 <= ${MAX_NOTES_CHARS}`
+          )
+        )
+        .returning()
+    );
+    return row;
   },
 
   async update(tenantId: string, id: string, data: Partial<NewPipelineItem>) {

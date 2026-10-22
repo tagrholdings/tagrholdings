@@ -737,11 +737,20 @@ const ENTRIES: Entry[] = [
     path: "/settings/integrations",
     build: () => ({
       title: "Slack",
-      summary: "Connect the Slack assistant: people message or voice-note it and it fills in an activity for them to confirm.",
+      summary: "Connect the Slack assistant: people message or voice-note it and it fills in an activity for them to confirm. It also sends reminders, new-lead cards and reports.",
       sections: [
         {
           heading: "What the assistant does",
-          body: "Write to it in the command channel (or mention it anywhere) — by text or voice note. It works out the activity — what, when, who it's for, which lead or project — and shows a card. Nothing is saved until someone presses Create.",
+          body: "Write to it in the command channel (or mention it anywhere) — by text or voice note. It works out the activity — what, when, who it's for, which lead or project — and shows a card. Nothing is saved until someone presses Create. It can also log conversation notes, add issues and To-Dos, and show how the pipeline is doing.",
+        },
+        {
+          heading: "What it sends on its own",
+          body: [
+            "Task reminders and new assignments, as a direct message with Done and Snooze buttons.",
+            "A reminder before each L10, to every teammate on Slack.",
+            "New leads as cards in the command channel, with Add to pipeline and Dismiss.",
+            "An optional daily summary (each person turns it on) and a weekly report for admins, on Mondays.",
+          ],
         },
         {
           heading: "Connecting",

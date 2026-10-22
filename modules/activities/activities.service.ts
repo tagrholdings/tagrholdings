@@ -10,6 +10,12 @@ export const activitiesService = {
     return activitiesRepository.findAllWithRelations(tenantId);
   },
 
+  async getById(tenantId: string, id: string) {
+    const activity = await activitiesRepository.findById(tenantId, id);
+    if (!activity) throw new UserFacingError("Activity not found.");
+    return activity;
+  },
+
   /** `link` marks an L10 To-Do (Traction) and the issue it came from — set by tractionService, never by the activity form. */
   async create(tenantId: string, data: NewActivity, createdByUserId: string | null = null, link: ActivityLink = {}) {
     // Every link (contact, organization, pipeline item, team person) is a composite (tenant_id, x_id) foreign key;

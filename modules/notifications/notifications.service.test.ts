@@ -9,6 +9,7 @@ vi.mock("@/modules/tenancy/tenancy.service", () => ({ tenancyService: { listTena
 vi.mock("@/modules/team/team.service", () => ({ teamService: { listPeople: vi.fn() } }));
 vi.mock("@/modules/traction/traction.service", () => ({ tractionService: { claimDueL10Reminders: vi.fn() } }));
 vi.mock("@/lib/email/send", () => ({ sendEmail: vi.fn() }));
+vi.mock("@/modules/slack/slack-notify.service", () => ({ slackNotifyService: { configured: vi.fn(), dmReminder: vi.fn(), dmAssigned: vi.fn(), dmL10: vi.fn() } }));
 
 import { notificationsService } from "./notifications.service";
 import { notificationsRepository } from "./notifications.repository";
@@ -18,6 +19,7 @@ import { tenancyService } from "@/modules/tenancy/tenancy.service";
 import { teamService } from "@/modules/team/team.service";
 import { tractionService } from "@/modules/traction/traction.service";
 import { sendEmail } from "@/lib/email/send";
+import { slackNotifyService } from "@/modules/slack/slack-notify.service";
 
 const NOW = new Date("2026-09-28T15:00:00Z");
 const sub = (id: string) => ({ id, endpoint: `https://fcm.googleapis.com/${id}`, p256dh: "k", auth: "a" });
@@ -34,6 +36,11 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(isPushConfigured).mockReturnValue(true);
   vi.mocked(sendPush).mockResolvedValue("sent");
+  // Slack is off unless a test turns it on: everything below behaves as it did before the Slack DMs existed.
+  vi.mocked(slackNotifyService.configured).mockReturnValue(false);
+  vi.mocked(slackNotifyService.dmReminder).mockResolvedValue(0);
+  vi.mocked(slackNotifyService.dmAssigned).mockResolvedValue(false);
+  vi.mocked(slackNotifyService.dmL10).mockResolvedValue(0);
   vi.mocked(tenancyService.listTenants).mockResolvedValue([{ id: "t1", slug: "acme", name: "Acme" }]);
   vi.mocked(tenancyService.listMembers).mockResolvedValue([
     { id: "u1", name: "Tanner", email: "t@x.com", role: "admin" },
@@ -46,6 +53,53 @@ beforeEach(() => {
     { id: "p2", name: "Matheus", email: "m@x.com", title: null, userId: "u2", archivedAt: null },
     { id: "p-tech", name: "Rex", email: null, title: null, userId: null, archivedAt: null },
   ]);
+});
+
+describe("Slack DMs", () => {
+  it("sends task reminders by DM to the same recipients, even when push isn't set up", async () => {
+    vi.mocked(isPushConfigured).mockReturnValue(false);
+    vi.mocked(slackNotifyService.configured).mockReturnValue(true);
+    vi.mocked(activitiesService.claimDueReminders).mockResolvedValue([reminder({ assignedToPersonId: "p2" })] as never);
+    vi.mocked(slackNotifyService.dmReminder).mockResolvedValue(1);
+    const result = await notificationsService.sendDueTaskReminders(NOW);
+    expect(slackNotifyService.dmReminder).toHaveBeenCalledWith("t1", "acme", expect.objectContaining({ id: "act-1" }), ["u2"]);
+    expect(sendPush).not.toHaveBeenCalled();
+    expect(result).toEqual({ reminders: 1, delivered: 0, slack: 1 });
+  });
+
+  it("an unassigned reminder goes to everyone on Slack too", async () => {
+    vi.mocked(slackNotifyService.configured).mockReturnValue(true);
+    vi.mocked(activitiesService.claimDueReminders).mockResolvedValue([reminder()] as never);
+    await notificationsService.sendDueTaskReminders(NOW);
+    expect(slackNotifyService.dmReminder).toHaveBeenCalledWith("t1", "acme", expect.anything(), ["u1", "u2"]);
+  });
+
+  it("still refuses to run when neither push nor Slack is set up", async () => {
+    vi.mocked(isPushConfigured).mockReturnValue(false);
+    await expect(notificationsService.sendDueTaskReminders(NOW)).rejects.toThrow("Neither VAPID keys nor Slack");
+  });
+
+  it("DMs the assignee of a new task — but not when they assigned it to themselves", async () => {
+    vi.mocked(slackNotifyService.configured).mockReturnValue(true);
+    vi.mocked(isPushConfigured).mockReturnValue(false);
+    const activity = { id: "a1", type: "task", subject: "Send the LOI", dueDate: null, assignedToPersonId: "p2" };
+    await notificationsService.notifyAssigned("t1", "acme", [activity], { id: "u1", name: "Tanner" });
+    expect(slackNotifyService.dmAssigned).toHaveBeenCalledWith("t1", "acme", activity, "u2", "Tanner");
+    vi.mocked(slackNotifyService.dmAssigned).mockClear();
+    await notificationsService.notifyAssigned("t1", "acme", [activity], { id: "u2", name: "Matheus" });
+    expect(slackNotifyService.dmAssigned).not.toHaveBeenCalled();
+  });
+
+  it("DMs the L10 reminder to the team and counts it", async () => {
+    vi.mocked(slackNotifyService.configured).mockReturnValue(true);
+    vi.mocked(tractionService.claimDueL10Reminders).mockResolvedValue([
+      { tenantId: "t1", slug: "acme", workspaceName: "Acme", meetingAt: NOW, timezone: "America/Phoenix", topIssues: [], offGoal: [], offTrackRocks: [], openTodos: 0, people: [{ name: "Matheus", email: null, userId: "u2" }] },
+    ] as never);
+    vi.mocked(slackNotifyService.dmL10).mockResolvedValue(3);
+    const result = await notificationsService.sendDueL10Reminders(NOW);
+    expect(slackNotifyService.dmL10).toHaveBeenCalledWith(expect.objectContaining({ tenantId: "t1" }), expect.any(String));
+    expect(result.slack).toBe(3);
+  });
 });
 
 describe("subscribe", () => {
@@ -65,7 +119,7 @@ describe("subscribe", () => {
 describe("sendDueTaskReminders", () => {
   it("does nothing when no reminder is due", async () => {
     vi.mocked(activitiesService.claimDueReminders).mockResolvedValue([]);
-    expect(await notificationsService.sendDueTaskReminders(NOW)).toEqual({ reminders: 0, delivered: 0 });
+    expect(await notificationsService.sendDueTaskReminders(NOW)).toEqual({ reminders: 0, delivered: 0, slack: 0 });
     expect(sendPush).not.toHaveBeenCalled();
   });
 
@@ -77,12 +131,12 @@ describe("sendDueTaskReminders", () => {
       expect.objectContaining({ endpoint: "https://fcm.googleapis.com/s1" }),
       expect.objectContaining({ title: "Call the seller", body: "Call due now", url: "/w/acme/activities?activity=act-1", tag: "activity-act-1" })
     );
-    expect(result).toEqual({ reminders: 1, delivered: 1 });
+    expect(result).toEqual({ reminders: 1, delivered: 1, slack: 0 });
   });
 
   it("a task assigned to someone without a login is pushed to nobody (they have no device)", async () => {
     vi.mocked(activitiesService.claimDueReminders).mockResolvedValue([reminder({ assignedToPersonId: "p-tech" })] as never);
-    expect(await notificationsService.sendDueTaskReminders(NOW)).toEqual({ reminders: 1, delivered: 0 });
+    expect(await notificationsService.sendDueTaskReminders(NOW)).toEqual({ reminders: 1, delivered: 0, slack: 0 });
   });
 
   it("an unassigned task goes to the whole team", async () => {
@@ -107,7 +161,7 @@ describe("sendDueTaskReminders", () => {
       return [reminder()] as never;
     });
     vi.spyOn(console, "error").mockImplementation(() => undefined);
-    expect(await notificationsService.sendDueTaskReminders(NOW)).toEqual({ reminders: 1, delivered: 1 });
+    expect(await notificationsService.sendDueTaskReminders(NOW)).toEqual({ reminders: 1, delivered: 1, slack: 0 });
   });
 
   it("refuses to run without VAPID keys instead of silently claiming reminders it can't send", async () => {
@@ -156,14 +210,14 @@ describe("sendDueL10Reminders", () => {
     expect(sendEmail).toHaveBeenCalledTimes(2);
     expect(vi.mocked(sendEmail).mock.calls[0][0]).toMatchObject({ to: "jay@x.test", subject: "L10 in one hour · Grounded" });
     expect(vi.mocked(sendEmail).mock.calls[0][0].text).toContain("Active customers");
-    expect(result).toEqual({ meetings: 1, pushed: 1, emailed: 2 });
+    expect(result).toEqual({ meetings: 1, pushed: 1, emailed: 2, slack: 0 });
   });
 
   it("still emails when push isn't configured", async () => {
     vi.mocked(isPushConfigured).mockReturnValue(false);
     vi.mocked(tractionService.claimDueL10Reminders).mockResolvedValue([due]);
     vi.mocked(sendEmail).mockResolvedValue(true);
-    expect(await notificationsService.sendDueL10Reminders(NOW)).toEqual({ meetings: 1, pushed: 0, emailed: 2 });
+    expect(await notificationsService.sendDueL10Reminders(NOW)).toEqual({ meetings: 1, pushed: 0, emailed: 2, slack: 0 });
     expect(sendPush).not.toHaveBeenCalled();
   });
 });

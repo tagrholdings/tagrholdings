@@ -1,5 +1,5 @@
 import { withTenant } from "@/lib/db";
-import { and, count, desc, eq, like, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, like, or, sql } from "drizzle-orm";
 import { rawLeadsTable, type ExtractedFields, type LeadSourceType, type RawLeadStatus } from "./leads.schema";
 import { searchProfilesTable } from "@/modules/search-profiles/search-profiles.schema";
 
@@ -105,6 +105,19 @@ export const leadsRepository = {
         .where(eq(rawLeadsTable.tenantId, tenantId))
         .orderBy(desc(rawLeadsTable.createdAt))
         .limit(LIST_LIMIT)
+    );
+  },
+
+  /** Leads still waiting for review that arrived since `since`, newest first — what the Slack sweep announces. */
+  async findNewSince(tenantId: string, since: Date, limit: number) {
+    return withTenant(tenantId, (tx) =>
+      tx
+        .select(summaryColumns)
+        .from(rawLeadsTable)
+        .leftJoin(searchProfilesTable, eq(rawLeadsTable.searchProfileId, searchProfilesTable.id))
+        .where(and(eq(rawLeadsTable.tenantId, tenantId), eq(rawLeadsTable.status, "new"), gte(rawLeadsTable.createdAt, since)))
+        .orderBy(desc(rawLeadsTable.createdAt))
+        .limit(limit)
     );
   },
 

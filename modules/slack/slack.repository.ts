@@ -14,17 +14,39 @@ export const slackRepository = {
     return row;
   },
 
+  async findLinkByUser(tenantId: string, userId: string) {
+    const [row] = await withTenant(tenantId, (tx) =>
+      tx
+        .select()
+        .from(slackUserLinksTable)
+        .where(and(eq(slackUserLinksTable.tenantId, tenantId), eq(slackUserLinksTable.userId, userId)))
+    );
+    return row;
+  },
+
+  /** What a person chose to be messaged about, and their zone — only their own row is ever touched. */
+  async updateLink(tenantId: string, slackUserId: string, patch: Partial<Pick<typeof slackUserLinksTable.$inferInsert, "timeZone" | "remindDm" | "l10Dm" | "digestDm" | "weeklyDm">>) {
+    const [row] = await withTenant(tenantId, (tx) =>
+      tx
+        .update(slackUserLinksTable)
+        .set(patch)
+        .where(and(eq(slackUserLinksTable.tenantId, tenantId), eq(slackUserLinksTable.slackUserId, slackUserId)))
+        .returning()
+    );
+    return row;
+  },
+
   async findLinks(tenantId: string) {
     return withTenant(tenantId, (tx) => tx.select().from(slackUserLinksTable).where(eq(slackUserLinksTable.tenantId, tenantId)));
   },
 
   /** Linking again (same Slack user) re-points it at the current login. */
-  async upsertLink(tenantId: string, slackUserId: string, userId: string) {
+  async upsertLink(tenantId: string, slackUserId: string, userId: string, timeZone: string | null = null) {
     await withTenant(tenantId, (tx) =>
       tx
         .insert(slackUserLinksTable)
-        .values({ tenantId, slackUserId, userId })
-        .onConflictDoUpdate({ target: [slackUserLinksTable.tenantId, slackUserLinksTable.slackUserId], set: { userId } })
+        .values({ tenantId, slackUserId, userId, timeZone })
+        .onConflictDoUpdate({ target: [slackUserLinksTable.tenantId, slackUserLinksTable.slackUserId], set: { userId, ...(timeZone ? { timeZone } : {}) } })
     );
   },
 

@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, jsonb, primaryKey, unique, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, jsonb, boolean, primaryKey, unique, index } from "drizzle-orm/pg-core";
 import { tenantsTable, tenantIsolationPolicy } from "@/modules/tenancy/tenancy.schema";
 
 /**
@@ -46,7 +46,21 @@ export const slackMessageClaimsTable = pgTable(
   (t) => [primaryKey({ columns: [t.apiAppId, t.channelId, t.messageTs] })]
 );
 
-/** A Slack person, matched by e-mail to a member of the workspace; what they do through the bot is done as that login. */
+/**
+ * "Already sent" markers for what the bot says unprompted (task reminders, new-lead cards, daily digests, the weekly
+ * report). The sweep inserts the key BEFORE it sends, so two overlapping sweeps — or a retry — never send twice; a send that
+ * then fails is logged and not repeated, like the push and e-mail reminders. No tenant_id: the key names what it is for.
+ */
+export const slackSentClaimsTable = pgTable("slack_sent_claims", {
+  key: text("key").primaryKey(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+/**
+ * A Slack person, matched by e-mail to a member of the workspace; what they do through the bot is done as that login.
+ * The flags are what the person chose to be messaged about directly (by telling the bot); `timeZone` is their Slack
+ * profile zone, kept so a morning digest can go out at 8 o'clock THEIR time (the CRM has no per-person zone).
+ */
 export const slackUserLinksTable = pgTable(
   "slack_user_links",
   {
@@ -57,6 +71,15 @@ export const slackUserLinksTable = pgTable(
     slackUserId: text("slack_user_id").notNull(),
     /** A Neon Auth user id (no FK possible — another schema). */
     userId: text("user_id").notNull(),
+    timeZone: text("time_zone"),
+    /** DM when one of their tasks is due, and when a task is assigned to them. */
+    remindDm: boolean("remind_dm").notNull().default(true),
+    /** DM before the weekly L10 meeting. */
+    l10Dm: boolean("l10_dm").notNull().default(true),
+    /** DM at 8:00 their time with what is due today and overdue. Off until they ask. */
+    digestDm: boolean("digest_dm").notNull().default(false),
+    /** DM of the weekly report (admins only receive it at all). */
+    weeklyDm: boolean("weekly_dm").notNull().default(true),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [unique("slack_user_links_tenant_slack_user_unique").on(t.tenantId, t.slackUserId), tenantIsolationPolicy("slack_user_links")]

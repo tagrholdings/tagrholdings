@@ -5,10 +5,23 @@
     "background_color": "#1f2937"
   },
   "features": {
+    "app_home": {
+      "home_tab_enabled": false,
+      "messages_tab_enabled": true,
+      "messages_tab_read_only_enabled": true
+    },
     "bot_user": {
       "display_name": "TAGR CRM",
       "always_online": true
-    }
+    },
+    "shortcuts": [
+      {
+        "name": "Create CRM task",
+        "type": "message",
+        "callback_id": "create_task_from_message",
+        "description": "Turn this message into a task in the CRM"
+      }
+    ]
   },
   "oauth_config": {
     "scopes": {
@@ -17,6 +30,7 @@
         "channels:history",
         "groups:history",
         "chat:write",
+        "im:write",
         "files:read",
         "users:read",
         "users:read.email"
