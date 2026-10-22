@@ -1,4 +1,5 @@
 import { zonedTimeToUtc } from "@/modules/traction/traction.logic";
+import { toZonedInputValues } from "@/utils/date";
 import type { ActivityRow } from "@/modules/activities/activities.types";
 import type { ProposalFields } from "./slack.types";
 
@@ -38,6 +39,70 @@ export function searchByText<T>(items: T[], query: string, textsOf: (item: T) =>
     if (best >= 0.5) matches.push({ item, score: best });
   }
   return matches.sort((a, b) => b.score - a.score).slice(0, limit);
+}
+
+/** The calendar day ("2026-10-23") an activity is due, as the person who is asking reads it: the zone it was entered in, else theirs. */
+export function dueDay(dueDate: Date | string, activityTimeZone: string | null | undefined, personTimeZone: string): string {
+  return toZonedInputValues(dueDate, activityTimeZone ?? personTimeZone).date;
+}
+
+/** `iso` ("2026-10-23") plus `days` calendar days. */
+export function addDays(iso: string, days: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
+export interface DueFilter {
+  /** Named windows, relative to the person's today. */
+  window?: "overdue" | "today" | "tomorrow" | "this_week" | "any";
+  /** One specific day. */
+  on?: string;
+  /** An inclusive range; either end may be open. */
+  from?: string;
+  to?: string;
+}
+
+/**
+ * Whether an activity's due day passes a filter. Everything is compared as calendar days in the person's own zone —
+ * "today" is THEIR today, not the server's. An activity with no due date only passes `any` (or no filter).
+ */
+export function matchesDue(day: string | null, today: string, filter: DueFilter): boolean {
+  const { window = "any", on, from, to } = filter;
+  const hasRange = !!(on || from || to);
+  if (!hasRange && window === "any") return true;
+  if (!day) return false;
+  if (on) return day === on;
+  if (from || to) return (!from || day >= from) && (!to || day <= to);
+  switch (window) {
+    case "overdue":
+      return day < today;
+    case "today":
+      return day === today;
+    case "tomorrow":
+      return day === addDays(today, 1);
+    case "this_week":
+      return day >= today && day <= addDays(today, 7);
+    default:
+      return true;
+  }
+}
+
+/** A Slack message as plain text: a card's blocks flattened (its fields are what a later "change it" refers to), mrkdwn stars dropped. */
+export function slackMessageText(message: { text?: string; blocks?: unknown[] }): string {
+  const lines: string[] = [];
+  for (const block of (message.blocks ?? []) as { type?: string; text?: { text?: string }; fields?: { text?: string }[] }[]) {
+    if (block.type !== "section") continue;
+    if (block.text?.text) lines.push(block.text.text);
+    for (const field of block.fields ?? []) if (field.text) lines.push(field.text.replace(/\n/g, ": "));
+  }
+  return (lines.length > 0 ? lines.join("\n") : (message.text ?? "")).replace(/\*/g, "").trim();
+}
+
+/** The activity ids a thread's cards linked to ("…?activity=<id>") — what "move it to Friday" points at. */
+export function activityIdsIn(texts: string[]): string[] {
+  const ids = new Set<string>();
+  for (const text of texts) for (const m of text.matchAll(/activity=([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/gi)) ids.add(m[1].toLowerCase());
+  return [...ids];
 }
 
 /**

@@ -37,6 +37,8 @@ the CRM.
 ## How people use it
 
 - In the command channel every top-level message or voice note is a command. Elsewhere, `@TAGR CRM …`.
+- Reply **inside the bot's thread** to continue: answer its question, or correct it ("make it Friday", "also assign it to Carlos"). A correction of a card nobody pressed yet replaces that card; once it is created, a correction edits the saved activity. Replies in threads the bot is not part of are ignored.
+- Ask about any day or period: "what's on the 28th?", "anything due in November?", "overdue since Monday".
 - The bot replies in the message's thread with a card; **Create** saves it, **Cancel** drops it. Anyone in the workspace
   can press it. Questions ("what's due today?") are answered directly.
 

@@ -1,5 +1,5 @@
 import { withTenant } from "@/lib/db";
-import { and, eq, lt } from "drizzle-orm";
+import { and, eq, inArray, lt } from "drizzle-orm";
 import { slackPendingActionsTable, slackUserLinksTable } from "./slack.schema";
 import type { PendingPayload } from "./slack.types";
 
@@ -58,6 +58,24 @@ export const slackRepository = {
         .where(and(eq(slackPendingActionsTable.tenantId, tenantId), eq(slackPendingActionsTable.id, id)))
     );
     return row;
+  },
+
+  /** The still-pending cards among these messages of a channel — the bot's earlier proposals in one thread. */
+  async findPendingByCards(tenantId: string, channelId: string, cardTss: string[]) {
+    if (cardTss.length === 0) return [];
+    return withTenant(tenantId, (tx) =>
+      tx
+        .select()
+        .from(slackPendingActionsTable)
+        .where(
+          and(
+            eq(slackPendingActionsTable.tenantId, tenantId),
+            eq(slackPendingActionsTable.channelId, channelId),
+            eq(slackPendingActionsTable.status, "pending"),
+            inArray(slackPendingActionsTable.cardTs, cardTss)
+          )
+        )
+    );
   },
 
   /** Moves a still-pending card to `status` — atomically, so two clicks on Create can't both win. Null when it already moved. */

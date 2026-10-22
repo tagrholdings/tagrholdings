@@ -50,8 +50,16 @@ export interface AudioInput {
   data: string;
 }
 
+/** An earlier message of the same Slack thread: what the person said, and what the bot answered (cards included). */
+export interface HistoryTurn {
+  role: "user" | "assistant";
+  text: string;
+}
+
 export interface AgentInput {
   text: string;
+  /** The thread so far, oldest first, WITHOUT the message being answered. Empty outside a thread. */
+  history?: HistoryTurn[];
   audio?: AudioInput;
   /** The person's own time zone (Slack profile) — "Friday at 2pm" means 2pm there. */
   timeZone: string;
@@ -83,6 +91,16 @@ export interface SlackFile {
   size?: number;
   url_private_download?: string;
   url_private?: string;
+}
+
+/** A message as `conversations.replies` returns it. `app_id` marks the ones a Slack app (ours) posted. */
+export interface SlackThreadMessage {
+  ts: string;
+  user?: string;
+  bot_id?: string;
+  app_id?: string;
+  text?: string;
+  blocks?: unknown[];
 }
 
 export interface SlackMessageEvent {

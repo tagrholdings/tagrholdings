@@ -1,5 +1,5 @@
 import "server-only";
-import type { AudioInput, SlackFile } from "./slack.types";
+import type { AudioInput, SlackFile, SlackThreadMessage } from "./slack.types";
 
 /**
  * The only place that talks to Slack's Web API, with the bot token of THIS environment's app (the prod and dev apps each
@@ -67,6 +67,12 @@ export const slackClient = {
       name: user.profile?.real_name || user.real_name || user.profile?.display_name || user.name || "there",
       timeZone: user.tz || "America/Phoenix",
     };
+  },
+
+  /** A thread, oldest first (the root message included). Needs channels:history / groups:history. */
+  async getThread(channel: string, threadTs: string): Promise<SlackThreadMessage[]> {
+    const result = await call<{ messages?: SlackThreadMessage[] }>("conversations.replies", { channel, ts: threadTs, limit: 200 }, "form");
+    return result.messages ?? [];
   },
 
   /** A voice note / audio file, downloaded with the bot token (Slack's file URLs aren't public). Null when it isn't usable audio. */

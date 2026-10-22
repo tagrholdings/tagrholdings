@@ -128,6 +128,52 @@ describe("runAgent", () => {
     expect(JSON.stringify(ask.seen[1])).toContain("Call João");
   });
 
+  it("finds activities on one specific day, and in a period, counting from the person's own today", async () => {
+    const onFri = row({ id: "a1", subject: "Friday call", dueDate: new Date("2026-10-23T21:00:00.000Z") });
+    const onMon = row({ id: "a2", subject: "Monday call", dueDate: new Date("2026-10-26T21:00:00.000Z") });
+    const undated = row({ id: "a3", subject: "Someday", dueDate: null, timezone: null });
+    const results = async (args: Record<string, unknown>) => {
+      const { generate, seen } = script([{ name: "search_activities", args }], [{ name: "ignore", args: {} }]);
+      await runAgent(input, deps(generate, data([onFri, onMon, undated])));
+      const response = JSON.parse(JSON.stringify(seen[1])).at(-1).parts[0].functionResponse.response;
+      return { total: response.total, subjects: response.results.map((r: { subject: string }) => r.subject) };
+    };
+
+    expect(await results({ due_on: "2026-10-23" })).toEqual({ total: 1, subjects: ["Friday call"] });
+    expect(await results({ due_from: "2026-10-23", due_to: "2026-10-31" })).toEqual({ total: 2, subjects: ["Friday call", "Monday call"] });
+    expect(await results({ due_from: "2026-10-24" })).toEqual({ total: 1, subjects: ["Monday call"] });
+    expect(await results({ due: "tomorrow" })).toEqual({ total: 1, subjects: ["Friday call"] });
+    expect(await results({})).toEqual({ total: 3, subjects: ["Friday call", "Monday call", "Someday"] });
+  });
+
+  it("rejects a malformed date filter so the model can fix it", async () => {
+    const { generate, seen } = script([{ name: "search_activities", args: { due_on: "friday" } }], [{ name: "ignore", args: {} }]);
+    await runAgent(input, deps(generate));
+    expect(JSON.stringify(seen[1])).toContain("YYYY-MM-DD");
+  });
+
+  it("shows the agent the thread so far, as alternating turns ending with the new message", async () => {
+    const { generate, seen } = script([{ name: "ignore", args: {} }]);
+    await runAgent(
+      {
+        ...input,
+        text: "make it friday",
+        history: [
+          { role: "assistant", text: "stray bot message before anyone spoke" },
+          { role: "user", text: "call João tomorrow" },
+          { role: "assistant", text: "New call: Call João" },
+          { role: "assistant", text: "Which João?" },
+        ],
+      },
+      deps(generate)
+    );
+    const contents = seen[0] as { role: string; parts: { text?: string }[] }[];
+    expect(contents.map((c) => c.role)).toEqual(["user", "model", "user"]);
+    expect(contents[0].parts[0].text).toBe("call João tomorrow");
+    expect(contents[1].parts.map((p) => p.text)).toEqual(["New call: Call João", "Which João?"]);
+    expect(contents[2].parts.at(-1)?.text).toBe("make it friday");
+  });
+
   it("stays silent on ignore, and gives up politely after too many turns", async () => {
     expect(await runAgent(input, deps(script([{ name: "ignore", args: {} }]).generate))).toEqual({ kind: "ignore" });
     const loop = script(...Array.from({ length: 8 }, () => [{ name: "search_people", args: { query: "a" } }]));

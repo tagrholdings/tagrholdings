@@ -15,6 +15,7 @@ import { tenancyService } from "@/modules/tenancy/tenancy.service";
 import { runAgent, type AgentData } from "./slack.agent";
 import { CANCEL_ACTION_ID, CONFIRM_ACTION_ID, escapeMrkdwn, proposalBlocks, resolvedBlocks } from "./slack.blocks";
 import { slackClient } from "./slack.client";
+import { slackMessageText } from "./slack.logic";
 import { slackInstallationsRepository } from "./slack-installations.repository";
 import { slackRepository } from "./slack.repository";
 import type { PendingPayload, ProposalFields, SlackInteractionPayload, SlackMessageEvent, SlackSettingsInput } from "./slack.types";
@@ -24,6 +25,8 @@ const PENDING_TTL_MS = 24 * 60 * 60 * 1000;
 const PER_PERSON_LIMIT = 30;
 const PER_PERSON_WINDOW_MS = 10 * 60 * 1000;
 const SWEEP_PROBABILITY = 0.05;
+/** How much of a thread the agent is shown — enough for "change it", not a whole day's chat. */
+const HISTORY_MESSAGES = 12;
 const CLAIMS_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 interface Delivery {
@@ -77,7 +80,10 @@ export const slackService = {
    * someone to tell, said in the thread.
    */
   async handleMessage(event: SlackMessageEvent, delivery: Delivery, generate: GenerateGemini = generateGemini): Promise<void> {
-    const reply = (text: string) => slackClient.postMessage({ channel: event.channel, text, threadTs: event.ts }).catch((e) => console.error("slack: reply failed:", e));
+    // Answers go in the thread: the message's own, or — for a reply inside a thread — the thread's root.
+    const root = event.thread_ts ?? event.ts;
+    const inThread = root !== event.ts;
+    const reply = (text: string) => slackClient.postMessage({ channel: event.channel, text, threadTs: root }).catch((e) => console.error("slack: reply failed:", e));
     try {
       if (!event.user || event.bot_id) return;
       if (event.subtype && event.subtype !== "file_share") return;
@@ -90,11 +96,15 @@ export const slackService = {
       const tenant = await tenancyService.getTenant(installation.tenantId);
       if (!tenant || tenant.archivedAt) return;
 
-      // Addressed to the bot: an @mention anywhere, or any top-level message in the command channel.
+      // Addressed to the bot: an @mention anywhere, or a message in the command channel — a top-level one, or a reply
+      // inside a thread the bot is already part of (checked below: a thread between people is none of its business).
       const inCommandChannel = !!installation.commandChannelId && event.channel === installation.commandChannelId;
-      const topLevel = !event.thread_ts || event.thread_ts === event.ts;
-      if (!(event.type === "app_mention" || (event.type === "message" && inCommandChannel && topLevel))) return;
+      if (!(event.type === "app_mention" || (event.type === "message" && inCommandChannel))) return;
       if (!(await slackInstallationsRepository.claimMessage(delivery.apiAppId, event.channel, event.ts))) return;
+
+      const thread = inThread ? await slackClient.getThread(event.channel, root) : [];
+      const botMessages = thread.filter((m) => m.app_id === delivery.apiAppId);
+      if (event.type === "message" && inThread && botMessages.length === 0) return;
       if (Math.random() < SWEEP_PROBABILITY) {
         await slackInstallationsRepository.deleteClaimsOlderThan(new Date(Date.now() - CLAIMS_MAX_AGE_MS));
         await slackRepository.deleteExpired(tenant.id, new Date());
@@ -127,8 +137,13 @@ export const slackService = {
       if (!text && !audio) return;
 
       const sender = userId ? await teamService.personForUser(tenantId, userId) : null;
+      // What was said before in this thread: the people's messages and the bot's own (its cards included).
+      const history = thread
+        .filter((m) => m.ts !== event.ts && (m.app_id === delivery.apiAppId || (!m.bot_id && m.user)))
+        .slice(-HISTORY_MESSAGES)
+        .map((m) => ({ role: m.app_id === delivery.apiAppId ? ("assistant" as const) : ("user" as const), text: slackMessageText(m).replace(MENTION, "").trim() }));
       const outcome = await runAgent(
-        { text, audio, timeZone: person.timeZone, now: new Date() },
+        { text, audio, history, timeZone: person.timeZone, now: new Date() },
         { generate, data: dataFor(tenantId), userName: person.name, senderPersonId: sender?.id ?? null }
       );
 
@@ -144,8 +159,16 @@ export const slackService = {
         expiresAt: new Date(Date.now() + PENDING_TTL_MS),
       });
       const card = proposalBlocks(outcome.payload, pending.id, person.timeZone);
-      const posted = await slackClient.postMessage({ channel: event.channel, threadTs: event.ts, ...card });
+      const posted = await slackClient.postMessage({ channel: event.channel, threadTs: root, ...card });
       await slackRepository.setCardTs(tenantId, pending.id, posted.ts);
+
+      // A correction of a card nobody pressed yet replaces it: two live cards for one request would be created twice.
+      for (const old of await slackRepository.findPendingByCards(tenantId, event.channel, botMessages.map((m) => m.ts))) {
+        if (old.id === pending.id || !old.cardTs) continue;
+        if (await slackRepository.claimPending(tenantId, old.id, "cancelled")) {
+          await slackClient.updateMessage({ channel: event.channel, ts: old.cardTs, ...resolvedBlocks("_Replaced by a newer proposal below._") }).catch((e) => console.error("slack: card update failed:", e));
+        }
+      }
     } catch (error) {
       console.error("slack: handling a message failed:", error);
       if (error instanceof GeminiUnavailable) await reply("My AI brain isn't reachable right now — try again in a minute, or add it in the CRM directly.");

@@ -3,8 +3,8 @@ import { UserFacingError } from "@/lib/errors";
 
 const mocks = vi.hoisted(() => ({
   installations: { find: vi.fn(), claimMessage: vi.fn(), deleteClaimsOlderThan: vi.fn() },
-  repo: { findLink: vi.fn(), upsertLink: vi.fn(), deleteLink: vi.fn(), insertPending: vi.fn(), setCardTs: vi.fn(), findPending: vi.fn(), claimPending: vi.fn(), releasePending: vi.fn(), deleteExpired: vi.fn() },
-  client: { postMessage: vi.fn(), updateMessage: vi.fn(), getUser: vi.fn(), downloadAudio: vi.fn() },
+  repo: { findLink: vi.fn(), upsertLink: vi.fn(), deleteLink: vi.fn(), insertPending: vi.fn(), setCardTs: vi.fn(), findPending: vi.fn(), findPendingByCards: vi.fn(), claimPending: vi.fn(), releasePending: vi.fn(), deleteExpired: vi.fn() },
+  client: { postMessage: vi.fn(), updateMessage: vi.fn(), getUser: vi.fn(), getThread: vi.fn(), downloadAudio: vi.fn() },
   tenancy: { getTenant: vi.fn(), isMember: vi.fn(), listMembers: vi.fn() },
   team: { personForUser: vi.fn() },
   activities: { create: vi.fn(), update: vi.fn(), setDone: vi.fn() },
@@ -45,6 +45,8 @@ beforeEach(() => {
   mocks.client.getUser.mockResolvedValue({ email: "boss@tagr.com", name: "Boss", timeZone: "America/Phoenix" });
   mocks.client.postMessage.mockResolvedValue({ ts: "2.2" });
   mocks.client.updateMessage.mockResolvedValue(undefined);
+  mocks.client.getThread.mockResolvedValue([]);
+  mocks.repo.findPendingByCards.mockResolvedValue([]);
   mocks.repo.findLink.mockResolvedValue({ userId: "user-1" });
   mocks.team.personForUser.mockResolvedValue({ id: "person-1" });
 });
@@ -66,13 +68,51 @@ describe("handleMessage", () => {
     expect(mocks.agent.runAgent.mock.calls[0][0].text).toBe("call João");
   });
 
-  it("ignores bots, edits and thread replies, and processes a message only once", async () => {
+  it("ignores bots and edits, and processes a message only once", async () => {
     await slackService.handleMessage({ ...message, bot_id: "B1" }, delivery);
     await slackService.handleMessage({ ...message, subtype: "message_changed" }, delivery);
-    await slackService.handleMessage({ ...message, thread_ts: "0.5" }, delivery);
     mocks.installations.claimMessage.mockResolvedValue(false);
     await slackService.handleMessage(message, delivery);
     expect(mocks.agent.runAgent).not.toHaveBeenCalled();
+  });
+
+  describe("threads", () => {
+    const reply = { ...message, ts: "5.5", thread_ts: "1.1", text: "change it to friday" };
+    const people = { ts: "1.1", user: "U1", text: "call João tomorrow" };
+    const bot = { ts: "2.2", app_id: "A1", bot_id: "B1", text: "New call: Call João", blocks: [{ type: "section", text: { type: "mrkdwn", text: "New call: *Call João*" } }, { type: "section", fields: [{ type: "mrkdwn", text: "*Due*\nThu, Oct 22" }] }] };
+
+    it("ignores a reply in a thread the bot is not part of (people talking)", async () => {
+      mocks.client.getThread.mockResolvedValue([people, { ts: "3.3", user: "U2", text: "sure" }, reply]);
+      await slackService.handleMessage(reply, delivery);
+      expect(mocks.agent.runAgent).not.toHaveBeenCalled();
+      expect(mocks.client.postMessage).not.toHaveBeenCalled();
+    });
+
+    it("continues a thread the bot is in: earlier turns go to the agent and the answer goes to the thread's root", async () => {
+      mocks.client.getThread.mockResolvedValue([people, bot, reply]);
+      mocks.agent.runAgent.mockResolvedValue({ kind: "reply", text: "done" });
+      await slackService.handleMessage(reply, delivery);
+      const input = mocks.agent.runAgent.mock.calls[0][0];
+      expect(input.text).toBe("change it to friday");
+      expect(input.history).toEqual([
+        { role: "user", text: "call João tomorrow" },
+        { role: "assistant", text: "New call: Call João\nDue: Thu, Oct 22" },
+      ]);
+      expect(mocks.client.postMessage).toHaveBeenCalledWith({ channel: "C1", text: "done", threadTs: "1.1" });
+    });
+
+    it("a new proposal replaces the earlier card nobody pressed", async () => {
+      mocks.client.getThread.mockResolvedValue([people, bot, reply]);
+      mocks.agent.runAgent.mockResolvedValue({ kind: "propose", payload: { kind: "complete", id: "x", subject: "Call João", done: true } });
+      mocks.repo.insertPending.mockResolvedValue({ id: PENDING });
+      mocks.repo.findPendingByCards.mockResolvedValue([{ id: "old-card", cardTs: "2.2" }]);
+      mocks.repo.claimPending.mockResolvedValue({ id: "old-card" });
+      await slackService.handleMessage(reply, delivery);
+      expect(mocks.repo.findPendingByCards).toHaveBeenCalledWith(TENANT, "C1", ["2.2"]);
+      expect(mocks.repo.claimPending).toHaveBeenCalledWith(TENANT, "old-card", "cancelled");
+      expect(mocks.client.updateMessage.mock.calls[0][0]).toMatchObject({ channel: "C1", ts: "2.2" });
+      expect(mocks.client.postMessage.mock.calls[0][0].threadTs).toBe("1.1");
+    });
   });
 
   it("tells an unmatched Slack user instead of acting for them", async () => {
