@@ -46,7 +46,8 @@ export const leadRunsTable = pgTable(
   ]
 );
 
-export const USAGE_PROVIDERS = ["openai", "google_places", "brave_search", "google_geocoding", "resend"] as const;
+// "openai" stays so the spend history from before the move to Gemini keeps its label; nothing writes it any more.
+export const USAGE_PROVIDERS = ["gemini", "openai", "google_places", "brave_search", "google_geocoding", "resend"] as const;
 export type UsageProvider = (typeof USAGE_PROVIDERS)[number];
 
 /**

@@ -18,8 +18,8 @@ from dotenv import load_dotenv
 from .config import ConfigError, Settings, load_settings
 from .db import Database
 from .enrich.company_site import CompanySiteScraper
-from .extraction.extractor import OpenAIExtractor
-from .extraction.listings import OpenAIListingsExtractor
+from .extraction.extractor import GeminiExtractor
+from .extraction.listings import GeminiListingsExtractor
 from .models import SOURCE_BRAVE, SOURCE_BROKER_LISTINGS, SOURCE_GOOGLE_PLACES, SOURCE_MARKETPLACE
 from .runner import Runner
 from .sources.base import SourceContext
@@ -52,16 +52,16 @@ def build_runner(settings: Settings, db: Database, http: httpx.Client, deadline:
     def make_context(state: dict[str, Any], record_usage: Any) -> SourceContext:
         return SourceContext(settings=settings, http=http, robots=robots, throttle=throttle, record_usage=record_usage, state=state)
 
-    extractor = OpenAIExtractor(settings) if settings.openai_api_key else None
+    extractor = GeminiExtractor(settings) if settings.gemini_api_key else None
     if extractor is None:
-        log.warning("OPENAI_API_KEY is not set — leads will be saved with the sources' own fields only (no AI extraction).")
+        log.warning("GEMINI_API_KEY is not set — leads will be saved with the sources' own fields only (no AI extraction).")
 
     return Runner(
         db=db,
         sources={
             SOURCE_GOOGLE_PLACES: GooglePlacesSource(),
             SOURCE_BRAVE: BraveSearchSource(),
-            SOURCE_BROKER_LISTINGS: BrokerListingsSource(OpenAIListingsExtractor(settings) if settings.openai_api_key else None),
+            SOURCE_BROKER_LISTINGS: BrokerListingsSource(GeminiListingsExtractor(settings) if settings.gemini_api_key else None),
             SOURCE_MARKETPLACE: BizBuySellSource(),
         },
         extractor=extractor,

@@ -108,7 +108,7 @@ export function SpendReportView({ report }: { report: SpendReport }) {
 
       <p className="max-w-prose text-sm text-muted-foreground">
         Amounts are estimates at each provider&rsquo;s list price, calculated when each call is made. They don&rsquo;t subtract free monthly
-        allowances or credits, so your actual invoice can be lower — check Google Cloud Billing, the Brave Search API dashboard, the OpenAI usage page and your Resend plan (received emails count toward its monthly quota; there is no separate per-email price) for the real figures.
+        allowances or credits, so your actual invoice can be lower — check Google Cloud Billing, the Brave Search API dashboard, the Google AI Studio (Gemini API) usage page and your Resend plan (received emails count toward its monthly quota; there is no separate per-email price) for the real figures.
       </p>
 
       <Section tourId="spend-summary" title="By service" description="Which provider the money went to.">

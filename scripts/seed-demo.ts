@@ -384,7 +384,7 @@ async function seedTagr({ db, tenantId, adminId }: Ctx) {
       ["google_geocoding", "geocode", null, 1, null, null, 0.005],
       ["google_places", "text_search", null, Math.max(1, Math.round(seen / 20)), null, null, Math.max(1, Math.round(seen / 20)) * 0.032],
       ["brave_search", "search", null, Math.round(seen / 8) + 1, null, null, (Math.round(seen / 8) + 1) * 0.005],
-      ["openai", "extract", "gpt-4o-mini", added + 4, (added + 4) * 3100, (added + 4) * 420, (added + 4) * 0.0007],
+      ["gemini", "extract", "gemini-2.5-flash", added + 4, (added + 4) * 3100, (added + 4) * 420, (added + 4) * 0.0007],
     ];
     for (const [provider, operation, model, requests, inTok, outTok, cost] of usage) {
       if (status === "failed" && provider !== "google_geocoding") continue;
@@ -406,7 +406,7 @@ async function seedTagr({ db, tenantId, adminId }: Ctx) {
   // Spend with no run: inbound emails and manual leads.
   for (const ago of [12, 9, 7, 5, 4, 2, 1]) {
     await insert(db, "lead_api_usage", { id: randomUUID(), tenant_id: T, run_id: null, provider: "resend", operation: "receive", model: null, requests: 1, input_tokens: null, output_tokens: null, cost_usd: "0.000400", created_at: at(ago, 10) });
-    await insert(db, "lead_api_usage", { id: randomUUID(), tenant_id: T, run_id: null, provider: "openai", operation: "extract", model: "gpt-4o-mini", requests: 1, input_tokens: 5200, output_tokens: 700, cost_usd: "0.001200", created_at: at(ago, 10, 1) });
+    await insert(db, "lead_api_usage", { id: randomUUID(), tenant_id: T, run_id: null, provider: "gemini", operation: "extract", model: "gemini-2.5-flash", requests: 1, input_tokens: 5200, output_tokens: 700, cost_usd: "0.001200", created_at: at(ago, 10, 1) });
   }
 
   // Listing sites

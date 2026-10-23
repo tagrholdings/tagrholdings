@@ -12,7 +12,7 @@ import { leadEngineService } from "@/modules/lead-engine/lead-engine.service";
 import { safeFetchText } from "@/lib/safe-fetch";
 
 const TENANT_A = "tenant-a";
-const usage = { provider: "openai", operation: "extract", model: "gpt-4o-mini", inputTokens: 100, outputTokens: 20, costUsd: 0.0001 } as const;
+const usage = { provider: "gemini", operation: "extract", model: "gemini-2.5-flash", inputTokens: 100, outputTokens: 20, costUsd: 0.0001 } as const;
 
 beforeEach(() => {
   vi.resetAllMocks();

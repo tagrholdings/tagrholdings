@@ -37,7 +37,7 @@ const EMAIL_ID = "re_email_123";
 const DOMAIN = "in.example.test";
 const ADDRESS = `tagr-0a1b2c3d4e@${DOMAIN}`;
 const WORKSPACE = { id: TENANT, slug: "tagr", name: "Tagr" };
-const OPENAI_USAGE = { provider: "openai", operation: "extract", model: "gpt-4o-mini", inputTokens: 900, outputTokens: 120, costUsd: 0.0002 } as const;
+const AI_USAGE = { provider: "gemini", operation: "extract", model: "gemini-2.5-flash", inputTokens: 900, outputTokens: 120, costUsd: 0.0006 } as const;
 
 /** A webhook request signed exactly the way Svix/Resend signs it. */
 function signedRequest(payload: object, opts: { secretBytes?: Buffer; timestamp?: number; tamper?: boolean } = {}) {
@@ -76,7 +76,7 @@ beforeEach(() => {
   vi.mocked(leadsRepository.createIfNew).mockResolvedValue({ id: "lead-1" });
   vi.mocked(leadExtractionService.extractListings).mockResolvedValue({
     listings: [{ fields: { businessName: "Profitable HVAC company", askingPrice: "$850,000", location: { city: "Phoenix", state: "AZ" } }, listingUrl: "https://bizlistings.test/listing/42" }],
-    usage: OPENAI_USAGE,
+    usage: AI_USAGE,
     fallback: false,
   });
   vi.mocked(leadEngineService.recordUsage).mockResolvedValue(undefined);
@@ -140,7 +140,7 @@ describe("resend-inbound webhook — a valid email.received", () => {
   it("logs the AI call and the inbound email as separate tracked services", async () => {
     await POST(signedRequest(receivedEvent));
     const providers = vi.mocked(leadEngineService.recordUsage).mock.calls.map(([, event]) => `${event.provider}/${event.operation}`);
-    expect(providers.sort()).toEqual(["openai/extract", "resend/receive"]);
+    expect(providers.sort()).toEqual(["gemini/extract", "resend/receive"]);
     for (const [tenant] of vi.mocked(leadEngineService.recordUsage).mock.calls) expect(tenant).toBe(TENANT);
   });
 
@@ -149,7 +149,7 @@ describe("resend-inbound webhook — a valid email.received", () => {
       fields: { businessName: `HVAC company #${n}`, askingPrice: `$${n}00,000`, location: { city: "Phoenix", state: "AZ" } },
       listingUrl: `https://bizlistings.test/listing/${n}`,
     });
-    vi.mocked(leadExtractionService.extractListings).mockResolvedValue({ listings: [listing(1), listing(2), listing(3)], usage: OPENAI_USAGE, fallback: false });
+    vi.mocked(leadExtractionService.extractListings).mockResolvedValue({ listings: [listing(1), listing(2), listing(3)], usage: AI_USAGE, fallback: false });
     vi.mocked(leadsRepository.createIfNew).mockImplementation(async (_t, lead) => ({ id: `id-${lead.dedupeKey}` }));
 
     const res = await POST(signedRequest(receivedEvent));
@@ -162,7 +162,7 @@ describe("resend-inbound webhook — a valid email.received", () => {
     expect(saved.map((l) => l.businessName)).toEqual(["HVAC company #1", "HVAC company #2", "HVAC company #3"]);
     // Paid for once per email, however many listings it held.
     const providers = vi.mocked(leadEngineService.recordUsage).mock.calls.map(([, event]) => `${event.provider}/${event.operation}`);
-    expect(providers.sort()).toEqual(["openai/extract", "resend/receive"]);
+    expect(providers.sort()).toEqual(["gemini/extract", "resend/receive"]);
   });
 
   it("is idempotent: a redelivered webhook for the same email creates nothing and pays for nothing", async () => {

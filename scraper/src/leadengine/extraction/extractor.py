@@ -1,8 +1,8 @@
 """AI extraction: raw text -> `extractedFields` (the JSON stored on `raw_leads`).
 
-Currently backed by OpenAI (chat completions + strict JSON-schema output). The
-stage is isolated behind `Extractor.extract` so swapping the provider (the
-project is meant to move to Claude Haiku later) touches only this module and
+Currently backed by Gemini (JSON output that follows the shared schema; it ran on
+OpenAI until 2026-10). The stage is isolated behind `Extractor.extract` so swapping
+the provider touches only gemini_client.py, this module's extractor class and
 pricing.py — nothing else in the engine knows which model ran.
 """
 
@@ -17,7 +17,8 @@ from typing import Any, Protocol
 
 from ..config import Settings
 from ..models import Candidate, UsageEvent
-from ..pricing import openai_cost_usd
+from ..pricing import gemini_cost_usd
+from .gemini_client import GenerateJson, generate_json, parse_json_object
 from .prompt import OUTPUT_SCHEMA, SYSTEM_PROMPT, build_user_message
 
 log = logging.getLogger(__name__)
@@ -107,53 +108,38 @@ def fields_from_hints_only(candidate: Candidate) -> dict[str, Any]:
     )
 
 
-class OpenAIExtractor:
-    def __init__(self, settings: Settings, client: Any | None = None) -> None:
-        if client is None:
-            from openai import OpenAI  # imported lazily: tests inject a fake client
-
-            if not settings.openai_api_key:
-                raise RuntimeError("OPENAI_API_KEY is not set.")
-            client = OpenAI(api_key=settings.openai_api_key, max_retries=3, timeout=60)
-        self._client = client
+class GeminiExtractor:
+    def __init__(self, settings: Settings, generate: GenerateJson | None = None) -> None:
+        if generate is None and not settings.gemini_api_key:
+            raise RuntimeError("GEMINI_API_KEY is not set.")
+        self._generate = generate or generate_json  # tests inject a fake
         self._settings = settings
 
     def extract(self, candidate: Candidate, text: str) -> Extraction:
-        response = self._client.chat.completions.create(
-            model=self._settings.openai_model,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": build_user_message(candidate.business_name, candidate.source_type, text)},
-            ],
-            response_format={
-                "type": "json_schema",
-                "json_schema": {"name": "lead_extraction", "strict": True, "schema": OUTPUT_SCHEMA},
-            },
-            max_completion_tokens=800,
+        answer = self._generate(
+            self._settings,
+            SYSTEM_PROMPT,
+            build_user_message(candidate.business_name, candidate.source_type, text),
+            OUTPUT_SCHEMA,
+            800,
         )
-        usage = getattr(response, "usage", None)
-        input_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
-        output_tokens = int(getattr(usage, "completion_tokens", 0) or 0)
-        model = getattr(response, "model", None) or self._settings.openai_model
         event = UsageEvent(
-            provider="openai",
+            provider="gemini",
             operation="extract",
-            model=model,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-            cost_usd=openai_cost_usd(
-                model,
-                input_tokens,
-                output_tokens,
-                self._settings.openai_input_usd_per_million,
-                self._settings.openai_output_usd_per_million,
+            model=answer.model,
+            input_tokens=answer.input_tokens,
+            output_tokens=answer.output_tokens,
+            cost_usd=gemini_cost_usd(
+                answer.model,
+                answer.input_tokens,
+                answer.output_tokens,
+                self._settings.gemini_input_usd_per_million,
+                self._settings.gemini_output_usd_per_million,
             ),
         )
-        content = response.choices[0].message.content or "{}"
-        try:
-            parsed = json.loads(content)
-        except json.JSONDecodeError:
-            log.warning("Extraction returned non-JSON for %r; keeping source hints only.", candidate.business_name)
+        parsed = parse_json_object(answer)
+        if parsed is None:
+            log.warning("Extraction returned unusable output for %r; keeping source hints only.", candidate.business_name)
             # The call was made and billed even though its output was unusable.
             return Extraction(fields_from_hints_only(candidate), event)
         return Extraction(to_extracted_fields(parsed, candidate.hints), event)

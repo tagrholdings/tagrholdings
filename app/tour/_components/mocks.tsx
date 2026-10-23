@@ -144,7 +144,7 @@ export function SpendMock() {
       <MiniTable
         minWidth="min-w-[22rem]"
         head={["Service", "Calls", "Cost"]}
-        rows={[["Google Places · text search", "18", "$0.58"], ["Brave Search", "48", "$0.24"], ["OpenAI · extraction", "114", "$0.08"], ["Google Geocoding", "7", "$0.04"], ["Resend · inbound email", "7", "$0.003"]]}
+        rows={[["Google Places · text search", "18", "$0.58"], ["Brave Search", "48", "$0.24"], ["Gemini · extraction", "114", "$0.08"], ["Google Geocoding", "7", "$0.04"], ["Resend · inbound email", "7", "$0.003"]]}
       />
     </MockWindow>
   );

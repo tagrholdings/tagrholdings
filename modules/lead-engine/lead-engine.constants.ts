@@ -1,7 +1,8 @@
 import type { UsageProvider } from "./lead-engine.schema";
 
 export const PROVIDER_LABELS: Record<UsageProvider, string> = {
-  openai: "OpenAI (AI extraction)",
+  gemini: "Gemini (AI extraction)",
+  openai: "OpenAI (AI extraction, before the move to Gemini)",
   google_places: "Google Places",
   brave_search: "Brave Search",
   google_geocoding: "Google Geocoding",

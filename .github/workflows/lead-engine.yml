@@ -17,8 +17,8 @@ name: Lead engine
 #   DATABASE_URL_SCRAPER   connection string for the `lead_scraper` Postgres role
 #   GOOGLE_CLOUD_API_KEY   Places / Geocoding key
 #   BRAVE_API_KEY          Brave Search API key (the Brave Search source)
-#   OPENAI_API_KEY         AI extraction
-# Repository variables (optional): OPENAI_MODEL (default gpt-4o-mini);
+#   GEMINI_API_KEY         AI extraction (Google AI Studio key)
+# Repository variables (optional): GEMINI_EXTRACTION_MODEL (default gemini-2.5-flash);
 #   INBOUND_EMAIL_DOMAIN  the domain every workspace's leads inbox lives on (needed for email-signups). Each workspace's own
 #                         address and buyer identity are read per tenant from the database (CRM: Settings → Workspace).
 
@@ -71,8 +71,8 @@ jobs:
       DATABASE_URL_SCRAPER: ${{ secrets.DATABASE_URL_SCRAPER }}
       GOOGLE_CLOUD_API_KEY: ${{ secrets.GOOGLE_CLOUD_API_KEY }}
       BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      OPENAI_MODEL: ${{ vars.OPENAI_MODEL }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_EXTRACTION_MODEL: ${{ vars.GEMINI_EXTRACTION_MODEL }}
       INBOUND_EMAIL_DOMAIN: ${{ vars.INBOUND_EMAIL_DOMAIN }}
     steps:
       - uses: actions/checkout@v4

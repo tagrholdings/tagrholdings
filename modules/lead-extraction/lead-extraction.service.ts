@@ -1,4 +1,5 @@
 import spec from "../../scraper/src/leadengine/shared/lead-engine-spec.json";
+import { generateGeminiJson } from "@/lib/gemini";
 import type { ExtractedFields, LeadSourceType } from "@/modules/leads/leads.schema";
 import type { UsageEventInput } from "@/modules/lead-engine/lead-engine.types";
 
@@ -19,8 +20,6 @@ const EXTRACTION = spec.extraction;
 const LISTINGS = spec.listingsExtraction;
 const PRICING = spec.pricing;
 
-const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
-const REQUEST_TIMEOUT_MS = 45_000;
 const SINGLE_MAX_OUTPUT_TOKENS = 800;
 
 export interface ExtractionInput {
@@ -33,7 +32,7 @@ export interface ExtractionInput {
 
 export interface ExtractionResult {
   fields: ExtractedFields;
-  /** null when no billable call happened (no API key, or the request never reached OpenAI). */
+  /** null when no billable call happened (no API key, or the request never reached Gemini). */
   usage: UsageEventInput | null;
   /** true when the fields are only the hints — the AI step didn't produce a usable result. */
   fallback: boolean;
@@ -99,85 +98,44 @@ export function toExtractedFields(
   };
 }
 
-/** USD for one OpenAI call at list price. Unknown models get the conservative fallback rate. Mirrors pricing.py. */
-export function openAiCostUsd(model: string, inputTokens: number, outputTokens: number): number {
-  const table = PRICING.openaiUsdPerMillion as Record<string, number[]>;
+/** USD for one Gemini call at list price (output includes thinking tokens). Unknown models get the conservative fallback rate. Mirrors pricing.py. */
+export function geminiCostUsd(model: string, inputTokens: number, outputTokens: number): number {
+  const table = PRICING.geminiUsdPerMillion as Record<string, number[]>;
   const match = Object.keys(table)
     .sort((a, b) => b.length - a.length)
     .find((key) => model.startsWith(key));
-  const [rateIn, rateOut] = match ? table[match] : PRICING.openaiFallbackUsdPerMillion;
+  const [rateIn, rateOut] = match ? table[match] : PRICING.geminiFallbackUsdPerMillion;
   return (inputTokens * rateIn + outputTokens * rateOut) / 1_000_000;
 }
 
 export const RESEND_INBOUND_USD_PER_EMAIL: number = PRICING.resendInboundUsdPerEmail;
 
-// -- the one place that talks to OpenAI ------------------------------------------------------------------------------
+// -- the one place that talks to Gemini ------------------------------------------------------------------------------
 
-type OpenAiCall =
+type GeminiCall =
   | { status: "ok"; parsed: Record<string, unknown>; usage: UsageEventInput }
-  /** OpenAI answered (so the call is billed) but the content wasn't a JSON object. */
+  /** Gemini answered (so the call is billed) but the content wasn't a usable JSON object. */
   | { status: "unusable"; usage: UsageEventInput }
   /** No key, HTTP error or network failure — nothing was billed. */
   | { status: "failed" };
 
-async function callOpenAi(args: { system: string; user: string; schemaName: string; schema: unknown; maxTokens: number }): Promise<OpenAiCall> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    console.warn("lead-extraction: OPENAI_API_KEY is not set — saving the lead without AI extraction.");
+async function callGemini(args: { system: string; user: string; schema: unknown; maxTokens: number }): Promise<GeminiCall> {
+  if (!process.env.GEMINI_API_KEY) {
+    console.warn("lead-extraction: GEMINI_API_KEY is not set — saving the lead without AI extraction.");
     return { status: "failed" };
   }
-  const model = process.env.OPENAI_MODEL?.trim() || "gpt-4o-mini";
+  const result = await generateGeminiJson({ system: args.system, user: args.user, schema: args.schema, maxOutputTokens: args.maxTokens });
+  if (result.status === "failed") return { status: "failed" };
 
-  let body: {
-    model?: string;
-    usage?: { prompt_tokens?: number; completion_tokens?: number };
-    choices?: { message?: { content?: string | null } }[];
-  };
-  try {
-    const response = await fetch(OPENAI_URL, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: args.system },
-          { role: "user", content: args.user },
-        ],
-        response_format: { type: "json_schema", json_schema: { name: args.schemaName, strict: true, schema: args.schema } },
-        max_completion_tokens: args.maxTokens,
-      }),
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
-    if (!response.ok) {
-      console.error(`lead-extraction: OpenAI answered ${response.status}`);
-      return { status: "failed" };
-    }
-    body = await response.json();
-  } catch (error) {
-    console.error("lead-extraction: OpenAI request failed:", error instanceof Error ? error.message : error);
-    return { status: "failed" };
-  }
-
-  const inputTokens = body.usage?.prompt_tokens ?? 0;
-  const outputTokens = body.usage?.completion_tokens ?? 0;
-  const reportedModel = body.model ?? model;
   const usage: UsageEventInput = {
-    provider: "openai",
+    provider: "gemini",
     operation: "extract",
-    model: reportedModel,
-    inputTokens,
-    outputTokens,
-    costUsd: openAiCostUsd(reportedModel, inputTokens, outputTokens),
+    model: result.model,
+    inputTokens: result.inputTokens,
+    outputTokens: result.outputTokens,
+    costUsd: geminiCostUsd(result.model, result.inputTokens, result.outputTokens),
   };
-
-  try {
-    const parsed = JSON.parse(body.choices?.[0]?.message?.content || "{}");
-    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("not an object");
-    return { status: "ok", parsed: parsed as Record<string, unknown>, usage };
-  } catch {
-    console.error("lead-extraction: OpenAI returned non-JSON content.");
-    return { status: "unusable", usage };
-  }
+  return result.status === "ok" ? { status: "ok", parsed: result.parsed, usage } : { status: "unusable", usage };
 }
 
 // -- one business ------------------------------------------------------------------------------------------------------
@@ -236,13 +194,12 @@ export function parseListings(parsed: Record<string, unknown>, sourceText: strin
 export const leadExtractionService = {
   /**
    * Never throws: a lead whose AI step fails is still worth saving, so failures return the hint-only
-   * fields with `fallback: true` (and `usage` only if OpenAI actually answered, i.e. the call is billed).
+   * fields with `fallback: true` (and `usage` only if Gemini actually answered, i.e. the call is billed).
    */
   async extract(input: ExtractionInput): Promise<ExtractionResult> {
-    const call = await callOpenAi({
+    const call = await callGemini({
       system: EXTRACTION.systemPrompt,
       user: userMessage(input),
-      schemaName: "lead_extraction",
       schema: EXTRACTION.outputSchema,
       maxTokens: SINGLE_MAX_OUTPUT_TOKENS,
     });
@@ -260,10 +217,9 @@ export const leadExtractionService = {
    */
   async extractListings(input: { text: string; sourceType: LeadSourceType }): Promise<ListingsExtractionResult> {
     const text = input.text.slice(0, LISTINGS.maxInputChars);
-    const call = await callOpenAi({
+    const call = await callGemini({
       system: LISTINGS.systemPrompt,
       user: `Source type: ${input.sourceType}\n\n--- BEGIN EMAIL TEXT ---\n${text}\n--- END EMAIL TEXT ---`,
-      schemaName: "listing_digest_extraction",
       schema: LISTINGS.outputSchema,
       maxTokens: LISTINGS.maxOutputTokens,
     });

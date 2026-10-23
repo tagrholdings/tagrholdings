@@ -106,7 +106,7 @@ class RawLead:
 class UsageEvent:
     """One billable call — becomes a `lead_api_usage` row."""
 
-    provider: str  # openai | google_places | brave_search | google_geocoding
+    provider: str  # gemini | google_places | brave_search | google_geocoding  (older rows say "openai")
     operation: str  # text_search | search | geocode | extract
     cost_usd: float
     model: str | None = None

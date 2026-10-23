@@ -15,7 +15,7 @@ main.py ─ takes a DB advisory lock (one run at a time)
               source.search() → pages of Candidates
                 for each unknown candidate (dedupe key not in raw_leads):   ← known ones cost nothing
                   enrich/company_site   homepage + contact page → emails, phones, text   (robots-aware)
-                  extraction/extractor  text → extractedFields (OpenAI, strict JSON schema)
+                  extraction/extractor  text → extractedFields (Gemini, JSON that follows the shared schema)
                   db.insert_lead        ON CONFLICT DO NOTHING
                   usage recorded per paid call, immediately
             stop at the profile's lead cap or the time limit → checkpoint saved
@@ -59,7 +59,7 @@ Flags: `--max-minutes N` (stop starting work, save checkpoint), `--profile-id ID
 
 Docker (same image for CI and the future server): `docker build -t tagr-lead-engine scraper/` then `docker run --rm --env-file scraper/.env tagr-lead-engine --max-minutes 5`.
 
-Scheduled: `.github/workflows/lead-engine.yml` (every 6 h + manual dispatch). Repository secrets: `DATABASE_URL_SCRAPER`, `GOOGLE_CLOUD_API_KEY`, `BRAVE_API_KEY`, `OPENAI_API_KEY`; optional variables `OPENAI_MODEL` and `INBOUND_EMAIL_DOMAIN` (the domain every workspace's leads inbox lives on; needed for the email signups — each workspace's own address and buyer identity come from the database, per tenant). Manual runs: Actions tab → Run workflow (`task`: `engine` or `email-signups`).
+Scheduled: `.github/workflows/lead-engine.yml` (every 6 h + manual dispatch). Repository secrets: `DATABASE_URL_SCRAPER`, `GOOGLE_CLOUD_API_KEY`, `BRAVE_API_KEY`, `GEMINI_API_KEY`; optional variables `GEMINI_EXTRACTION_MODEL` and `INBOUND_EMAIL_DOMAIN` (the domain every workspace's leads inbox lives on; needed for the email signups — each workspace's own address and buyer identity come from the database, per tenant). Manual runs: Actions tab → Run workflow (`task`: `engine` or `email-signups`).
 
 ## Broker listing sites (businesses for sale)
 
@@ -86,7 +86,7 @@ While a run reads pages, it also asks one question of each: *is this a page that
 
 ## Shared extraction spec
 
-The AI prompt, strict JSON schema and OpenAI price table are in `src/leadengine/shared/lead-engine-spec.json` — the same file the Next.js app imports (it extracts manual and inbound-email leads in real time). Edit prompt/schema/prices there only. The mapping from model output to `extractedFields` exists in Python (`extractor.py`) and TypeScript (`modules/lead-extraction`); `tests/fixtures/extraction_golden.json` is asserted by both suites so they can't drift.
+The AI prompt, JSON schema and Gemini price table are in `src/leadengine/shared/lead-engine-spec.json` — the same file the Next.js app imports (it extracts manual and inbound-email leads in real time). Edit prompt/schema/prices there only. The mapping from model output to `extractedFields` exists in Python (`extractor.py`) and TypeScript (`modules/lead-extraction`); `tests/fixtures/extraction_golden.json` is asserted by both suites so they can't drift.
 
 ## Tests
 
@@ -98,7 +98,7 @@ Covers the shared-spec golden mapping, signal-keyword matching, the email-signup
 
 ## Costs and safeguards
 
-- Every paid call is written to `lead_api_usage` with an **estimated list-price cost** the moment it happens; free tiers/credits aren't subtracted. Update the prices when a provider changes them (OpenAI's live in the shared spec JSON, the rest in `pricing.py`) (verify against Google Maps Platform and OpenAI pricing pages).
+- Every paid call is written to `lead_api_usage` with an **estimated list-price cost** the moment it happens; free tiers/credits aren't subtracted. Update the prices when a provider changes them (Gemini's live in the shared spec JSON, the rest in `pricing.py`) (verify against the Google Maps Platform and Gemini API pricing pages).
 - Spend guards: per-profile **max new leads per run**; known candidates skip enrichment and AI entirely; AI input is capped (~6k chars/lead).
 - A `--max-leads` cap on a first run is strongly recommended after any change to a profile's terms.
 - Secrets never go in logs: `httpx`'s request logging (which prints URLs, and Google's APIs take the key as a query parameter) is silenced in `main.py`. Restrict the Google key to the three APIs in Google Cloud.

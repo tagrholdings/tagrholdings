@@ -113,7 +113,7 @@ class BrokerListingsSource:
         if store is None:
             raise SourceNotConfigured("The listing-sites list is not available to this run.")
         if self._extractor is None:
-            raise SourceNotConfigured("OPENAI_API_KEY is not set — listings can't be read without the AI step.")
+            raise SourceNotConfigured("GEMINI_API_KEY is not set — listings can't be read without the AI step.")
 
         self._discover(profile, ctx)
 

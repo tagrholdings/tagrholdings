@@ -15,8 +15,8 @@ def settings() -> Settings:
         database_url="postgresql://unused",
         google_api_key="test-key",
         brave_api_key="test-brave",
-        openai_api_key="test-openai",
-        openai_model="gpt-4o-mini",
+        gemini_api_key="test-gemini",
+        gemini_model="gemini-2.5-flash",
         user_agent="TagrLeadEngine/1.0 (+https://example.test)",
     )
 

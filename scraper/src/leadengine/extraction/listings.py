@@ -13,9 +13,10 @@ from urllib.parse import urlsplit
 
 from ..config import Settings
 from ..models import UsageEvent
-from ..pricing import openai_cost_usd
+from ..pricing import gemini_cost_usd
 from ..shared import SPEC
 from .extractor import to_extracted_fields
+from .gemini_client import GenerateJson, generate_json, parse_json_object
 
 log = logging.getLogger(__name__)
 
@@ -73,55 +74,43 @@ def parse_listings(parsed: dict[str, Any], source_text: str) -> list[ExtractedLi
     return listings
 
 
-class OpenAIListingsExtractor:
-    def __init__(self, settings: Settings, client: Any | None = None) -> None:
-        if client is None:
-            from openai import OpenAI  # imported lazily: tests inject a fake client
-
-            if not settings.openai_api_key:
-                raise RuntimeError("OPENAI_API_KEY is not set.")
-            client = OpenAI(api_key=settings.openai_api_key, max_retries=3, timeout=60)
-        self._client = client
+class GeminiListingsExtractor:
+    def __init__(self, settings: Settings, generate: GenerateJson | None = None) -> None:
+        if generate is None and not settings.gemini_api_key:
+            raise RuntimeError("GEMINI_API_KEY is not set.")
+        self._generate = generate or generate_json  # tests inject a fake
         self._settings = settings
 
     def extract(self, text: str, source_type: str = "broker_website") -> ListingsExtraction:
         text = text[:MAX_INPUT_CHARS]
         try:
-            response = self._client.chat.completions.create(
-                model=self._settings.openai_model,
-                messages=[
-                    {"role": "system", "content": _LISTINGS["systemPrompt"]},
-                    {"role": "user", "content": f"Source type: {source_type}\n\n--- BEGIN EMAIL TEXT ---\n{text}\n--- END EMAIL TEXT ---"},
-                ],
-                response_format={
-                    "type": "json_schema",
-                    "json_schema": {"name": "listing_digest_extraction", "strict": True, "schema": _LISTINGS["outputSchema"]},
-                },
-                max_completion_tokens=_LISTINGS["maxOutputTokens"],
+            answer = self._generate(
+                self._settings,
+                _LISTINGS["systemPrompt"],
+                f"Source type: {source_type}\n\n--- BEGIN EMAIL TEXT ---\n{text}\n--- END EMAIL TEXT ---",
+                _LISTINGS["outputSchema"],
+                _LISTINGS["maxOutputTokens"],
             )
         except Exception:  # noqa: BLE001 - one bad call must not stop the crawl
             log.exception("Listing extraction request failed")
             return ListingsExtraction(failed=True)
 
-        usage = getattr(response, "usage", None)
-        input_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
-        output_tokens = int(getattr(usage, "completion_tokens", 0) or 0)
-        model = getattr(response, "model", None) or self._settings.openai_model
         event = UsageEvent(
-            provider="openai",
+            provider="gemini",
             operation="extract",
-            model=model,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-            cost_usd=openai_cost_usd(
-                model, input_tokens, output_tokens, self._settings.openai_input_usd_per_million, self._settings.openai_output_usd_per_million
+            model=answer.model,
+            input_tokens=answer.input_tokens,
+            output_tokens=answer.output_tokens,
+            cost_usd=gemini_cost_usd(
+                answer.model,
+                answer.input_tokens,
+                answer.output_tokens,
+                self._settings.gemini_input_usd_per_million,
+                self._settings.gemini_output_usd_per_million,
             ),
         )
-        try:
-            parsed = json.loads(response.choices[0].message.content or "{}")
-            if not isinstance(parsed, dict):
-                raise ValueError("not an object")
-        except (json.JSONDecodeError, ValueError):
+        parsed = parse_json_object(answer)
+        if parsed is None:
             log.warning("Listing extraction returned unusable output")
             return ListingsExtraction(usage=event, failed=True)  # the call happened, so it is billed
         return ListingsExtraction(listings=parse_listings(parsed, text), usage=event)

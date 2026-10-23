@@ -68,7 +68,7 @@ Values are strings as the source wrote them ("$1.2M", "12 employees") — the ex
 
 ### `lead_runs` / `lead_api_usage` (`modules/lead-engine/lead-engine.schema.ts`)
 
-One `lead_runs` row per execution of one profile (`running|completed|partial|failed`, candidates seen, leads added, error). One `lead_api_usage` row per billable call: `provider` (`openai`, `google_places`, `brave_search`, `google_geocoding`), `operation`, `model`, `requests`, `inputTokens`/`outputTokens`, `costUsd`. **`costUsd` is the job's estimate at list price** (`scraper/src/leadengine/pricing.py`), recorded when the call happens; free tiers/credits are not subtracted. Only calls the provider actually accepted are recorded (a rejected Geocoding request, or a Brave 429, is not spend). Brave Search is priced at US$ 0.005 per request (Search plan: US$ 5 / 1,000, plus US$ 5 of free credit per month that is not subtracted).
+One `lead_runs` row per execution of one profile (`running|completed|partial|failed`, candidates seen, leads added, error). One `lead_api_usage` row per billable call: `provider` (`gemini`, `google_places`, `brave_search`, `google_geocoding`; older rows may say `openai` — the AI step ran on OpenAI until 2026-10), `operation`, `model`, `requests`, `inputTokens`/`outputTokens`, `costUsd`. **`costUsd` is the job's estimate at list price** (`scraper/src/leadengine/pricing.py`), recorded when the call happens; free tiers/credits are not subtracted. Only calls the provider actually accepted are recorded (a rejected Geocoding request, or a Brave 429, is not spend). Brave Search is priced at US$ 0.005 per request (Search plan: US$ 5 / 1,000, plus US$ 5 of free credit per month that is not subtracted).
 
 ## Discovery sources (what each one does)
 
@@ -125,7 +125,7 @@ One service, three entry points, so the logic exists exactly once (`modules/lead
    - If the AI step fails, or it runs and finds no business for sale (a welcome mail, a promo), the email is still kept as **one** plain lead (subject as its name, with a note saying which case) — nothing an email brought disappears silently.
 6. **Spend**: each received email is logged as provider `resend`, operation `receive`. Resend has **no separate inbound price** — received emails count toward the account's monthly quota (Free: 3,000/mo and 100/day; Pro: 50k/mo, then US$ 0.90 per 1,000). The tracked figure is the overage rate, US$ 0.0009/email, as an upper bound; within your plan's quota the marginal cost is zero.
 
-Cost: one AI call per email (~US$ 0.0004 for a four-listing alert on `gpt-4o-mini`; at most 15 listings and 30,000 characters are read per email), logged as `openai/extract`, plus one `resend/receive`. Known limits: email leads have **no search profile**, so they don't get a fit badge against a profile's criteria (a follow-up: let email leads be scored against a chosen criteria set); and a listing that only appears as a tracking redirect link with no name/price can't be recognised as a repeat.
+Cost: one AI call per email (~US$ 0.001 for a four-listing alert on `gemini-2.5-flash`; at most 25 listings and 30,000 characters are read per email), logged as `gemini/extract`, plus one `resend/receive`. Known limits: email leads have **no search profile**, so they don't get a fit badge against a profile's criteria (a follow-up: let email leads be scored against a chosen criteria set); and a listing that only appears as a tracking redirect link with no name/price can't be recognised as a repeat.
 
 ## Email sources — tracking list and auto-signup
 
@@ -167,9 +167,9 @@ A search profile can carry optional `criteria` (jsonb): min/max **revenue**, min
 | Vercel | `RESEND_WEBHOOK_SECRET` | inbound webhook signature (`whsec_…`, from the Resend webhook page) |
 | Vercel | `RESEND_API_KEY` | fetching the received email's body (already used for the contact form) |
 | Vercel | `INBOUND_EMAIL_DOMAIN` | the Resend receiving domain every workspace's inbox address lives on |
-| Vercel | `OPENAI_API_KEY`, `OPENAI_MODEL?` | AI extraction of manual/email leads (the job has its own copy) |
+| Vercel | `GEMINI_API_KEY`, `GEMINI_EXTRACTION_MODEL?` | AI extraction of manual/email leads, and the Slack assistant (the job has its own copy) |
 | Vercel (optional) | `GITHUB_DISPATCH_TOKEN`, `GITHUB_REPOSITORY`, `GITHUB_DISPATCH_REF?` | start the workflow immediately on "Run now" / "Attempt subscribe" (token: fine-grained, *Actions: read & write* on the repo) |
-| GitHub Actions | secrets `DATABASE_URL_SCRAPER`, `GOOGLE_CLOUD_API_KEY`, `BRAVE_API_KEY`, `OPENAI_API_KEY`; variables `OPENAI_MODEL?`, `INBOUND_EMAIL_DOMAIN` | the job (it reads each workspace's own inbox address and buyer identity from the database, per tenant) |
+| GitHub Actions | secrets `DATABASE_URL_SCRAPER`, `GOOGLE_CLOUD_API_KEY`, `BRAVE_API_KEY`, `GEMINI_API_KEY`; variables `GEMINI_EXTRACTION_MODEL?`, `INBOUND_EMAIL_DOMAIN` | the job (it reads each workspace's own inbox address and buyer identity from the database, per tenant) |
 
 The webhook URL to register in Resend is `https://crm.tagrholdings.com/api/webhooks/resend-inbound` (the CRM host — the marketing host would redirect a POST), event `email.received`.
 
@@ -183,7 +183,7 @@ The webhook URL to register in Resend is `https://crm.tagrholdings.com/api/webho
 
 ## AI extraction vs. analysis — two stages, don't conflate
 
-1. **Extraction** (built): `extraction/` in the job. Provider today: OpenAI (`gpt-4o-mini` default, strict JSON-schema output); the project intends to move to Claude Haiku — only `extractor.py` and `pricing.py` change. Fills the fields above; never scores or ranks.
+1. **Extraction** (built): `extraction/` in the job. Provider today: Gemini (`gemini-2.5-flash` default, JSON output that follows the shared schema, thinking switched off); it ran on OpenAI until 2026-10. A provider is two small files — `extraction/gemini_client.py` and `pricing.py` — plus the shared prices. Fills the fields above; never scores or ranks.
 2. **Analysis/scoring** (deferred — checklist item 11): dedup across sources, fit score, outreach draft. Where it runs (job vs. a `leads` Service routine) and where its fields live (`raw_leads` columns vs. a `lead_analysis` table) are still open — document the choice here when decided.
 
 ## Promoting a raw lead into a pipeline item

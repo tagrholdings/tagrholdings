@@ -70,7 +70,7 @@ class CountingExtractor:
         self.calls += 1
         return Extraction(
             {"businessName": candidate.business_name},
-            UsageEvent(provider="openai", operation="extract", model="gpt-4o-mini", cost_usd=0.0003, input_tokens=100, output_tokens=20),
+            UsageEvent(provider="gemini", operation="extract", model="gemini-2.5-flash", cost_usd=0.0003, input_tokens=100, output_tokens=20),
         )
 
 
@@ -101,7 +101,7 @@ def test_adds_new_leads_and_records_extraction_usage(profile):
 
     assert (result.status, result.candidates_seen, result.leads_added) == ("completed", 2, 2)
     assert extractor.calls == 2
-    assert len(db.usage) == 2 and all(u.provider == "openai" for u in db.usage)
+    assert len(db.usage) == 2 and all(u.provider == "gemini" for u in db.usage)
     assert db.finished["added"] == 2
     state, mark_ran = db.saved
     assert mark_ran is True and "cursor" not in state and state["resume"] is False

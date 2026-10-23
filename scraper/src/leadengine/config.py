@@ -15,16 +15,16 @@ class Settings:
     database_url: str
     google_api_key: str | None
     brave_api_key: str | None
-    openai_api_key: str | None
-    openai_model: str
+    gemini_api_key: str | None
+    gemini_model: str
     user_agent: str
     # The domain every workspace's leads inbox lives on (INBOUND_EMAIL_DOMAIN, e.g. in.tagrholdings.com). Each workspace has
     # its OWN address on it — `<tenants.inbound_local_part>@<domain>` — and its own buyer identity (who the signups sign up
     # as); both are read per tenant from the database, so nothing here is shared between workspaces. Only email_signup needs it.
     inbound_email_domain: str | None = None
-    # Optional overrides for the cost estimate of a model missing from pricing.py.
-    openai_input_usd_per_million: float | None = None
-    openai_output_usd_per_million: float | None = None
+    # Optional overrides for the cost estimate of a model missing from the shared price table.
+    gemini_input_usd_per_million: float | None = None
+    gemini_output_usd_per_million: float | None = None
 
 
 def _optional_float(name: str) -> float | None:
@@ -45,11 +45,12 @@ def load_settings() -> Settings:
         database_url=database_url,
         google_api_key=os.environ.get("GOOGLE_CLOUD_API_KEY", "").strip() or None,
         brave_api_key=os.environ.get("BRAVE_API_KEY", "").strip() or None,
-        openai_api_key=os.environ.get("OPENAI_API_KEY", "").strip() or None,
-        openai_model=os.environ.get("OPENAI_MODEL", "").strip() or "gpt-4o-mini",
+        gemini_api_key=os.environ.get("GEMINI_API_KEY", "").strip() or None,
+        # Its own variable (not the Slack assistant's GEMINI_MODEL): reading leads is a cheap, high-volume job.
+        gemini_model=os.environ.get("GEMINI_EXTRACTION_MODEL", "").strip() or "gemini-2.5-flash",
         user_agent=os.environ.get("SCRAPER_USER_AGENT", "").strip()
         or "TagrLeadEngine/1.0 (+https://www.tagrholdings.com; business research)",
         inbound_email_domain=os.environ.get("INBOUND_EMAIL_DOMAIN", "").strip().lower() or None,
-        openai_input_usd_per_million=_optional_float("OPENAI_INPUT_USD_PER_MILLION"),
-        openai_output_usd_per_million=_optional_float("OPENAI_OUTPUT_USD_PER_MILLION"),
+        gemini_input_usd_per_million=_optional_float("GEMINI_INPUT_USD_PER_MILLION"),
+        gemini_output_usd_per_million=_optional_float("GEMINI_OUTPUT_USD_PER_MILLION"),
     )

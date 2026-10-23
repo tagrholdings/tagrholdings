@@ -6,7 +6,8 @@ import httpx
 import pytest
 
 from conftest import make_ctx
-from leadengine.extraction.listings import ExtractedListing, ListingsExtraction, OpenAIListingsExtractor, parse_listings
+from leadengine.extraction.gemini_client import GeminiAnswer
+from leadengine.extraction.listings import ExtractedListing, GeminiListingsExtractor, ListingsExtraction, parse_listings
 from leadengine.models import SOURCE_BROKER_LISTINGS, ListingSite, UsageEvent
 from leadengine.sources.base import SourceNotConfigured
 from leadengine.sources.broker_listings import BrokerListingsSource, listing_signature
@@ -144,29 +145,45 @@ def test_parse_listings_verifies_urls_against_the_source_text_and_drops_empty_it
     assert listings[0].fields["location"]["state"] == "AZ"
 
 
-class _FakeCompletions:
-    def __init__(self, content):
-        self.content, self.kwargs = content, None
+class _FakeGenerate:
+    def __init__(self, text, truncated=False, raises=None):
+        self.text, self.truncated, self.raises, self.call = text, truncated, raises, None
 
-    def create(self, **kwargs):
-        self.kwargs = kwargs
-        message = type("M", (), {"content": self.content})()
-        usage = type("U", (), {"prompt_tokens": 1000, "completion_tokens": 200})()
-        return type("R", (), {"choices": [type("C", (), {"message": message})()], "usage": usage, "model": "gpt-4o-mini"})()
+    def __call__(self, settings, system, user, schema, max_output_tokens):
+        self.call = {"system": system, "user": user, "schema": schema, "max_output_tokens": max_output_tokens}
+        if self.raises:
+            raise self.raises
+        return GeminiAnswer(text=self.text, model="gemini-2.5-flash", input_tokens=1000, output_tokens=200, truncated=self.truncated)
 
 
-def _extractor(settings, content):
-    completions = _FakeCompletions(content)
-    client = type("Client", (), {"chat": type("Chat", (), {"completions": completions})()})()
-    return OpenAIListingsExtractor(settings, client=client), completions
+def _extractor(settings, content, **kwargs):
+    generate = _FakeGenerate(content, **kwargs)
+    return GeminiListingsExtractor(settings, generate=generate), generate
 
 
 def test_extractor_returns_listings_and_a_billable_usage_event(settings):
-    extractor, completions = _extractor(settings, '{"listings":[{"business_name":"HVAC Co","listing_url":null}]}')
+    extractor, generate = _extractor(settings, '{"listings":[{"business_name":"HVAC Co","listing_url":null}]}')
     result = extractor.extract("page text")
     assert [l.fields["businessName"] for l in result.listings] == ["HVAC Co"]
     assert result.usage and result.usage.input_tokens == 1000 and not result.failed
-    assert completions.kwargs["response_format"]["json_schema"]["strict"] is True
+    assert result.usage.provider == "gemini"
+    from leadengine.shared import SPEC
+
+    assert generate.call["schema"] == SPEC["listingsExtraction"]["outputSchema"]
+    assert generate.call["max_output_tokens"] == SPEC["listingsExtraction"]["maxOutputTokens"]
+    assert "BEGIN EMAIL TEXT" in generate.call["user"]
+
+
+def test_a_failing_request_is_a_failure_that_bills_nothing(settings):
+    extractor, _ = _extractor(settings, "", raises=RuntimeError("boom"))
+    result = extractor.extract("page text")
+    assert result.failed and result.usage is None and result.listings == []
+
+
+def test_a_truncated_reply_is_a_failure_that_is_still_billed(settings):
+    extractor, _ = _extractor(settings, '{"listings":[{"business_na', truncated=True)
+    result = extractor.extract("page text")
+    assert result.failed and result.usage is not None
 
 
 def test_extractor_marks_unusable_output_as_failed_but_still_billed(settings):
@@ -200,7 +217,7 @@ class FakeExtractor:
 
     def extract(self, text, source_type="broker_website"):
         self.calls += 1
-        usage = UsageEvent(provider="openai", operation="extract", model="gpt-4o-mini", cost_usd=0.001, input_tokens=10, output_tokens=5)
+        usage = UsageEvent(provider="gemini", operation="extract", model="gemini-2.5-flash", cost_usd=0.001, input_tokens=10, output_tokens=5)
         return ListingsExtraction(listings=list(self.listings), usage=usage, failed=self.failed)
 
 

@@ -22,12 +22,12 @@ def test_field_mapping_matches_the_shared_golden_fixture():
 
 def test_shared_spec_is_what_the_python_side_actually_uses():
     from leadengine.extraction.prompt import OUTPUT_SCHEMA, SYSTEM_PROMPT
-    from leadengine.pricing import OPENAI_USD_PER_MILLION
+    from leadengine.pricing import GEMINI_USD_PER_MILLION
     from leadengine.shared import SPEC
 
     assert SYSTEM_PROMPT == SPEC["extraction"]["systemPrompt"]
-    assert sorted(OUTPUT_SCHEMA["required"]) == sorted(OUTPUT_SCHEMA["properties"])  # OpenAI strict mode
-    assert OPENAI_USD_PER_MILLION["gpt-4o-mini"] == (0.15, 0.6)
+    assert sorted(OUTPUT_SCHEMA["required"]) == sorted(OUTPUT_SCHEMA["properties"])  # every field is required: the model can't skip one
+    assert GEMINI_USD_PER_MILLION["gemini-2.5-flash"] == (0.3, 2.5)
 
 
 class TestMatchSignals:
@@ -85,7 +85,7 @@ class OneCandidate:
 
 class SilentExtractor:
     def extract(self, candidate, text):
-        return Extraction({"businessName": "Cool Air", "summary": "HVAC contractor.", "signals": []}, UsageEvent("openai", "extract", 0.0001))
+        return Extraction({"businessName": "Cool Air", "summary": "HVAC contractor.", "signals": []}, UsageEvent("gemini", "extract", 0.0001))
 
 
 def run(profile):
