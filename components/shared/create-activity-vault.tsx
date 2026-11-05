@@ -47,14 +47,18 @@ export function CreateActivityVault({
   members = [],
   onCreate,
   tourId,
+  defaultAssigneePersonId,
 }: CreateActivityVaultProps & {
   /** `data-tour` name for the trigger button (see components/layout/page-help.ts). */
   tourId?: string;
+  /** The team person a new activity starts assigned to (the signed-in one) — still changeable in the form. */
+  defaultAssigneePersonId?: string | null;
 }) {
   const [open, setOpen] = useState(false);
+  const defaults = () => activityFormDefaults(defaultAssigneePersonId ? { assignedTo: `person:${defaultAssigneePersonId}` } : {});
   const form = useForm<ActivityFormValues>({
     resolver: zodResolver(activityFormSchema),
-    defaultValues: activityFormDefaults(),
+    defaultValues: defaults(),
   });
 
   // VaultPrimaryButton contract (see the end of components/ui/vault.tsx):
@@ -73,13 +77,13 @@ export function CreateActivityVault({
         throw new Error("createActivityAction failed");
       }
     }
-    form.reset(activityFormDefaults());
+    form.reset(defaults());
   };
 
   // Closing any way but "Create" (Cancel, the X, the overlay, a swipe down) throws the draft away.
   const handleOpenChange = (next: boolean) => {
     setOpen(next);
-    if (!next) form.reset(activityFormDefaults());
+    if (!next) form.reset(defaults());
   };
 
   return (

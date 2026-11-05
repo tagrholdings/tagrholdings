@@ -351,6 +351,7 @@ export function ActivitiesView({
               organizations={lookups.organizations}
               pipelineItems={lookups.pipelineItems}
               members={lookups.members}
+              defaultAssigneePersonId={myPersonId}
               onCreate={handleCreate}
             />
           </PageSlotContent>

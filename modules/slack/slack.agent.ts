@@ -383,7 +383,9 @@ export async function runAgent(input: AgentInput, deps: AgentDeps): Promise<Agen
             responses.push({ functionResponse: { name: call.name, response: { error: built.error } } });
             break;
           }
-          const fields = proposalFieldsSchema.safeParse({ ...built.patch, notify: built.patch.notify ?? false });
+          // Nobody named → it is the sender's own (otherwise "Only mine" in the CRM hides it from them).
+          const owner = built.patch.assignedToPersonId || built.patch.assignedToContactId ? {} : { assignedToPersonId: deps.senderPersonId };
+          const fields = proposalFieldsSchema.safeParse({ ...owner, ...built.patch, notify: built.patch.notify ?? false });
           if (!fields.success) {
             responses.push({ functionResponse: { name: call.name, response: { error: fields.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ") } } });
             break;

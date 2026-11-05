@@ -91,6 +91,18 @@ const input = { text: "x", timeZone: "America/Phoenix", now: new Date("2026-10-2
 const deps = (generate: ReturnType<typeof script>["generate"], d = data()) => ({ generate, data: d, userName: "Boss", senderPersonId: null });
 
 describe("runAgent", () => {
+  it("assigns a new activity to the sender when nobody was named, but never overrides a named assignee", async () => {
+    const ownDeps = (generate: ReturnType<typeof script>["generate"]) => ({ ...deps(generate), senderPersonId: MARIA });
+    const unnamed = await runAgent(input, ownDeps(script([{ name: "create_activity", args: { type: "task", subject: "Send the LOI" } }]).generate));
+    if (unnamed.kind !== "propose" || unnamed.payload.kind !== "create") throw new Error("expected a create proposal");
+    expect(unnamed.payload.fields.assignedToPersonId).toBe(MARIA);
+
+    const forContact = await runAgent(input, ownDeps(script([{ name: "create_activity", args: { type: "call", subject: "Call back", assigned_to_contact_id: JOAO } }]).generate));
+    if (forContact.kind !== "propose" || forContact.payload.kind !== "create") throw new Error("expected a create proposal");
+    expect(forContact.payload.fields.assignedToContactId).toBe(JOAO);
+    expect(forContact.payload.fields.assignedToPersonId).toBeFalsy();
+  });
+
   it("answers 'what can you do' with the fixed help text, in the person's language", async () => {
     const en = await callTool("show_help", { language: "en" });
     expect(en.outcome).toEqual({ kind: "reply", text: helpText("en") });
