@@ -49,6 +49,9 @@ the CRM.
 - The bot replies in the message's thread with a card; **Create** saves it, **Cancel** drops it. Anyone in the workspace
   can press it. Questions ("what's due today?") are answered directly.
 
+Ask **"help"** / **"what can you do?"** (or just `@TAGR CRM` with nothing else) for the list of abilities. It is fixed text
+in [`modules/slack/slack.help.ts`](../modules/slack/slack.help.ts), English and Portuguese — update it when a tool is added.
+
 ## What the bot says on its own
 
 All of this rides on the existing reminder cron (`/api/cron/task-reminders`, every 20 minutes), so a message can be up to

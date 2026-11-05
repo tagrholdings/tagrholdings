@@ -23,6 +23,7 @@ import { tenancyService } from "@/modules/tenancy/tenancy.service";
 import { runAgent, type AgentData } from "./slack.agent";
 import { CANCEL_ACTION_ID, CONFIRM_ACTION_ID, escapeMrkdwn, proposalBlocks, resolvedBlocks } from "./slack.blocks";
 import { slackClient } from "./slack.client";
+import { helpText } from "./slack.help";
 import { slackMessageText } from "./slack.logic";
 import { slackNotifyService } from "./slack-notify.service";
 import { DONE_ACTION_ID, LEAD_DISMISS_ACTION_ID, LEAD_PROMOTE_ACTION_ID, OPEN_ACTION_ID, SNOOZE_ACTION_ID } from "./slack.notify-blocks";
@@ -164,7 +165,11 @@ export const slackService = {
         audio = downloaded ?? undefined;
       }
       const text = (event.text ?? "").replace(MENTION, "").trim();
-      if (!text && !audio) return;
+      if (!text && !audio) {
+        // A bare "@TAGR CRM" is someone asking what the bot is for.
+        if (event.type === "app_mention") await reply(helpText());
+        return;
+      }
 
       const sender = userId ? await teamService.personForUser(tenantId, userId) : null;
       // What was said before in this thread: the people's messages and the bot's own (its cards included).

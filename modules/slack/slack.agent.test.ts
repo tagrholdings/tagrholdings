@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { GeminiTurn } from "@/lib/gemini";
 import type { ActivityRow } from "@/modules/activities/activities.types";
 import { runAgent, type AgentData } from "./slack.agent";
+import { helpText } from "./slack.help";
 
 vi.mock("@/lib/gemini", () => ({ generateGemini: vi.fn(), GeminiUnavailable: class extends Error {} }));
 
@@ -90,6 +91,15 @@ const input = { text: "x", timeZone: "America/Phoenix", now: new Date("2026-10-2
 const deps = (generate: ReturnType<typeof script>["generate"], d = data()) => ({ generate, data: d, userName: "Boss", senderPersonId: null });
 
 describe("runAgent", () => {
+  it("answers 'what can you do' with the fixed help text, in the person's language", async () => {
+    const en = await callTool("show_help", { language: "en" });
+    expect(en.outcome).toEqual({ kind: "reply", text: helpText("en") });
+    const pt = await callTool("show_help", { language: "pt" });
+    expect(pt.outcome).toEqual({ kind: "reply", text: helpText("pt") });
+    expect((await callTool("show_help", {})).outcome).toEqual({ kind: "reply", text: helpText("en") });
+    expect(helpText("pt")).not.toBe(helpText("en"));
+  });
+
   it("searches, then proposes a complete activity with the ids it found", async () => {
     const { generate } = script(
       [{ name: "search_people", args: { query: "maria" } }, { name: "search_pipeline_items", args: { query: "padaria" } }],

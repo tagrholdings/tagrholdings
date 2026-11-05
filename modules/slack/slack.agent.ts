@@ -3,6 +3,7 @@ import { ACTIVITY_PRIORITIES, ACTIVITY_TYPES, type ActivityRow } from "@/modules
 import { toZonedInputValues } from "@/utils/date";
 import { activityIdsIn, buildDue, dueDay, fieldsFromRow, matchesDue, mergeFields, searchByText, str, type DueFilter } from "./slack.logic";
 import { EOS_TOOLS, isEosTool, runEosTool } from "./slack.eos";
+import { helpText } from "./slack.help";
 import { isRecordTool, RECORD_TOOLS, runRecordTool } from "./slack.records";
 import { proposalFieldsSchema, type AgentInput, type AgentOutcome, type ProposalFields, type ProposalLabels } from "./slack.types";
 
@@ -127,6 +128,11 @@ const TOOLS: GeminiTool[] = [
     parameters: { type: "OBJECT", properties: { activity_id: ID("The activity"), done: { type: "BOOLEAN", description: "Default true; false reopens it." } }, required: ["activity_id"] },
   },
   {
+    name: "show_help",
+    description: "The person asks what you can do, how to use you, or for help ('help', 'what can you do?', 'o que você pode fazer?', 'como uso isso?'). Shows the fixed list of abilities — never describe your abilities yourself with reply.",
+    parameters: { type: "OBJECT", properties: { language: { type: "STRING", enum: ["en", "pt"], description: "pt if the person wrote in Portuguese, otherwise en." } } },
+  },
+  {
     name: "reply",
     description: "Answer in text: a question about the CRM's data, something you could not resolve (say exactly what is missing), or a short clarification. Write in the language the person used.",
     parameters: { type: "OBJECT", properties: { text: S("The answer. Short, plain, no markdown headings.") }, required: ["text"] },
@@ -161,7 +167,8 @@ function systemPrompt(input: AgentInput, deps: AgentDeps): string {
     `The person talking to you is ${deps.userName}. Right now it is ${local} (today is ${today}), time zone ${input.timeZone}. Resolve 'tomorrow', 'Friday', 'next week' from that date and give due_date as YYYY-MM-DD and due_time as HH:mm in their own time zone.`,
     "",
     "Rules:",
-    "- Always finish by calling exactly one of: create_activity, update_activity, complete_activity, create_contact, update_contact, create_organization, update_organization, create_pipeline_item, update_pipeline_item, add_note, add_issue, add_todo, create_team_person, set_notifications, reply, ignore.",
+    "- Always finish by calling exactly one of: create_activity, update_activity, complete_activity, create_contact, update_contact, create_organization, update_organization, create_pipeline_item, update_pipeline_item, add_note, add_issue, add_todo, create_team_person, set_notifications, show_help, reply, ignore.",
+    "- 'Help', 'what can you do?', 'how do I use this?' → show_help (never list your abilities yourself).",
     "- Owners and assignees must be TEAM members (search_people). When the person names someone who is not on the team, do not just ask them to check the name: say nobody by that name is on the team and offer the options in one short reply — add them to the team (create_team_person), or go ahead without an owner. If they agree to add the person, propose create_team_person; if they say 'without an owner', propose the item with no owner. Never turn a team member into a contact. A To-Do cannot exist without an owner: for a To-Do offer only adding the person to the team (an issue or an activity can go without one).",
     "- 'Log / note that I talked to X…' → add_note (on the card, company or contact — search first). It is appended with the date, never replacing existing notes. A conversation about a lead belongs on its card; about a person on the contact. A lead is usually named after the business, so when the person names something, search the CARDS first (search_pipeline_items), then companies, then contacts, and use the first good match; only ask when several fit or none does.",
     "- 'How is the pipeline?', 'what is stuck?' → pipeline_summary, then a short reply: biggest numbers first, name the stale cards. Say plainly that 'stale' means untouched for 14+ days and not in the board's last stage.",
@@ -323,6 +330,8 @@ export async function runAgent(input: AgentInput, deps: AgentDeps): Promise<Agen
       switch (call.name) {
         case "ignore":
           return { kind: "ignore" };
+        case "show_help":
+          return { kind: "reply", text: helpText(str(args.language) === "pt" ? "pt" : "en") };
         case "reply": {
           const text = str(args.text);
           if (text) return { kind: "reply", text };
@@ -450,7 +459,7 @@ export async function runAgent(input: AgentInput, deps: AgentDeps): Promise<Agen
     }
     contents.push({ role: "user", parts: responses });
   }
-  return { kind: "reply", text: "I couldn't work that out — could you say it again with a bit more detail?" };
+  return { kind: "reply", text: "I couldn't work that out — could you say it again with a bit more detail? (Say \"help\" to see what I can do.)" };
 }
 
 /** The same two rules the activity form enforces, as an error the model can act on. */
