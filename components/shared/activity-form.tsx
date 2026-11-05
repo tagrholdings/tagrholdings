@@ -97,7 +97,8 @@ export function activityFormDefaults(overrides: Partial<ActivityFormValues> = {}
     organizationId: undefined,
     pipelineItemId: undefined,
     rockId: undefined,
-    notify: false,
+    // On by default: a new activity with a due date reminds. It is turned off per activity with the "Remind me" button.
+    notify: true,
     ...overrides,
   };
 }

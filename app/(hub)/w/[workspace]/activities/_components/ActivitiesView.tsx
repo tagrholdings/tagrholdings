@@ -114,8 +114,9 @@ export function ActivitiesView({
   const [dateField, setDateField] = useState<WeekDateField>("dueDate");
   const [weekOffset, setWeekOffset] = useState(0);
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["id"]>(() => FILTERS.find((f) => f.id === initialFilter)?.id ?? "today");
-  // "Only mine": just the activities assigned to the signed-in person — on the week board and in the list alike.
-  const [mine, setMine] = useState(false);
+  // "Only mine": just the activities assigned to the signed-in person — on the week board and in the list alike. On by
+  // default for someone who has a team entry here; a link that asks for a team-wide filter (Traction's "L10 To-Dos") opens unscoped.
+  const [mine, setMine] = useState(myPersonId !== null && !initialFilter);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);

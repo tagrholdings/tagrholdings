@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import { activityFormDefaults, toNewActivity } from "./activity-form";
 
 describe("toNewActivity", () => {
+  it("reminds by default, and only when there is a due date", () => {
+    expect(toNewActivity(activityFormDefaults({ subject: "Call" })).notify).toBe(true);
+    expect(toNewActivity(activityFormDefaults({ subject: "Call", dueDate: "" })).notify).toBeUndefined();
+  });
+
   it("saves a cleared picker as no link at all (pickers clear to an empty string)", () => {
     const input = toNewActivity(
       activityFormDefaults({ subject: "Call the seller", contactId: "", organizationId: "", pipelineItemId: "", rockId: "", assignedTo: "", priority: "" })

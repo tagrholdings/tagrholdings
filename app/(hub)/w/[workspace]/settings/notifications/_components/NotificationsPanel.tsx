@@ -71,7 +71,7 @@ export function NotificationsPanel() {
         <ul className="mt-2 list-disc space-y-1.5 pl-5">
           <li>This switch is per device: turn it on separately on your phone and on your computer.</li>
           <li>
-            A task only notifies if you tick <span className="font-medium text-foreground">Enable notification</span> when creating it (it needs a due date and time).
+            A new task notifies by default (it needs a due date); switch <span className="font-medium text-foreground">Remind me</span> off when creating it to skip the reminder.
           </li>
           <li>A task assigned to a teammate notifies that teammate; an unassigned one notifies the whole team.</li>
           <li>Reminders are checked every 20 minutes, so one can arrive up to 20 minutes after its due time.</li>

@@ -431,7 +431,7 @@ const ENTRIES: Entry[] = [
           body: [
             "Create an activity and set who does it and when. Whoever you assign it to gets a push right away.",
             "Link it to a lead or project, a person, an organization or a Rock — a Rock's to-dos show here too.",
-            "Filter by Today (the default), Overdue, Next 7 days or Done — and press Only mine to see just what is assigned to you.",
+            "Filter by Today (the default), Overdue, Next 7 days or Done — and use Only mine (on by default) to switch between just what is assigned to you and everyone's.",
             "Open one to see or edit what it is linked to.",
           ],
         },
@@ -445,7 +445,7 @@ const ENTRIES: Entry[] = [
         {
           target: "activities-mine",
           title: "Only your tasks",
-          text: "Shows just the activities assigned to you, on the week board and in the list. Press it again to see everyone's.",
+          text: "On by default: shows just the activities assigned to you, on the week board and in the list. Press it to see everyone's.",
         },
         {
           target: "activities-view",
