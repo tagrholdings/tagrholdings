@@ -287,7 +287,7 @@ export const slackService = {
       const author = payload.message?.user ? await slackClient.getUser(payload.message.user).then((u) => u.name).catch(() => null) : null;
       // The model is told where the text came from and asked for exactly one activity; the link goes into the notes.
       const text = [
-        "I used the 'Create CRM task' shortcut on a Slack message. Propose ONE activity from it (create_activity), unless it clearly isn't a task.",
+        "I used the 'Create CRM task' shortcut on a Slack message. Propose ONE activity from it (create_activity), unless it clearly isn't a task. If it mentions people or companies that are not in the CRM, still propose the activity without them (their names go in the notes) — never ask first.",
         author ? `The message was written by ${author}.` : null,
         permalink ? `Put this link in the notes: ${permalink}` : null,
         `The message: "${original.slice(0, 3000)}"`,
