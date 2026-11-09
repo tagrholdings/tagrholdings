@@ -106,11 +106,11 @@ describe("runAgent", () => {
   it("creates an activity even when the person it mentions is not in the CRM, keeping the name in the notes", async () => {
     const { generate } = script(
       [{ name: "search_people", args: { query: "Zé" } }, { name: "search_contacts", args: { query: "Zé" } }],
-      [{ name: "create_activity", args: { type: "call", subject: "Call Zé Ninguém", notes: "Contact: Zé Ninguém (not in the CRM)" } }]
+      [{ name: "create_activity", args: { type: "call", subject: "Call Zé", notes: "Mentioned: Zé Ninguém (not in the CRM)" } }]
     );
     const outcome = await runAgent(input, { ...deps(generate), senderPersonId: MARIA });
     if (outcome.kind !== "propose" || outcome.payload.kind !== "create") throw new Error("expected a create proposal");
-    expect(outcome.payload.fields).toMatchObject({ subject: "Call Zé Ninguém", assignedToPersonId: MARIA });
+    expect(outcome.payload.fields).toMatchObject({ subject: "Call Zé", assignedToPersonId: MARIA });
     expect(outcome.payload.fields.contactId).toBeFalsy();
     expect(outcome.payload.fields.notes).toContain("Zé Ninguém");
   });
