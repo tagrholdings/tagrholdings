@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   pipeline: { listAllForTenant: vi.fn(), listBoards: vi.fn() },
   engine: { getSpendTotals: vi.fn() },
   traction: { getSummary: vi.fn(), getL10Schedule: vi.fn() },
+  gemini: { generateGeminiJson: vi.fn() },
 }));
 
 vi.mock("./slack-installations.repository", () => ({ slackInstallationsRepository: mocks.installations }));
@@ -23,6 +24,8 @@ vi.mock("@/modules/team/team.service", () => ({ teamService: mocks.team }));
 vi.mock("@/modules/pipeline/pipeline.service", () => ({ pipelineService: mocks.pipeline }));
 vi.mock("@/modules/lead-engine/lead-engine.service", () => ({ leadEngineService: mocks.engine }));
 vi.mock("@/modules/traction/traction.service", () => ({ tractionService: mocks.traction }));
+
+vi.mock("@/lib/gemini", () => ({ generateGeminiJson: mocks.gemini.generateGeminiJson }));
 
 import { slackNotifyService } from "./slack-notify.service";
 
@@ -263,7 +266,9 @@ describe("sweep: morning digest", () => {
   });
 });
 
-describe("sweep: weekly report", () => {
+// The admins' pipeline report is paused (PIPELINE_WEEKLY_REPORT_PAUSED in slack-notify.service.ts). Switch the flag back and
+// un-skip this to bring it back.
+describe.skip("sweep: weekly report (paused)", () => {
   const monday = new Date("2026-10-26T15:30:00Z"); // 08:30 Monday in Phoenix
   const admins = () => {
     mocks.tenancy.listMembers.mockResolvedValue([
@@ -314,5 +319,95 @@ describe("sweep: weekly report", () => {
     admins();
     mocks.installations.claimSend.mockImplementation(async (key: string) => !key.startsWith("weekly:"));
     expect((await slackNotifyService.sweep(monday)).weekly).toBe(0);
+  });
+});
+
+describe("sweep: personal week plan and review", () => {
+  const monday9 = new Date("2026-11-16T16:30:00Z"); // 09:30 Monday in Phoenix
+  const friday3 = new Date("2026-11-20T22:30:00Z"); // 15:30 Friday in Phoenix
+  const act = (subject: string, iso: string | null, over = {}) => ({ id: subject, type: "task", subject, done: false, assignedToPersonId: "p1", dueDate: iso ? new Date(iso) : null, timezone: null, updatedAt: new Date("2026-11-01T00:00:00Z"), contactName: null, organizationName: null, pipelineItemTitle: null, ...over });
+
+  beforeEach(() => {
+    mocks.repo.findLinks.mockResolvedValue([link()]);
+    mocks.team.personForUser.mockResolvedValue({ id: "p1" });
+    mocks.activities.listForTenant.mockResolvedValue([
+      act("Call João", "2026-11-16T21:00:00Z", { timezone: "America/Phoenix" }), // Monday 2:00 PM
+      act("Send LOI", "2026-11-18T07:00:00Z"), // Wednesday, date only
+      act("Last week's leftover", "2026-11-12T07:00:00Z"),
+      act("Next week", "2026-11-23T07:00:00Z"),
+      act("Someone else's", "2026-11-17T07:00:00Z", { assignedToPersonId: "p2" }),
+      act("Already done", "2026-11-17T07:00:00Z", { done: true, updatedAt: new Date("2026-11-17T20:00:00Z") }),
+      act("Closed the Mesa deal", "2026-11-18T07:00:00Z", { done: true, completedAt: new Date("2026-11-18T20:00:00Z"), updatedAt: new Date("2026-11-18T20:00:00Z") }),
+      act("Done long ago", "2026-11-05T07:00:00Z", { done: true, completedAt: new Date("2026-11-05T20:00:00Z"), updatedAt: new Date("2026-11-19T20:00:00Z") }), // edited this week, but finished long ago
+      act("Still to do Friday", "2026-11-20T07:00:00Z"),
+    ]);
+  });
+
+  it("Monday 9:00 their time: this week's open tasks by day, nothing from the week before", async () => {
+    expect((await slackNotifyService.sweep(monday9)).weekly).toBe(1);
+    const [slackUser, message] = mocks.client.postDm.mock.calls[0];
+    expect(slackUser).toBe("U1");
+    const text = JSON.stringify(message.blocks);
+    expect(message.text).toBe("Your week — 3 tasks scheduled");
+    expect(text).toContain("Mon, Nov 16");
+    expect(text).toContain("Call João");
+    expect(text).toContain("2:00 PM");
+    expect(text).toContain("Wed, Nov 18");
+    expect(text).toContain("Send LOI");
+    expect(text).toContain("Still to do Friday");
+    expect(text).not.toContain("leftover");
+    expect(text).not.toContain("Next week");
+    expect(text).not.toContain("Someone else");
+    expect(text).not.toContain("Already done");
+    expect(mocks.installations.claimSend).toHaveBeenCalledWith("weekplan:" + TENANT + ":U1:2026-11-16");
+    expect(mocks.gemini.generateGeminiJson).not.toHaveBeenCalled();
+  });
+
+  it("Friday 15:00 their time: the AI recap of what was done this week, and what is still open", async () => {
+    mocks.gemini.generateGeminiJson.mockResolvedValue({ status: "ok", parsed: { summary: "You closed the Mesa deal." }, model: "m", inputTokens: 1, outputTokens: 1 });
+    expect((await slackNotifyService.sweep(friday3)).weekly).toBe(1);
+    const [, message] = mocks.client.postDm.mock.calls[0];
+    const text = JSON.stringify(message.blocks);
+    expect(message.text).toBe("Your week in review — 2 done, 3 still open");
+    expect(text).toContain("You closed the Mesa deal.");
+    expect(text).toContain("Still to do Friday");
+    expect(text).not.toContain("Done long ago");
+    expect(text).not.toContain("leftover");
+    const prompt = mocks.gemini.generateGeminiJson.mock.calls[0][0].user as string;
+    expect(prompt).toContain("Closed the Mesa deal");
+    expect(prompt).not.toContain("Done long ago");
+    expect(mocks.installations.claimSend).toHaveBeenCalledWith("weekwrap:" + TENANT + ":U1:2026-11-20");
+  });
+
+  it("Friday still goes out, as a plain list, when the AI doesn't answer", async () => {
+    mocks.gemini.generateGeminiJson.mockResolvedValue({ status: "failed" });
+    expect((await slackNotifyService.sweep(friday3)).weekly).toBe(1);
+    const text = JSON.stringify(mocks.client.postDm.mock.calls[0][1].blocks);
+    expect(text).toContain("Closed the Mesa deal");
+    expect(text).toContain("Already done");
+  });
+
+  it("only at the right hour on the right day, in each person's own zone, once, and never to someone who turned it off", async () => {
+    expect((await slackNotifyService.sweep(new Date("2026-11-16T15:30:00Z"))).weekly).toBe(0); // Monday 08:30
+    expect((await slackNotifyService.sweep(new Date("2026-11-17T16:30:00Z"))).weekly).toBe(0); // Tuesday 09:30
+    expect((await slackNotifyService.sweep(new Date("2026-11-20T16:30:00Z"))).weekly).toBe(0); // Friday 09:30 (the review is at 15:00)
+    mocks.repo.findLinks.mockResolvedValue([link(), link({ slackUserId: "U2", userId: "user-2", timeZone: "America/New_York" })]);
+    mocks.team.personForUser.mockImplementation(async (_t: string, userId: string) => ({ id: userId === "user-1" ? "p1" : "p2" }));
+    expect((await slackNotifyService.sweep(monday9)).weekly).toBe(1); // 09:30 in Phoenix is 11:30 in New York
+    expect(mocks.client.postDm.mock.calls[0][0]).toBe("U1");
+
+    mocks.client.postDm.mockClear();
+    mocks.repo.findLinks.mockResolvedValue([link({ weeklyDm: false })]);
+    expect((await slackNotifyService.sweep(monday9)).weekly).toBe(0);
+    mocks.repo.findLinks.mockResolvedValue([link()]);
+    mocks.installations.claimSend.mockResolvedValue(false);
+    expect((await slackNotifyService.sweep(monday9)).weekly).toBe(0); // already sent
+    expect(mocks.client.postDm).not.toHaveBeenCalled();
+  });
+
+  it("sends nothing when there is nothing to say", async () => {
+    mocks.activities.listForTenant.mockResolvedValue([]);
+    expect((await slackNotifyService.sweep(monday9)).weekly).toBe(0);
+    expect((await slackNotifyService.sweep(friday3)).weekly).toBe(0);
   });
 });

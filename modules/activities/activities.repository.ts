@@ -1,5 +1,5 @@
 import { withTenant } from "@/lib/db";
-import { and, asc, eq, gt, gte, inArray, isNull, lte, or } from "drizzle-orm";
+import { and, asc, eq, gt, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { activitiesTable } from "./activities.schema";
 import { contactsTable } from "@/modules/contacts/contacts.schema";
@@ -20,6 +20,7 @@ const withRelationsSelection = {
   dueDate: activitiesTable.dueDate,
   timezone: activitiesTable.timezone,
   done: activitiesTable.done,
+  completedAt: activitiesTable.completedAt,
   priority: activitiesTable.priority,
   notes: activitiesTable.notes,
   contactId: activitiesTable.contactId,
@@ -84,7 +85,8 @@ export const activitiesRepository = {
     const [row] = await withTenant(tenantId, (tx) =>
       tx
         .update(activitiesTable)
-        .set({ done, updatedAt: new Date() })
+        // Marking done twice keeps the first time; re-opening clears it.
+        .set({ done, completedAt: done ? sql`coalesce(${activitiesTable.completedAt}, now())` : null, updatedAt: new Date() })
         .where(and(eq(activitiesTable.tenantId, tenantId), eq(activitiesTable.id, id)))
         .returning()
     );

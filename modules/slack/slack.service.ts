@@ -328,7 +328,7 @@ export const slackService = {
     const link = await slackRepository.updateLink(tenantId, slackUserId, patch);
     if (!link) return "I can only change that for people whose Slack account is linked to a member of this workspace.";
     const state = (on: boolean) => (on ? "on" : "off");
-    return `Done. Direct messages from me — task reminders: *${state(link.remindDm)}* · L10 reminder: *${state(link.l10Dm)}* · daily summary (8:00 your time): *${state(link.digestDm)}* · weekly report (admins): *${state(link.weeklyDm)}*.`;
+    return `Done. Direct messages from me — task reminders: *${state(link.remindDm)}* · L10 reminder: *${state(link.l10Dm)}* · daily summary (8:00 your time): *${state(link.digestDm)}* · weekly summaries (Mon 9:00 and Fri 15:00 your time): *${state(link.weeklyDm)}*.`;
   },
 
   /** Slack person → workspace login: the stored link if still valid, otherwise matched by e-mail (and remembered). */

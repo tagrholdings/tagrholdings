@@ -80,7 +80,7 @@ const TOOLS: GeminiTool[] = [
         reminders: { type: "BOOLEAN", description: "Direct messages when one of their tasks is due or a task is assigned to them." },
         l10: { type: "BOOLEAN", description: "The reminder an hour before the weekly L10 meeting." },
         daily_summary: { type: "BOOLEAN", description: "A summary at 8:00 their time of what is due today and overdue." },
-        weekly_report: { type: "BOOLEAN", description: "The weekly pipeline report (only workspace admins receive it)." },
+        weekly_report: { type: "BOOLEAN", description: "The personal weekly summaries: Monday 9:00 (the week ahead) and Friday 15:00 (the week in review), the sender's own tasks." },
       },
     },
   },

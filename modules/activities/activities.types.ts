@@ -90,9 +90,11 @@ export interface ActivityRow {
   /** The zone the due time was entered in; null when the activity has no time. */
   timezone: string | null;
   createdAt: string | Date;
-  /** Last change — also when it was marked done (there is no separate completion time). */
+  /** Last change of any kind (an edit, a move, marking it done). */
   updatedAt?: string | Date;
   done: boolean;
+  /** When it was marked done. Null on rows done before this was recorded: use `updatedAt` there. */
+  completedAt?: string | Date | null;
   priority: string | null;
   notes: string | null;
   contactId: string | null;

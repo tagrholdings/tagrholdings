@@ -18,7 +18,7 @@ const EN = [
   "",
   "*Reply in my thread* to correct something (\"make it Friday\", \"also assign it to Carlos\").",
   "*On any Slack message:* ⋯ More actions → *Create CRM task*.",
-  "*My direct messages to you* (reminders, L10, daily summary, weekly report): _\"stop the reminders\"_, _\"send me the daily summary\"_.",
+  "*My direct messages to you* (reminders, L10, daily summary, weekly summaries): _\"stop the reminders\"_, _\"send me the daily summary\"_.",
   "",
   "_I can't create or rename boards — that's done in the CRM._",
 ].join("\n");

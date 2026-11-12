@@ -749,7 +749,7 @@ const ENTRIES: Entry[] = [
             "Task reminders and new assignments, as a direct message with Done and Snooze buttons.",
             "A reminder before each L10, to every teammate on Slack.",
             "New leads as cards in the command channel, with Add to pipeline and Dismiss.",
-            "An optional daily summary (each person turns it on) and a weekly report for admins, on Mondays.",
+            "An optional daily summary (each person turns it on) and personal weekly summaries (the week ahead on Monday at 9:00, the week in review on Friday at 15:00).",
           ],
         },
         {

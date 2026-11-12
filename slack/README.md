@@ -63,7 +63,7 @@ All of this rides on the existing reminder cron (`/api/cron/task-reminders`, eve
 - **New leads** — cards in the workspace's command channel (the best five by fit, then "and N more") with **Add to
   pipeline** and **Dismiss**. Only leads from the last 24 hours are announced, so turning it on doesn't dump a backlog.
 - **Daily summary** (opt-in) — 8:00 the person's own time: what is due today and overdue.
-- **Weekly report** — Mondays from 8:00 (the workspace's L10 time zone), by DM to workspace **admins**.
+- **Weekly summaries** — each person, about their own assigned tasks: Monday 9:00 their time, the week ahead (nothing from earlier weeks); Friday 15:00 their time, an AI recap of what they finished plus what is still open. The admins' pipeline report is paused (`PIPELINE_WEEKLY_REPORT_PAUSED`).
 
 People control their own DMs by telling the bot: "stop the reminders", "send me the daily summary", "turn off the weekly
 report". The same bot also takes notes ("note on the Padaria lead: …" is appended with the date, never replacing), shows

@@ -6,9 +6,8 @@ import { dueDay } from "./slack.logic";
  * Numbers the bot reports about the pipeline: asked for in Slack ("how's the pipeline?") and the base of the weekly report.
  * Pure — the caller hands in the lists it already loaded — so it is cheap to test and gives the same answer everywhere.
  *
- * Two things the database does not record, so they are approximated and the report says so:
+ * One thing the database does not record, so it is approximated and the report says so:
  *  - there is no stage history: "moved" can only be "edited" (`updatedAt` also changes on any edit);
- *  - there is no completion time on activities: "done this week" is `done` and `updatedAt` in the last 7 days.
  * And one assumption: the LAST stage of a board is its "finished" stage (Closed, Done) — cards there are never "stale".
  */
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -78,7 +77,7 @@ export function summarizePipeline(input: { items: SummaryItem[]; boards: Summary
     activities: {
       overdue: open.filter((a) => (dayOf(a) ?? "9999-12-31") < today).length,
       dueToday: open.filter((a) => dayOf(a) === today).length,
-      doneLast7Days: activities.filter((a) => a.done && a.updatedAt && new Date(a.updatedAt).getTime() >= weekAgo).length,
+      doneLast7Days: activities.filter((a) => a.done && (a.completedAt ?? a.updatedAt) && new Date((a.completedAt ?? a.updatedAt)!).getTime() >= weekAgo).length,
     },
     newLeadsToReview: input.newLeads,
   };

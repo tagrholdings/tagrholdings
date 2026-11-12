@@ -24,6 +24,8 @@ export const activitiesTable = pgTable(
     /** IANA zone the due time was entered in ("America/Phoenix"). Null when no time was set. Display only — `dueDate` is the instant. */
     timezone: text("timezone"),
     done: boolean("done").notNull().default(false),
+    /** When it was marked done; cleared when it is re-opened. Null on a task that isn't done (and on old done rows from before this column: fall back to `updatedAt`). */
+    completedAt: timestamp("completed_at"),
     priority: text("priority"),
     notes: text("notes"),
     contactId: uuid("contact_id"),

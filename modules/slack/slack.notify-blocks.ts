@@ -104,6 +104,39 @@ export function digestMessage(input: { today: DigestItem[]; overdue: DigestItem[
   return { text: `Good morning — ${input.today.length} due today, ${input.overdue.length} overdue`, blocks: [section(parts.join("\n\n")), { type: "actions", elements: [linkButton("Open my tasks", input.url)] }] };
 }
 
+export interface WeekPlanDay {
+  /** "Mon, Nov 16" */
+  label: string;
+  items: DigestItem[];
+}
+
+const PER_DAY_SHOWN = 6;
+const itemLine = (item: DigestItem) => `• ${escapeMrkdwn(item.subject)}${item.time ? ` _(${escapeMrkdwn(item.time)})_` : ""}`;
+
+/** Monday: the person's open tasks for the week ahead, day by day. Nothing from earlier weeks. */
+export function weekPlanMessage(input: { days: WeekPlanDay[]; total: number; url: string }): Message {
+  const head = `🗓️ *Your week* — ${input.total} task${input.total === 1 ? "" : "s"} scheduled`;
+  const days = input.days.map((d) => `*${escapeMrkdwn(d.label)}*\n${d.items.slice(0, PER_DAY_SHOWN).map(itemLine).join("\n")}${d.items.length > PER_DAY_SHOWN ? `\n_…and ${d.items.length - PER_DAY_SHOWN} more_` : ""}`);
+  return {
+    text: `Your week — ${input.total} task${input.total === 1 ? "" : "s"} scheduled`,
+    blocks: [section([head, ...days].join("\n\n")), { type: "actions", elements: [linkButton("Open my week", input.url)] }],
+  };
+}
+
+/** Friday afternoon: what the person got done (summarised by the AI when it answered) and what is still open this week. */
+export function weekWrapMessage(input: { summary: string | null; done: string[]; pending: { subject: string; day: string }[]; url: string }): Message {
+  const doneBlock = input.done.length
+    ? `*Done this week* (${input.done.length})\n${input.summary ? escapeMrkdwn(input.summary) : input.done.slice(0, 10).map((s) => `• ${escapeMrkdwn(s)}`).join("\n")}`
+    : "*Done this week*\n_Nothing was marked as done._";
+  const pendingBlock = input.pending.length
+    ? `*Still open* (${input.pending.length})\n${input.pending.slice(0, 10).map((p) => `• ${escapeMrkdwn(p.subject)} _(${escapeMrkdwn(p.day)})_`).join("\n")}${input.pending.length > 10 ? `\n_…and ${input.pending.length - 10} more_` : ""}`
+    : "*Still open*\n_Nothing left over — a clean week._";
+  return {
+    text: `Your week in review — ${input.done.length} done, ${input.pending.length} still open`,
+    blocks: [section(`🏁 *Your week in review*\n\n${doneBlock}\n\n${pendingBlock}`), { type: "actions", elements: [linkButton("Open my tasks", input.url)] }],
+  };
+}
+
 export interface WeeklyReport {
   workspaceName: string;
   /** "Oct 19 – Oct 26": the week the report covers, ending today. */

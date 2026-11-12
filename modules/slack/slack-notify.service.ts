@@ -10,7 +10,9 @@ import { pipelineService } from "@/modules/pipeline/pipeline.service";
 import { teamService } from "@/modules/team/team.service";
 import { tractionService } from "@/modules/traction/traction.service";
 import { FIT_RANK } from "@/modules/search-profiles/fit";
-import { assignedMessage, digestMessage, l10Message, leadMessage, moreLeadsMessage, reminderMessage, weeklyReportMessage, type DigestItem, type Message, type WeeklyReport } from "./slack.notify-blocks";
+import { generateGeminiJson } from "@/lib/gemini";
+import { zonedTimeToUtc } from "@/modules/traction/traction.logic";
+import { assignedMessage, digestMessage, l10Message, leadMessage, moreLeadsMessage, reminderMessage, weekPlanMessage, weekWrapMessage, weeklyReportMessage, type DigestItem, type Message, type WeeklyReport, type WeekPlanDay } from "./slack.notify-blocks";
 import { dueDay, addDays } from "./slack.logic";
 import { summarizePipeline } from "./slack.reports";
 import { slackClient } from "./slack.client";
@@ -59,6 +61,15 @@ const DIGEST_HOUR = "08";
 const WEEKLY_FROM = "08:00";
 const DEFAULT_REPORT_ZONE = "America/Phoenix";
 
+/**
+ * The admins' weekly PIPELINE report is paused (2026-11-12): people get their own task summaries instead (sendPersonalWeekly).
+ * The code stays; flip this to bring the report back on Mondays. "Send me the weekly report" in Slack still works.
+ */
+const PIPELINE_WEEKLY_REPORT_PAUSED = true;
+/** Each person's week ahead goes out Monday in this local hour (09:00-09:59), their week in review on Friday in this one (15:00-15:59). */
+const WEEK_PLAN_HOUR = "09";
+const WEEK_WRAP_HOUR = "15";
+
 const SOURCE_LABELS: Record<string, string> = {
   google_places: "Google Places",
   brave_search: "Web search",
@@ -93,7 +104,12 @@ export const slackNotifyService = {
           sent = await this.sendDigests(tenant, now, budget);
           result.digests += sent;
           budget -= sent;
-          sent = await this.sendWeeklyReport(tenant, now, budget);
+          if (!PIPELINE_WEEKLY_REPORT_PAUSED) {
+            sent = await this.sendWeeklyReport(tenant, now, budget);
+            result.weekly += sent;
+            budget -= sent;
+          }
+          sent = await this.sendPersonalWeekly(tenant, now, budget);
           result.weekly += sent;
           budget -= sent;
         } catch (error) {
@@ -189,6 +205,93 @@ export const slackNotifyService = {
     let sent = 0;
     for (const { slackUserId } of recipients) if (await this.send(slackUserId, message)) sent += 1;
     return sent;
+  },
+
+  /**
+   * Each person's own week, as a DM to the person the tasks are assigned to (those who kept the weekly summaries on):
+   *  - Monday 9:00 their time: the open tasks due this week (Monday to Sunday), nothing from earlier weeks;
+   *  - Friday 15:00 their time: what they got done this week (a short AI summary) and what is still open from this week.
+   * Claimed per person per local day. A sweep every 20 minutes always lands inside the hour.
+   * "Done this week" is a task marked done (completedAt, or updatedAt on rows from before it was recorded) since Monday.
+   */
+  async sendPersonalWeekly(tenant: { id: string; slug: string }, now: Date, budget: number): Promise<number> {
+    const due = (await slackRepository.findLinks(tenant.id))
+      .filter((l) => l.weeklyDm && l.timeZone)
+      .map((link) => {
+        const local = toZonedInputValues(now, link.timeZone!);
+        const weekday = new Date(`${local.date}T00:00:00Z`).getUTCDay();
+        const kind = weekday === 1 && local.time.startsWith(WEEK_PLAN_HOUR) ? ("plan" as const) : weekday === 5 && local.time.startsWith(WEEK_WRAP_HOUR) ? ("wrap" as const) : null;
+        return { link, today: local.date, weekday, kind };
+      })
+      .filter((c) => c.kind);
+    if (due.length === 0 || budget <= 0) return 0;
+
+    const activities = await activitiesService.listForTenant(tenant.id);
+    let sent = 0;
+    for (const { link, today, weekday, kind } of due) {
+      if (sent >= budget) break;
+      const zone = link.timeZone!;
+      if (!(await slackInstallationsRepository.claimSend(`week${kind}:${tenant.id}:${link.slackUserId}:${today}`))) continue;
+      if (!(await tenancyService.isMember(tenant.id, link.userId))) continue;
+      const person = await teamService.personForUser(tenant.id, link.userId);
+      if (!person) continue;
+
+      const monday = addDays(today, -((weekday + 6) % 7));
+      const sunday = addDays(monday, 6);
+      const mine = activities.filter((a) => a.assignedToPersonId === person.id);
+      const dayOf = (a: (typeof mine)[number]) => dueDay(a.dueDate!, a.timezone, zone);
+      const time = (a: (typeof mine)[number]) => (a.timezone ? new Intl.DateTimeFormat("en-US", { timeZone: zone, hour: "numeric", minute: "2-digit" }).format(new Date(a.dueDate!)) : null);
+      const dayLabel = (iso: string) => new Intl.DateTimeFormat("en-US", { timeZone: "UTC", weekday: "short", month: "short", day: "numeric" }).format(new Date(`${iso}T00:00:00Z`));
+      const url = appUrl(tenant.slug, "/activities");
+      const byDue = (a: (typeof mine)[number], b: (typeof mine)[number]) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime();
+
+      let message: Message | null = null;
+      if (kind === "plan") {
+        const open = mine.filter((a) => !a.done && a.dueDate && dayOf(a) >= today && dayOf(a) <= sunday).sort(byDue);
+        const days: WeekPlanDay[] = [];
+        for (const a of open) {
+          const label = dayLabel(dayOf(a));
+          const last = days.at(-1);
+          if (last?.label === label) last.items.push({ subject: a.subject, time: time(a) });
+          else days.push({ label, items: [{ subject: a.subject, time: time(a) }] });
+        }
+        if (open.length > 0) message = weekPlanMessage({ days, total: open.length, url });
+      } else {
+        const [y, m, d] = monday.split("-").map(Number);
+        const since = zonedTimeToUtc(y, m, d, 0, 0, zone).getTime();
+        const done = mine.filter((a) => a.done && (a.completedAt ?? a.updatedAt) && new Date((a.completedAt ?? a.updatedAt)!).getTime() >= since);
+        const pending = mine.filter((a) => !a.done && a.dueDate && dayOf(a) >= monday && dayOf(a) <= sunday).sort(byDue);
+        if (done.length + pending.length > 0) {
+          const summary = done.length > 0 ? await this.summarizeDone(done) : null;
+          message = weekWrapMessage({ summary, done: done.map((a) => a.subject), pending: pending.map((a) => ({ subject: a.subject, day: dayLabel(dayOf(a)) })), url });
+        }
+      }
+      if (message && (await this.send(link.slackUserId, message))) sent += 1;
+    }
+    return sent;
+  },
+
+  /** A short plain-text recap of the tasks someone finished, written by the AI; null (the bullet list is used instead) if it can't. */
+  async summarizeDone(done: { type: string; subject: string; contactName: string | null; organizationName: string | null; pipelineItemTitle: string | null }[]): Promise<string | null> {
+    try {
+      const lines = done.slice(0, 40).map((a) => {
+        const about = [a.contactName, a.organizationName, a.pipelineItemTitle].filter(Boolean).join(", ");
+        return `- [${typeLabel(a.type)}] ${a.subject}${about ? ` (${about})` : ""}`;
+      });
+      const result = await generateGeminiJson({
+        system:
+          'You write a short end-of-week recap for one person, from the list of tasks they completed. 2 to 4 sentences, plain text, no markdown, no bullet points, written to them in the second person ("You..."). Group related work together and mention the notable items; do not invent anything that is not in the list. Write in the language most of the task titles are written in (English if mixed).',
+        user: `Tasks completed this week:\n${lines.join("\n")}`,
+        schema: { type: "object", properties: { summary: { type: "string" } }, required: ["summary"] },
+        maxOutputTokens: 400,
+      });
+      if (result.status !== "ok") return null;
+      const text = typeof result.parsed.summary === "string" ? result.parsed.summary.trim() : "";
+      return text ? text.slice(0, 1200) : null;
+    } catch (error) {
+      console.error("slack: summarising the week failed:", error);
+      return null;
+    }
   },
 
   /** New leads from the last day, as cards in the workspace's command channel: the best five, then "and N more". */
