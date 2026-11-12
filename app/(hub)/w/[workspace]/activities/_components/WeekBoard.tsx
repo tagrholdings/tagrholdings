@@ -101,12 +101,15 @@ function DayColumn({
 
 export function WeekBoard({
   days,
+  todayTick,
   activities,
   dateField,
   onSelect,
   onMoveToDay,
 }: {
   days: WeekDay[];
+  /** Bumped when the "Today" button is pressed: scroll today's column into view. */
+  todayTick: number;
   activities: ActivityRow[];
   dateField: WeekDateField;
   onSelect: (id: string) => void;
@@ -125,6 +128,15 @@ export function WeekBoard({
     const left = today ? el.scrollLeft + today.getBoundingClientRect().left - el.getBoundingClientRect().left - 16 : 0;
     el.scrollTo({ left });
   }, [weekKey]);
+
+  // "Today" pressed: bring today's column into view on any screen size. The week may have just changed, so wait a frame.
+  useEffect(() => {
+    if (todayTick === 0) return;
+    const frame = requestAnimationFrame(() => {
+      scroller.current?.querySelector<HTMLElement>("[data-today]")?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [todayTick]);
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;

@@ -107,9 +107,10 @@ export function ActivitiesView({
   const isMobile = useIsMobile();
   // A filter in the link (e.g. Traction's "L10 To-Dos") is a list filter, so it opens the List view.
   const [view, setView] = useState<View | null>(initialFilter ? "list" : null);
-  // Until the user picks one, the default follows the device: List on
-  // mobile, Board elsewhere (no effect needed — just derived).
-  const resolvedView: View = view ?? (isMobile ? "list" : "board");
+  // Until the user picks one, List is the default everywhere (no effect needed — just derived).
+  const resolvedView: View = view ?? "list";
+  // Bumped by the board's "Today" button so the board scrolls to today's column even when the week didn't change.
+  const [todayTick, setTodayTick] = useState(0);
 
   const [dateField, setDateField] = useState<WeekDateField>("dueDate");
   const [weekOffset, setWeekOffset] = useState(0);
@@ -280,6 +281,16 @@ export function ActivitiesView({
           {resolvedView === "board" && (
             <>
               {mineToggle}
+              <button
+                type="button"
+                onClick={() => {
+                  setWeekOffset(0);
+                  setTodayTick((t) => t + 1);
+                }}
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-9")}
+              >
+                Today
+              </button>
               <div className="flex shrink-0 items-center gap-1 rounded-sm border border-divider bg-surface px-1 py-0.5 max-md:order-first max-md:w-full">
                 <button
                   type="button"
@@ -371,7 +382,7 @@ export function ActivitiesView({
             </EmptyHeader>
           </Empty>
         ) : resolvedView === "board" ? (
-          <WeekBoard days={days} activities={searched} dateField={dateField} onSelect={setSelectedId} onMoveToDay={handleMoveToDay} />
+          <WeekBoard days={days} todayTick={todayTick} activities={searched} dateField={dateField} onSelect={setSelectedId} onMoveToDay={handleMoveToDay} />
         ) : (
           <>
             {/* Horizontal scroll, not wrap — a row of 7 filters wrapping to 2-3 lines ate too much vertical

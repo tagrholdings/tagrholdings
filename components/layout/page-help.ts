@@ -440,7 +440,7 @@ const ENTRIES: Entry[] = [
         {
           target: "activities-filters",
           title: "Finding what needs doing",
-          text: "Search by title, contact or lead (on a phone, with the search icon in the header). On the week board you move between weeks and choose which date it follows here; the list can be filtered by Overdue, Today or Next 7 days.",
+          text: "Search by title, contact or lead (on a phone, with the search icon in the header). On the week board you move between weeks, press Today to jump back to today's column, and choose which date it follows here; the list can be filtered by Overdue, Today or Next 7 days.",
         },
         {
           target: "activities-mine",
