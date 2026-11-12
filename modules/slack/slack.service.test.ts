@@ -267,11 +267,30 @@ describe("buttons on messages the bot sent unprompted", () => {
   });
 
   it("Snooze moves the due date a day later, keeping the time, and says when", async () => {
-    mocks.activities.getById.mockResolvedValue({ id: ACTIVITY, subject: "Call João", dueDate: new Date("2026-10-22T21:00:00.000Z"), timezone: "America/Phoenix" });
-    mocks.activities.updateDate.mockResolvedValue({});
-    await slackService.handleInteraction(press("slack_snooze"), delivery);
-    expect(mocks.activities.updateDate).toHaveBeenCalledWith(TENANT, ACTIVITY, "dueDate", new Date("2026-10-23T21:00:00.000Z"));
-    expect(cardText()).toContain("snoozed to Fri, Oct 23, 2:00 PM");
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-22T21:05:00.000Z"));
+    try {
+      mocks.activities.getById.mockResolvedValue({ id: ACTIVITY, subject: "Call João", dueDate: new Date("2026-10-22T21:00:00.000Z"), timezone: "America/Phoenix" });
+      mocks.activities.updateDate.mockResolvedValue({});
+      await slackService.handleInteraction(press("slack_snooze"), delivery);
+      expect(mocks.activities.updateDate).toHaveBeenCalledWith(TENANT, ACTIVITY, "dueDate", new Date("2026-10-23T21:00:00.000Z"));
+      expect(cardText()).toContain("snoozed to Fri, Oct 23, 2:00 PM");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("Snooze pressed days late counts the day from now, so the reminder is not already stale", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-25T18:00:00.000Z"));
+    try {
+      mocks.activities.getById.mockResolvedValue({ id: ACTIVITY, subject: "Call João", dueDate: new Date("2026-10-22T21:00:00.000Z"), timezone: "America/Phoenix" });
+      mocks.activities.updateDate.mockResolvedValue({});
+      await slackService.handleInteraction(press("slack_snooze"), delivery);
+      expect(mocks.activities.updateDate).toHaveBeenCalledWith(TENANT, ACTIVITY, "dueDate", new Date("2026-10-26T18:00:00.000Z"));
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("Add to pipeline promotes the lead, Dismiss dismisses it, and both name the lead", async () => {

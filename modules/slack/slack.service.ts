@@ -431,8 +431,12 @@ export const slackService = {
         await update(`✅ *${escapeMrkdwn(activity.subject)}* marked as done${by}`);
       } else if (actionId === SNOOZE_ACTION_ID) {
         const current = await activitiesService.getById(tenantId, targetId);
-        const base = current.dueDate ? new Date(current.dueDate) : new Date();
-        const next = new Date(base.getTime() + 24 * 60 * 60 * 1000);
+        const DAY = 24 * 60 * 60 * 1000;
+        const now = Date.now();
+        let next = new Date((current.dueDate ? new Date(current.dueDate).getTime() : now) + DAY);
+        // Pressed late (the old deadline + 1 day is already past): the reminder job drops anything over a day overdue,
+        // so count the day from now instead, or the snooze would never fire.
+        if (next.getTime() <= now) next = new Date(now + DAY);
         await activitiesService.updateDate(tenantId, targetId, "dueDate", next);
         revalidateActivityPages(slug);
         const when = new Intl.DateTimeFormat("en-US", { timeZone: current.timezone ?? undefined, weekday: "short", month: "short", day: "numeric", ...(current.timezone ? { hour: "numeric", minute: "2-digit" } : {}) }).format(next);
