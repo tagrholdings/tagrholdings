@@ -211,16 +211,17 @@ export const slackNotifyService = {
    * Each person's own week, as a DM to the person the tasks are assigned to (those who kept the weekly summaries on):
    *  - Monday 9:00 their time: the open tasks due this week (Monday to Sunday), nothing from earlier weeks;
    *  - Friday 15:00 their time: what they got done this week (a short AI summary) and what is still open from this week.
+   * `preview` (scripts/preview-weekly.ts) forces one kind for one person, right now, without claiming the day.
    * Claimed per person per local day. A sweep every 20 minutes always lands inside the hour.
    * "Done this week" is a task marked done (completedAt, or updatedAt on rows from before it was recorded) since Monday.
    */
-  async sendPersonalWeekly(tenant: { id: string; slug: string }, now: Date, budget: number): Promise<number> {
+  async sendPersonalWeekly(tenant: { id: string; slug: string }, now: Date, budget: number, preview?: { userId: string; kind: "plan" | "wrap" }): Promise<number> {
     const due = (await slackRepository.findLinks(tenant.id))
-      .filter((l) => l.weeklyDm && l.timeZone)
+      .filter((l) => (preview ? l.userId === preview.userId : l.weeklyDm) && l.timeZone)
       .map((link) => {
         const local = toZonedInputValues(now, link.timeZone!);
         const weekday = new Date(`${local.date}T00:00:00Z`).getUTCDay();
-        const kind = weekday === 1 && local.time.startsWith(WEEK_PLAN_HOUR) ? ("plan" as const) : weekday === 5 && local.time.startsWith(WEEK_WRAP_HOUR) ? ("wrap" as const) : null;
+        const kind = preview ? preview.kind : weekday === 1 && local.time.startsWith(WEEK_PLAN_HOUR) ? ("plan" as const) : weekday === 5 && local.time.startsWith(WEEK_WRAP_HOUR) ? ("wrap" as const) : null;
         return { link, today: local.date, weekday, kind };
       })
       .filter((c) => c.kind);
@@ -231,7 +232,7 @@ export const slackNotifyService = {
     for (const { link, today, weekday, kind } of due) {
       if (sent >= budget) break;
       const zone = link.timeZone!;
-      if (!(await slackInstallationsRepository.claimSend(`week${kind}:${tenant.id}:${link.slackUserId}:${today}`))) continue;
+      if (!preview && !(await slackInstallationsRepository.claimSend(`week${kind}:${tenant.id}:${link.slackUserId}:${today}`))) continue;
       if (!(await tenancyService.isMember(tenant.id, link.userId))) continue;
       const person = await teamService.personForUser(tenant.id, link.userId);
       if (!person) continue;
